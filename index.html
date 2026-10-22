@@ -75,6 +75,8 @@ body.has-modal{overflow:hidden}
   border-radius:99px;background:var(--mint-deep);color:var(--pine);font-size:10px;font-weight:800}
 .rail-item.is-active .badge{background:#fff}
 .rail-sep{height:1px;margin:9px 9px;background:var(--line)}
+.rail-version{margin-top:auto;padding:8px 10px 1px;color:var(--ink-faint);
+  font-size:10px;font-weight:550;letter-spacing:.02em;text-align:left}
 
 .stage{min-width:0;padding:11px 12px 20px;background:#f8fbfa;border:1px solid var(--line);
   border-radius:16px;box-shadow:var(--shadow);min-height:calc(100vh - 89px)}
@@ -565,6 +567,7 @@ tbody tr.is-static:hover{background:transparent}
     border-radius:14px;padding:7px;margin-bottom:7px}
   .rail-item{min-width:44px;width:auto}
   .rail-sep{display:none}
+  .rail-version{display:none}
   .stage{padding:9px;border-radius:14px;min-height:0}
   .stat-grid{grid-template-columns:1fr 1fr}
   .view-actions{justify-content:flex-start;flex-wrap:wrap}
@@ -627,6 +630,7 @@ tbody tr.is-static:hover{background:transparent}
         <img src="/logos/logs.png" alt="" aria-hidden="true">
         <span>运维管理</span>
       </button>
+      <div class="rail-version" aria-label="版本 1.0.0">v1.0.0</div>
     </aside>
 
     <main class="stage"><div class="stage-inner">

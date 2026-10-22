@@ -1966,6 +1966,7 @@ def main():
     port = int(CFG["listen_port"])
     URL = f"http://{host}:{port}"
     if port_alive(host, port):
+        print(f"GM 控制台已在运行：{URL}")
         if CFG.get("auto_open_browser", False):
             open_ui()
         return
