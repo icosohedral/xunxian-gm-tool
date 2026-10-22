@@ -75,8 +75,10 @@ body.has-modal{overflow:hidden}
   border-radius:99px;background:var(--mint-deep);color:var(--pine);font-size:10px;font-weight:800}
 .rail-item.is-active .badge{background:#fff}
 .rail-sep{height:1px;margin:9px 9px;background:var(--line)}
-.rail-version{margin-top:auto;padding:8px 10px 1px;color:var(--ink-faint);
-  font-size:10px;font-weight:550;letter-spacing:.02em;text-align:left}
+.rail-version{display:block;margin-top:auto;padding:8px 10px 1px;color:var(--ink-faint);
+  font-size:10px;font-weight:550;letter-spacing:.02em;text-align:left;text-decoration:none}
+.rail-version:hover{color:var(--pine)}
+.rail-version:focus-visible{outline:2px solid var(--jade);outline-offset:2px;border-radius:3px}
 
 .stage{min-width:0;padding:11px 12px 20px;background:#f8fbfa;border:1px solid var(--line);
   border-radius:16px;box-shadow:var(--shadow);min-height:calc(100vh - 89px)}
@@ -246,6 +248,25 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .rate-status{min-height:19px;margin-top:10px;color:var(--ok);font-size:11px}
 .rate-status.is-bad{color:var(--danger)}
 .game-config-tabs{margin-bottom:10px}
+.fate-lock-card{width:min(100%,460px)}
+.fate-lock-levels{display:grid;grid-template-columns:minmax(140px,1fr) auto;max-width:430px;margin-top:14px;row-gap:4px}
+.fate-lock-row{display:contents}
+.fate-lock-row-label,.fate-lock-row-control{min-height:44px;display:flex;align-items:center;padding:0 10px}
+.fate-lock-row-label{font-size:12px;font-weight:650;color:var(--ink)}
+.fate-lock-row-control{justify-content:flex-end}
+.fate-lock-switch{position:relative;width:40px;height:23px;padding:0;border:0;border-radius:999px;background:#cbd4d0;cursor:pointer;transition:background .16s}
+.fate-lock-switch::after{content:"";position:absolute;top:3px;left:3px;width:17px;height:17px;border-radius:50%;background:#fff;
+  box-shadow:0 1px 3px #14251d30;transition:transform .16s}
+.fate-lock-switch[aria-checked="true"]{background:var(--jade)}
+.fate-lock-switch[aria-checked="true"]::after{transform:translateX(17px)}
+.fate-lock-switch:disabled{cursor:not-allowed;opacity:.55}
+.fate-lock-switch.is-loading::before{content:"";position:absolute;inset:4px;border:2px solid transparent;border-top-color:#fff;
+  border-radius:50%;animation:fate-spin .7s linear infinite;z-index:1}
+.fate-lock-actions{display:flex;justify-content:flex-start;margin-top:14px}
+.fate-lock-save{height:37px;min-width:132px;border-radius:10px}
+@keyframes fate-spin{to{transform:rotate(360deg)}}
+.fate-lock-status{min-height:19px;margin-top:12px;color:var(--ok);font-size:11px;overflow-wrap:anywhere}
+.fate-lock-status.is-bad{color:var(--danger)}
 .definition-card{width:100%}
 .definition-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 .definition-search{width:min(340px,100%);height:34px;padding:0 11px;border:1px solid var(--line-strong);border-radius:9px;
@@ -630,7 +651,7 @@ tbody tr.is-static:hover{background:transparent}
         <img src="/logos/logs.png" alt="" aria-hidden="true">
         <span>运维管理</span>
       </button>
-      <div class="rail-version" aria-label="版本 1.0.0">v1.0.0</div>
+      <a class="rail-version" href="https://github.com/icosohedral/xunxian-gm-tool" target="_blank" rel="noopener noreferrer" aria-label="项目仓库，版本 1.0.0">v1.0.0</a>
     </aside>
 
     <main class="stage"><div class="stage-inner">
@@ -992,6 +1013,7 @@ tbody tr.is-static:hover{background:transparent}
             <button type="button" class="is-active" role="tab" aria-selected="true" data-gcm="rates">倍率设置</button>
             <button type="button" role="tab" aria-selected="false" data-gcm="base">基础定义表</button>
             <button type="button" role="tab" aria-selected="false" data-gcm="dynamic">动态定义表</button>
+            <button type="button" role="tab" aria-selected="false" data-gcm="fate">等级锁定</button>
           </div>
         </div>
         <div id="game-config-panel-rates" role="tabpanel">
@@ -1040,6 +1062,20 @@ tbody tr.is-static:hover{background:transparent}
             </div>
           </article>
         </div>
+        <div id="game-config-panel-fate" class="is-hidden" role="tabpanel">
+          <article class="card fate-lock-card">
+            <div class="card-head"><h3>等级锁定</h3></div>
+            <div class="card-body">
+              <div class="fate-lock-levels" id="fate-lock-levels" aria-label="当前等级锁分布"></div>
+              <div class="fate-lock-status" id="fate-lock-status" role="status" aria-live="polite"></div>
+              <div class="fate-lock-actions">
+                <button class="btn btn-primary fate-lock-save" type="button" id="fate-lock-save" disabled>
+                  保存修改
+                </button>
+              </div>
+            </div>
+          </article>
+        </div>
       </section>
 
       <!-- ============ 运维管理 ============ -->
@@ -1054,7 +1090,6 @@ tbody tr.is-static:hover{background:transparent}
 
         <div id="logs-panel-server">
           <article class="card">
-            <div class="card-head"><h3>游戏服务端</h3><span class="muted" id="server-control-status">就绪</span></div>
             <div class="card-body">
               <div class="toolbar" style="gap:9px;flex-wrap:wrap">
                 <button class="btn btn-primary" id="server-restart">重启服务端</button>
@@ -1370,7 +1405,8 @@ function readDefinitionFavorites(){
 }
 const state = { view:'home', cart:[], scenes:null, acctId:null, charId:null, logs:[], logFilter:'all',
                 acctMode:'account', itemMode:'item', logsMode:'server', ratesLoaded:false,
-                gameConfigMode:'rates', definitions:{base:null,dynamic:null},
+                gameConfigMode:'rates', definitions:{base:null,dynamic:null}, fateLocks:null,
+                fateLockDraft:null, fateLockSaving:false, fateLockLoading:false,
                 definitionDirty:{base:{},dynamic:{}}, definitionFavorites:readDefinitionFavorites() };
 const VIEWS = ['home','acct','item','rates','logs'];
 
@@ -1392,7 +1428,8 @@ function showView(v){
   if (v === 'item') ensureItemList();
   if (v === 'rates'){
     if (state.gameConfigMode === 'rates' && !state.ratesLoaded) loadRates();
-    if (state.gameConfigMode !== 'rates' && !state.definitions[state.gameConfigMode]) loadDefinitions(state.gameConfigMode);
+    if (state.gameConfigMode === 'fate' && !state.fateLocks) loadFateLocks();
+    if (['base','dynamic'].includes(state.gameConfigMode) && !state.definitions[state.gameConfigMode]) loadDefinitions(state.gameConfigMode);
   }
   syncHash();
   window.scrollTo({ top:0, behavior:'smooth' });
@@ -2426,22 +2463,127 @@ $('#rate-form').addEventListener('submit', async e => {
    游戏配置定义表
    ============================================================ */
 function setGameConfigMode(mode){
-  if (!['rates','base','dynamic'].includes(mode)) mode = 'rates';
+  if (!['rates','base','dynamic','fate'].includes(mode)) mode = 'rates';
   state.gameConfigMode = mode;
   $$('#game-config-mode button').forEach(button => {
     const active = button.dataset.gcm === mode;
     button.classList.toggle('is-active', active);
     button.setAttribute('aria-selected', active ? 'true' : 'false');
   });
-  ['rates','base','dynamic'].forEach(key =>
+  ['rates','base','dynamic','fate'].forEach(key =>
     $('#game-config-panel-' + key).classList.toggle('is-hidden', key !== mode));
   if (mode === 'rates' && !state.ratesLoaded) loadRates();
-  if (mode !== 'rates' && !state.definitions[mode]) loadDefinitions(mode);
+  if (mode === 'fate' && !state.fateLocks) loadFateLocks();
+  if (['base','dynamic'].includes(mode) && !state.definitions[mode]) loadDefinitions(mode);
 }
 $('#game-config-mode').addEventListener('click', e => {
   const button = e.target.closest('[data-gcm]');
   if (button) setGameConfigMode(button.dataset.gcm);
 });
+
+function setFateLockStatus(message, bad){
+  const el = $('#fate-lock-status');
+  el.textContent = message || '';
+  el.classList.toggle('is-bad', !!bad);
+}
+function fateLocksAlready200(data){
+  return !!data && data.levels.length === 1 && data.levels[0].level === 200;
+}
+function fateLockChanges(){
+  if (!state.fateLocks || !state.fateLockDraft) return [];
+  const active = new Set(state.fateLocks.levels.filter(item => item.level !== 200).map(item => item.level));
+  return [...state.fateLockDraft].filter(([level, enabled]) => active.has(level) !== enabled)
+    .map(([level, enabled]) => ({level, enabled}));
+}
+function updateFateLockSaveButton(){
+  const button = $('#fate-lock-save');
+  if (button) button.disabled = !state.fateLocks || state.fateLockLoading || state.fateLockSaving || fateLockChanges().length === 0;
+}
+function fateLockLabel(level){
+  const names = {40:'风云劫',60:'天雷劫',80:'十方劫',98:'魂魄劫',100:'五行劫'};
+  return (names[level] ? names[level] + '·' : '') + level + '级';
+}
+const FATE_LOCK_PREVIEW_LEVELS = [40,60,80,98,100];
+function renderFateLocks(data){
+  const active = new Set(data.levels.filter(item => item.level !== 200).map(item => item.level));
+  const levels = [...new Set([...(data.known_levels || []), ...active])].filter(level => level !== 200).sort((a,b) => a-b);
+  if (!state.fateLockDraft) state.fateLockDraft = new Map(levels.map(level => [level, active.has(level)]));
+  $('#fate-lock-levels').innerHTML = levels.map(level => {
+    const enabled = state.fateLockDraft.has(level) ? state.fateLockDraft.get(level) : active.has(level);
+    const label = fateLockLabel(level);
+    return '<div class="fate-lock-row"><span class="fate-lock-row-label">' + esc(label) + '</span>' +
+      '<span class="fate-lock-row-control"><button class="fate-lock-switch" type="button" role="switch" ' +
+      'aria-checked="' + (enabled ? 'true' : 'false') + '" aria-label="' + esc(label) + '等级锁" ' +
+      'data-fate-level="' + esc(level) + '" data-enabled="' + (enabled ? 'true' : 'false') + '" ' +
+      (!state.fateLocks || state.fateLockLoading || state.fateLockSaving ? 'disabled' : '') + '></button></span></div>';
+  }).join('');
+  updateFateLockSaveButton();
+}
+async function loadFateLocks(){
+  const saveButton = $('#fate-lock-save');
+  state.fateLockLoading = true;
+  busy(saveButton, true, '读取中');
+  if (state.fateLocks) renderFateLocks(state.fateLocks);
+  else renderFateLocks({levels:[], known_levels:FATE_LOCK_PREVIEW_LEVELS});
+  setFateLockStatus('');
+  try{
+    const j = await api('/api/fate-lock');
+    state.fateLocks = j.data;
+    const active = new Set(j.data.levels.filter(item => item.level !== 200).map(item => item.level));
+    const levels = [...new Set([...(j.data.known_levels || []), ...active])].filter(level => level !== 200);
+    state.fateLockDraft = new Map(levels.map(level => [level, active.has(level)]));
+    renderFateLocks(j.data);
+    setFateLockStatus(fateLocksAlready200(j.data) ? '当前所有等级锁均为 200' : '');
+  } catch(err){
+    setFateLockStatus(err.message, true);
+  } finally {
+    state.fateLockLoading = false;
+    busy(saveButton, false);
+    if (state.fateLocks) renderFateLocks(state.fateLocks);
+    else renderFateLocks({levels:[], known_levels:FATE_LOCK_PREVIEW_LEVELS});
+  }
+}
+function toggleFateLockDraft(button){
+  if (!state.fateLocks || !state.fateLockDraft || !button || button.disabled || state.fateLockSaving) return;
+  const targetLevel = Number(button.dataset.fateLevel);
+  const enabled = button.dataset.enabled !== 'true';
+  state.fateLockDraft.set(targetLevel, enabled);
+  renderFateLocks(state.fateLocks);
+  setFateLockStatus(fateLockChanges().length ? '有未保存的修改' : '');
+}
+async function saveFateLockChanges(){
+  const changes = fateLockChanges();
+  if (!changes.length || state.fateLockSaving) return;
+  const button = $('#fate-lock-save');
+  state.fateLockSaving = true;
+  busy(button, true, '保存中');
+  renderFateLocks(state.fateLocks);
+  setFateLockStatus('正在保存等级锁修改');
+  try{
+    const j = await postJSON('/api/fate-lock', {changes});
+    state.fateLocks = {total:j.data.total, levels:j.data.levels, known_levels:j.data.known_levels || state.fateLocks.known_levels, origin:j.data.origin};
+    const active = new Set(j.data.levels.filter(item => item.level !== 200).map(item => item.level));
+    state.fateLockDraft = new Map([...(j.data.known_levels || state.fateLocks.known_levels || []), ...active]
+      .filter(level => level !== 200).map(level => [level, active.has(level)]));
+    renderFateLocks(state.fateLocks);
+    const backup = j.data.backup ? '；备份已创建' : '';
+    const created = j.data.created_overlay ? '已从 mb.dpk 创建覆盖文件；' : '';
+    setFateLockStatus(created + '等级锁修改已保存' + backup + '；重启服务端后生效');
+    toast('等级锁定已保存');
+  } catch(err){
+    setFateLockStatus(err.message, true);
+    toast(err.message, true);
+  } finally {
+    state.fateLockSaving = false;
+    busy(button, false);
+    renderFateLocks(state.fateLocks);
+  }
+}
+$('#fate-lock-levels').addEventListener('click', e => {
+  const button = e.target.closest('[data-fate-level]');
+  if (button) toggleFateLockDraft(button);
+});
+$('#fate-lock-save').addEventListener('click', () => saveFateLockChanges());
 
 function setDefinitionStatus(kind, message, bad){
   const el = $('#definitions-status-' + kind);
@@ -2617,12 +2759,10 @@ async function loadServerControlState(){
   try{
     const j = await api('/api/server/control');
     const data = j.data || {};
-    $('#server-control-status').textContent = data.running ? data.phase : (data.phase || '就绪');
     $('#server-control-message').textContent = data.error || '';
     $('#server-control-message').classList.toggle('is-error', !!data.error);
     $('#server-control-message').classList.toggle('is-success', !data.error && !data.running && !!data.phase);
   } catch(e){
-    $('#server-control-status').textContent = '读取失败';
     $('#server-control-message').textContent = e.message;
     $('#server-control-message').classList.add('is-error');
   }
@@ -2645,7 +2785,6 @@ async function runServerAction(action){
         while (Date.now() < deadline){
           const j = await api('/api/server/control');
           const data = j.data || {};
-          $('#server-control-status').textContent = data.phase || '正在处理…';
           if (!data.running){
             if (data.error) throw new Error(data.error);
             $('#server-control-message').textContent = '';

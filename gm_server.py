@@ -8,6 +8,7 @@ removed at the user's request. Review configuration before using a live game.
 import json
 import hashlib
 import ipaddress
+import io
 import os
 import re
 import shlex
@@ -30,11 +31,15 @@ APP_DIR = os.path.dirname(os.path.abspath(sys.executable if FROZEN else __file__
 RES_DIR = getattr(sys, "_MEIPASS", APP_DIR)
 LOG_DIR = os.path.join(APP_DIR, "logs")
 CACHE_DIR = os.path.join(APP_DIR, "data")
+FATE_PACKAGE_CACHE_PATH = os.path.join(CACHE_DIR, "fate_info_package_cache.json")
 LOG_PATH = os.path.join(LOG_DIR, "ops.jsonl")
 SERVER_LOG = os.path.join(LOG_DIR, "server.log")
 CONFIG_PATH = os.path.join(APP_DIR, "gm_config.json")
 RATE_FILE_PATH = "/opt/xxserver/runtime/xx/shm/TTYGZS/dynamicmb/server_set.txt"
+FATE_INFO_FILE_PATH = "/opt/xxserver/runtime/xx/shm/TTYGZS/mb/quest/fate_info.txt"
 SHOP_FILE_PATH = "/opt/xxserver/runtime/xx/shm/TTYGZS/dynamicmb/xy_shop_item.txt"
+MB_DPK_FILE_PATH = "/opt/xxserver/runtime/xx/shm/TTYGZS/mb.dpk"
+FATE_DPK_ENTRY_PATH = "quest/fate_info.txt"
 SHOP_CATEGORIES = [
     {"id": 1, "name": "卖场"}, {"id": 2, "name": "形象"},
     {"id": 3, "name": "法宝"}, {"id": 4, "name": "宠物"},
@@ -100,6 +105,8 @@ DB_GIS = CFG["db_gis"]
 DB_LBA = CFG["db_lba"]
 DBI_HOST, DBI_PORT = "127.0.0.1", 13724
 _lock = threading.Lock()
+_fate_package_cache_lock = threading.Lock()
+_fate_package_source_cache = None
 _grant_lock = threading.Lock()
 _client = None
 _shop_mutation_lock = threading.Lock()
@@ -398,6 +405,314 @@ def set_game_rates(exp, money):
     confirmed = _parse_rate_file(_read_rate_file())
     return {"backup": backup, "exp": confirmed["exp"][0],
             "money": confirmed["money"][0]}
+
+
+def _decode_fate_info(data):
+    try:
+        return data.decode("gb18030")
+    except UnicodeDecodeError as e:
+        raise RuntimeError("天劫等级锁配置编码不是 GB18030，已停止读取") from e
+
+
+def _read_fate_package_source():
+    global _fate_package_source_cache
+    with _fate_package_cache_lock:
+        if _fate_package_source_cache is not None:
+            return _fate_package_source_cache
+        cached = None
+        try:
+            with open(FATE_PACKAGE_CACHE_PATH, "r", encoding="utf-8") as f:
+                cached = json.load(f)
+        except (OSError, ValueError, TypeError):
+            pass
+        with _lock:
+            c = ssh()
+            sftp = c.open_sftp()
+            try:
+                stat = sftp.stat(MB_DPK_FILE_PATH)
+                signature = {"size": stat.st_size, "mtime": stat.st_mtime}
+                if (isinstance(cached, dict) and cached.get("signature") == signature
+                        and isinstance(cached.get("source"), str)):
+                    _fate_package_source_cache = cached["source"]
+                    return _fate_package_source_cache
+                archive_stream = io.BytesIO()
+                sftp.getfo(MB_DPK_FILE_PATH, archive_stream)
+                archive = archive_stream.getvalue()
+            finally:
+                sftp.close()
+        from dpk_reader import extract_dpk_entry
+        data = extract_dpk_entry(archive, FATE_DPK_ENTRY_PATH)
+        _fate_package_source_cache = _decode_fate_info(data)
+        try:
+            os.makedirs(CACHE_DIR, exist_ok=True)
+            temp_path = FATE_PACKAGE_CACHE_PATH + ".tmp"
+            with open(temp_path, "w", encoding="utf-8") as f:
+                json.dump({"signature": signature, "source": _fate_package_source_cache},
+                          f, ensure_ascii=False)
+            os.replace(temp_path, FATE_PACKAGE_CACHE_PATH)
+        except OSError:
+            pass
+        return _fate_package_source_cache
+
+
+def _read_fate_info_source():
+    with _lock:
+        c = ssh()
+        _, stdout, stderr = c.exec_command(
+            "sudo -n cat -- " + shlex.quote(FATE_INFO_FILE_PATH), timeout=20)
+        data = stdout.read()
+        err = stderr.read().decode("utf-8", "replace").strip()
+        rc = stdout.channel.recv_exit_status()
+    if rc == 0:
+        return _decode_fate_info(data), "overlay"
+    reset_ssh()
+    if "No such file or directory" not in err:
+        raise RuntimeError(err or "读取天劫等级锁配置失败")
+
+    try:
+        return _read_fate_package_source(), "package"
+    except Exception as e:
+        raise RuntimeError("松散覆盖文件不存在，且无法从 mb.dpk 读取原表：" + str(e)) from e
+
+
+def _read_fate_info_file():
+    return _read_fate_info_source()[0]
+
+
+def _fate_info_row(line, line_number):
+    if "\t" in line:
+        columns = line.split("\t")
+        if len(columns) < 2 or not columns[1].strip().isdigit():
+            return None
+        if len(columns) < 3:
+            raise RuntimeError(f"fate_info.txt 第 {line_number} 行不足 3 列")
+        third_start = len(columns[0]) + len(columns[1]) + 2
+        lock_field = columns[2]
+        offset = third_start
+    else:
+        fields = list(re.finditer(r"\S+", line))
+        if len(fields) < 2 or not fields[1].group().isdigit():
+            return None
+        if len(fields) < 3:
+            raise RuntimeError(f"fate_info.txt 第 {line_number} 行不足 3 列")
+        return {"id": fields[1].group(), "level": int(fields[2].group()),
+                "span": fields[2].span()}
+
+    lock_match = re.search(r"\S+", lock_field)
+    if not lock_match:
+        raise RuntimeError(f"fate_info.txt 第 {line_number} 行第 3 列为空")
+    try:
+        level = int(lock_match.group())
+    except ValueError as e:
+        raise RuntimeError(f"fate_info.txt 第 {line_number} 行第 3 列不是整数") from e
+    return {"id": columns[1].strip(), "level": level,
+            "span": (offset + lock_match.start(), offset + lock_match.end())}
+
+
+def _parse_fate_info_file(source):
+    rows = []
+    for line_number, line in enumerate(source.splitlines(), 1):
+        try:
+            row = _fate_info_row(line, line_number)
+        except ValueError as e:
+            raise RuntimeError(f"fate_info.txt 第 {line_number} 行第 3 列不是整数") from e
+        if row:
+            rows.append({"id": row["id"], "level": row["level"]})
+    if not rows:
+        raise RuntimeError("fate_info.txt 没有可识别的等级锁配置行")
+    return rows
+
+
+def _fate_lock_summary(rows):
+    levels = {}
+    for row in rows:
+        level = row["level"]
+        levels[level] = levels.get(level, 0) + 1
+    return [{"level": level, "count": count}
+            for level, count in sorted(levels.items())]
+
+
+def get_fate_locks():
+    source, origin = _read_fate_info_source()
+    rows = _parse_fate_info_file(source)
+    try:
+        package_rows = _parse_fate_info_file(_read_fate_package_source())
+        known_levels = sorted({row["level"] for row in package_rows if row["level"] != 200})
+    except Exception:
+        known_levels = []
+    known_levels = sorted(set(known_levels) | {row["level"] for row in rows if row["level"] != 200})
+    return {"path": FATE_INFO_FILE_PATH, "total": len(rows),
+            "levels": _fate_lock_summary(rows), "known_levels": known_levels,
+            "origin": origin}
+
+
+def _replace_fate_info_locks(source, target_level=None, restore_ids=None):
+    updated = []
+    changed = 0
+    total = 0
+    for line_number, line in enumerate(source.splitlines(keepends=True), 1):
+        content = line.rstrip("\r\n")
+        try:
+            row = _fate_info_row(content, line_number)
+        except ValueError as e:
+            raise RuntimeError(f"fate_info.txt 第 {line_number} 行第 3 列不是整数，已停止写入") from e
+        if not row:
+            updated.append(line)
+            continue
+        total += 1
+        if restore_ids is not None:
+            if row["id"] not in restore_ids or row["level"] != 200:
+                updated.append(line)
+                continue
+            replacement = str(target_level)
+        else:
+            if target_level is not None and row["level"] != target_level:
+                updated.append(line)
+                continue
+            replacement = "200"
+        start, end = row["span"]
+        if content[start:end] == replacement:
+            updated.append(line)
+            continue
+        newline = line[len(content):]
+        updated.append(content[:start] + replacement + content[end:] + newline)
+        changed += 1
+    if total == 0:
+        raise RuntimeError("fate_info.txt 没有可识别的等级锁配置行，已停止写入")
+    return "".join(updated), changed, total
+
+
+def _replace_fate_info_states(source, changes, restore_ids):
+    updated = []
+    changed = 0
+    total = 0
+    for line_number, line in enumerate(source.splitlines(keepends=True), 1):
+        content = line.rstrip("\r\n")
+        try:
+            row = _fate_info_row(content, line_number)
+        except ValueError as e:
+            raise RuntimeError(f"fate_info.txt 第 {line_number} 行第 3 列不是整数，已停止写入") from e
+        if not row:
+            updated.append(line)
+            continue
+        total += 1
+        replacement = None
+        for level, enabled in changes.items():
+            if enabled and row["level"] == 200 and row["id"] in restore_ids.get(level, set()):
+                replacement = str(level)
+                break
+            if not enabled and row["level"] == level:
+                replacement = "200"
+                break
+        if replacement is None or content[row["span"][0]:row["span"][1]] == replacement:
+            updated.append(line)
+            continue
+        start, end = row["span"]
+        newline = line[len(content):]
+        updated.append(content[:start] + replacement + content[end:] + newline)
+        changed += 1
+    if total == 0:
+        raise RuntimeError("fate_info.txt 没有可识别的等级锁配置行，已停止写入")
+    return "".join(updated), changed, total
+
+
+def set_fate_locks(target_level=None, enabled=False, changes=None):
+    source, origin = _read_fate_info_source()
+    original_rows = _parse_fate_info_file(source)
+    try:
+        package_rows = _parse_fate_info_file(_read_fate_package_source())
+    except Exception:
+        package_rows = []
+    known_levels = sorted(
+        {row["level"] for row in package_rows if row["level"] != 200} |
+        {row["level"] for row in original_rows if row["level"] != 200})
+    if changes is None:
+        if target_level is None:
+            changes = None
+        else:
+            changes = {target_level: enabled}
+    restore_ids = {}
+    if changes is not None:
+        for level, should_enable in changes.items():
+            if should_enable:
+                ids = {row["id"] for row in package_rows if row["level"] == level}
+                if not ids:
+                    raise ValueError(f"原始定义中不存在 {level} 级等级锁")
+                restore_ids[level] = ids
+            elif level not in {row["level"] for row in original_rows}:
+                raise ValueError(f"当前配置中不存在 {level} 级等级锁")
+        updated, changed, total = _replace_fate_info_states(source, changes, restore_ids)
+    else:
+        updated, changed, total = _replace_fate_info_locks(source)
+    if changed == 0:
+        rows = original_rows
+        return {"changed": 0, "total": total, "backup": "",
+                "levels": _fate_lock_summary(rows),
+                "known_levels": known_levels,
+                "created_overlay": False, "origin": origin}
+
+    path = FATE_INFO_FILE_PATH
+    stamp = time.strftime("%Y%m%d-%H%M%S") + f"-{time.time_ns() % 1_000_000_000:09d}"
+    backup = path + ".bak." + stamp
+    temp = path + ".tmp"
+    if origin == "overlay":
+        command = ("sudo -n sh -c " + shlex.quote(
+            "set -e; cp -p " + shlex.quote(path) + " " + shlex.quote(backup) +
+            "; cat > " + shlex.quote(temp) +
+            "; chmod --reference=" + shlex.quote(path) + " " + shlex.quote(temp) +
+            "; chown --reference=" + shlex.quote(path) + " " + shlex.quote(temp) +
+            "; mv -f " + shlex.quote(temp) + " " + shlex.quote(path)))
+        payload = updated.encode("gb18030")
+    else:
+        import base64
+        original_b64 = base64.b64encode(source.encode("gb18030")).decode("ascii")
+        updated_b64 = base64.b64encode(updated.encode("gb18030")).decode("ascii")
+        parent = os.path.dirname(path)
+        script = (
+            "set -e; mkdir -p -- " + shlex.quote(parent) +
+            "; test ! -e " + shlex.quote(path) +
+            "; printf %s " + shlex.quote(original_b64) + " | base64 -d > " + shlex.quote(backup) +
+            "; chmod 644 " + shlex.quote(backup) +
+            "; printf %s " + shlex.quote(updated_b64) + " | base64 -d > " + shlex.quote(temp) +
+            "; chmod 644 " + shlex.quote(temp) +
+            "; mv -f " + shlex.quote(temp) + " " + shlex.quote(path))
+        command = "sudo -n sh -c " + shlex.quote(script)
+        payload = b""
+    with _lock:
+        c = ssh()
+        stdin, stdout, stderr = c.exec_command(command, timeout=30)
+        if payload:
+            stdin.write(payload)
+            stdin.flush()
+            stdin.channel.shutdown_write()
+        out = stdout.read().decode("utf-8", "replace").strip()
+        err = stderr.read().decode("utf-8", "replace").strip()
+        rc = stdout.channel.recv_exit_status()
+    if rc != 0:
+        reset_ssh()
+        raise RuntimeError(err or out or "保存天劫等级锁配置失败")
+
+    confirmed = _parse_fate_info_file(_read_fate_info_file())
+    if changes is None:
+        expected = [200 for _row in original_rows]
+    else:
+        expected = []
+        for row in original_rows:
+            expected_level = row["level"]
+            for level, should_enable in changes.items():
+                if should_enable and row["id"] in restore_ids.get(level, set()) and expected_level == 200:
+                    expected_level = level
+                    break
+                if not should_enable and expected_level == level:
+                    expected_level = 200
+                    break
+            expected.append(expected_level)
+    if len(confirmed) != len(expected) or [row["level"] for row in confirmed] != expected:
+        raise RuntimeError("服务器回读校验失败：等级锁值与预期不符")
+    return {"changed": changed, "total": total, "backup": backup,
+            "levels": _fate_lock_summary(confirmed),
+            "known_levels": known_levels,
+            "created_overlay": origin == "package", "origin": "overlay"}
 
 
 def _read_definition_file(kind):
@@ -1594,6 +1909,8 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if p == "/api/rates":
                 return self._json({"ok": True, "data": get_game_rates()})
+            if p == "/api/fate-lock":
+                return self._json({"ok": True, "data": get_fate_locks()})
             if p == "/api/shop":
                 return self._json({"ok": True, "data": get_shop(qs.get("q", [""])[0])})
             if p == "/api/shop/restart":
@@ -1727,7 +2044,7 @@ class Handler(BaseHTTPRequestHandler):
         p = urlparse(self.path).path
         if p in ("/api/config", "/api/definitions", "/api/shop/add",
                  "/api/shop/delete", "/api/shop/delete-batch", "/api/shop/restart",
-                 "/api/server/control"):
+                 "/api/server/control", "/api/fate-lock"):
             if not self._config_request_allowed():
                 return self._json({"ok": False, "error": "仅允许从本机控制台修改配置"}, 403)
             if self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/json":
@@ -1750,6 +2067,39 @@ class Handler(BaseHTTPRequestHandler):
                 result = set_game_rates(body.get("exp"), body.get("money"))
                 op_log("倍率设置", {"exp": result["exp"], "money": result["money"],
                                      "backup": result["backup"]})
+                return self._json({"ok": True, "data": result})
+            if p == "/api/fate-lock":
+                raw_changes = body.get("changes")
+                if raw_changes is not None:
+                    if not isinstance(raw_changes, list) or not raw_changes:
+                        return self._json({"ok": False, "error": "没有待保存的等级锁修改"}, 400)
+                    changes = {}
+                    for item in raw_changes:
+                        if not isinstance(item, dict):
+                            return self._json({"ok": False, "error": "等级锁修改格式无效"}, 400)
+                        level = item.get("level")
+                        enabled = item.get("enabled")
+                        if isinstance(level, bool) or not isinstance(level, int) or not isinstance(enabled, bool):
+                            return self._json({"ok": False, "error": "等级和开关状态无效"}, 400)
+                        if level in changes:
+                            return self._json({"ok": False, "error": "等级锁修改重复"}, 400)
+                        changes[level] = enabled
+                    target_level = None
+                else:
+                    changes = None
+                    target_level = body.get("level")
+                    enabled = body.get("enabled", False)
+                    if target_level is not None:
+                        if isinstance(target_level, bool) or not isinstance(target_level, int) or not isinstance(enabled, bool):
+                            return self._json({"ok": False, "error": "等级和开关状态无效"}, 400)
+                try:
+                    result = set_fate_locks(target_level, enabled if raw_changes is None else False, changes)
+                except ValueError as e:
+                    return self._json({"ok": False, "error": str(e)}, 400)
+                op_log("解除天劫等级锁定", {"changed": result["changed"],
+                                          "total": result["total"],
+                                          "levels": list(changes) if changes is not None else [target_level],
+                                          "backup": result["backup"]})
                 return self._json({"ok": True, "data": result})
             if p == "/api/definitions":
                 try:

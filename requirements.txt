@@ -1,1 +1,2 @@
 paramiko
+pycryptodome>=3.23,<4
