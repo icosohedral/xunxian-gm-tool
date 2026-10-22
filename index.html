@@ -249,9 +249,10 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .rate-status.is-bad{color:var(--danger)}
 .game-config-tabs{margin-bottom:10px}
 .fate-lock-card{width:min(100%,460px)}
-.fate-lock-levels{display:grid;grid-template-columns:minmax(140px,1fr) auto;max-width:430px;margin-top:14px;row-gap:4px}
+.fate-lock-card .card-body{padding:12px 16px}
+.fate-lock-levels{display:grid;grid-template-columns:minmax(140px,1fr) auto;max-width:430px;margin-top:2px;row-gap:2px}
 .fate-lock-row{display:contents}
-.fate-lock-row-label,.fate-lock-row-control{min-height:44px;display:flex;align-items:center;padding:0 10px}
+.fate-lock-row-label,.fate-lock-row-control{min-height:38px;display:flex;align-items:center;padding:0 10px}
 .fate-lock-row-label{font-size:12px;font-weight:650;color:var(--ink)}
 .fate-lock-row-control{justify-content:flex-end}
 .fate-lock-switch{position:relative;width:40px;height:23px;padding:0;border:0;border-radius:999px;background:#cbd4d0;cursor:pointer;transition:background .16s}
@@ -262,10 +263,10 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .fate-lock-switch:disabled{cursor:not-allowed;opacity:.55}
 .fate-lock-switch.is-loading::before{content:"";position:absolute;inset:4px;border:2px solid transparent;border-top-color:#fff;
   border-radius:50%;animation:fate-spin .7s linear infinite;z-index:1}
-.fate-lock-actions{display:flex;justify-content:flex-start;margin-top:14px}
-.fate-lock-save{height:37px;min-width:132px;border-radius:10px}
+.fate-lock-actions{display:flex;align-items:center;justify-content:flex-start;gap:10px;margin-top:8px}
+.fate-lock-actions-note{color:var(--ink-faint);font-size:11px}
 @keyframes fate-spin{to{transform:rotate(360deg)}}
-.fate-lock-status{min-height:19px;margin-top:12px;color:var(--ok);font-size:11px;overflow-wrap:anywhere}
+.fate-lock-status{min-height:0;margin-top:7px;color:var(--ok);font-size:11px;overflow-wrap:anywhere}
 .fate-lock-status.is-bad{color:var(--danger)}
 .definition-card{width:100%}
 .definition-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
@@ -1072,6 +1073,7 @@ tbody tr.is-static:hover{background:transparent}
                 <button class="btn btn-primary fate-lock-save" type="button" id="fate-lock-save" disabled>
                   保存修改
                 </button>
+                <span class="fate-lock-actions-note" id="fate-lock-restart-note" hidden>重启服务端后生效</span>
               </div>
             </div>
           </article>
@@ -2549,7 +2551,7 @@ function toggleFateLockDraft(button){
   const enabled = button.dataset.enabled !== 'true';
   state.fateLockDraft.set(targetLevel, enabled);
   renderFateLocks(state.fateLocks);
-  setFateLockStatus(fateLockChanges().length ? '有未保存的修改' : '');
+  setFateLockStatus('');
 }
 async function saveFateLockChanges(){
   const changes = fateLockChanges();
@@ -2558,7 +2560,6 @@ async function saveFateLockChanges(){
   state.fateLockSaving = true;
   busy(button, true, '保存中');
   renderFateLocks(state.fateLocks);
-  setFateLockStatus('正在保存等级锁修改');
   try{
     const j = await postJSON('/api/fate-lock', {changes});
     state.fateLocks = {total:j.data.total, levels:j.data.levels, known_levels:j.data.known_levels || state.fateLocks.known_levels, origin:j.data.origin};
@@ -2566,10 +2567,8 @@ async function saveFateLockChanges(){
     state.fateLockDraft = new Map([...(j.data.known_levels || state.fateLocks.known_levels || []), ...active]
       .filter(level => level !== 200).map(level => [level, active.has(level)]));
     renderFateLocks(state.fateLocks);
-    const backup = j.data.backup ? '；备份已创建' : '';
-    const created = j.data.created_overlay ? '已从 mb.dpk 创建覆盖文件；' : '';
-    setFateLockStatus(created + '等级锁修改已保存' + backup + '；重启服务端后生效');
-    toast('等级锁定已保存');
+    $('#fate-lock-restart-note').hidden = false;
+    setFateLockStatus('');
   } catch(err){
     setFateLockStatus(err.message, true);
     toast(err.message, true);
