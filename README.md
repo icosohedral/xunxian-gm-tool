@@ -2,6 +2,20 @@
 
 一个本地运行的寻仙游戏管理工具，通过网页界面连接游戏服务端，方便管理账号和角色、发放物品、发送邮件、充值仙玉、维护商城商品和游戏配置。
 
+## 工作台截图
+
+### 服务概览
+
+![工作台服务概览](doc/screenshots/dashboard.jpg)
+
+### 物品管理
+
+![物品管理与发放清单](doc/screenshots/items.jpg)
+
+### 运维管理
+
+![服务端控制](doc/screenshots/operations.jpg)
+
 ## 运行环境
 
 - Python 3.13 或更新版本
