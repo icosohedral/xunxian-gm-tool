@@ -1,0 +1,28 @@
+# Python virtual environments and bytecode
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Local credentials and runtime configuration
+gm_config.json
+.env
+.env.*
+!.env.example
+
+# Runtime logs, saved game data, and backups
+logs/
+data/
+*.log
+
+# Local tooling and operating system files
+.workbuddy-ai/
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Build outputs
+/build/
+/dist/
+*.app/
