@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import hashlib
+import threading
 import tempfile
+import time
 import uuid
 from pathlib import Path
 
@@ -23,6 +25,8 @@ CAREER_GROUP = {
     9: ("fs", "法师导师"), 10: ("yx", "游侠导师"),
 }
 SESSIONS: dict[str, Path] = {}
+SESSION_LAST_USED: dict[str, float] = {}
+SESSION_LOCK = threading.RLock()
 
 
 def _decode(data: bytes) -> tuple[list[str], str]:
@@ -50,9 +54,20 @@ def inspect_client_dpk(path: Path, cache_dir: Path) -> dict:
     stored = cache_dir / f"skill-limits-{session_id}.dpk"
     archive = path.read_bytes()
     stored.write_bytes(archive)
-    SESSIONS[session_id] = stored
+    with SESSION_LOCK:
+        SESSIONS[session_id] = stored
+        SESSION_LAST_USED[session_id] = time.time()
     return {"session_id": session_id, "sha256": hashlib.sha256(archive).hexdigest(),
             "professions": professions, "skills": skills, "encoding": encoding}
+
+
+def touch_client_session(session_id: str) -> bool:
+    with SESSION_LOCK:
+        source = SESSIONS.get(session_id)
+        if not source or not source.is_file():
+            return False
+        SESSION_LAST_USED[session_id] = time.time()
+        return True
 
 
 def inspect_dpk_skills(path: Path) -> tuple[list[dict], list[dict], str]:
@@ -149,17 +164,21 @@ def _change_list_resource(data: bytes, row_name: str, add_ids: set[int], remove_
 
 def patch_client_dpk(session_id: str, target_profession: int, changes: dict[int, bool],
                      source_professions: dict[int, int], cache_dir: Path) -> tuple[bytes, str]:
-    source = SESSIONS.get(session_id)
-    if not source or not source.is_file():
-        raise ValueError("上传的客户端包已过期，请重新选择 mb.dpk")
+    with SESSION_LOCK:
+        source = SESSIONS.get(session_id)
+        if not source or not source.is_file():
+            raise ValueError("上传的客户端包已过期，请重新选择 mb.dpk")
+        SESSION_LAST_USED[session_id] = time.time()
     return patch_dpk_changes(source, target_profession, changes, source_professions, cache_dir)
 
 
 def refresh_client_session(session_id: str, archive: bytes) -> None:
-    source = SESSIONS.get(session_id)
-    if not source or not source.is_file():
-        raise ValueError("上传的客户端包会话已过期，请重新选择 mb.dpk")
-    source.write_bytes(archive)
+    with SESSION_LOCK:
+        source = SESSIONS.get(session_id)
+        if not source or not source.is_file():
+            raise ValueError("上传的客户端包会话已过期，请重新选择 mb.dpk")
+        source.write_bytes(archive)
+        SESSION_LAST_USED[session_id] = time.time()
 
 
 def patch_dpk_changes(source: Path, target_profession: int, changes: dict[int, bool],

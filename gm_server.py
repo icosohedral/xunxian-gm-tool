@@ -31,7 +31,10 @@ import paramiko
 from scripts.skill_limits import (CAREER_GROUP, CAREER_GROUP_NAMES, inspect_client_dpk,
                                   inspect_dpk_career_groups, inspect_dpk_skills,
                                   patch_client_dpk, patch_dpk_changes,
-                                  refresh_client_session)
+                                  refresh_client_session, touch_client_session,
+                                  SESSIONS as _skill_limit_client_sessions,
+                                  SESSION_LAST_USED as _skill_limit_session_last_used,
+                                  SESSION_LOCK as _skill_limit_session_lock)
 from scripts.summon_config import load_catalog, load_friend_catalog, patch_summon_dpk
 
 
@@ -126,7 +129,64 @@ _shop_mutation_lock = threading.Lock()
 _shop_restart_lock = threading.Lock()
 _shop_restart_state = {"running": False, "phase": "", "error": "", "updated_at": 0}
 _skill_limit_server_sessions = {}
+_skill_limit_server_sessions_lock = threading.RLock()
+SKILL_LIMIT_SESSION_TTL_SECONDS = 60 * 60
 _skill_limit_provenance_lock = threading.Lock()
+
+
+def _cleanup_expired_skill_limit_sessions():
+    """Remove local DPK working copies for sessions idle for at least one hour."""
+    now = time.time()
+    cutoff = now - SKILL_LIMIT_SESSION_TTL_SECONDS
+    with _skill_limit_session_lock:
+        expired = [session_id for session_id, last_used in
+                   _skill_limit_session_last_used.items() if last_used <= cutoff]
+        with _skill_limit_server_sessions_lock:
+            for session_id in expired:
+                client_path = _skill_limit_client_sessions.pop(session_id, None)
+                _skill_limit_session_last_used.pop(session_id, None)
+                server_session = _skill_limit_server_sessions.pop(session_id, None)
+                paths = [client_path]
+                if server_session:
+                    paths.extend(server_session.get("local_paths", {}).values())
+                for path in paths:
+                    if path:
+                        try:
+                            Path(path).unlink(missing_ok=True)
+                        except OSError:
+                            pass
+                # Also remove older per-session patched snapshots from repeated applies.
+                prefix = f"skill-limits-{session_id}"
+                try:
+                    for path in Path(CACHE_DIR).glob(prefix + "*.dpk"):
+                        path.unlink(missing_ok=True)
+                except OSError:
+                    pass
+            active = set(_skill_limit_session_last_used)
+            # Also collect orphaned files left behind by a previous process run.
+            # Their in-memory session no longer exists, so use file age instead.
+            try:
+                for path in Path(CACHE_DIR).glob("skill-limits-*.dpk"):
+                    match = re.match(r"^skill-limits-([0-9a-f]{32})(?:-|\.dpk$)", path.name)
+                    if not match or match.group(1) in active:
+                        continue
+                    try:
+                        if path.stat().st_mtime <= cutoff:
+                            path.unlink(missing_ok=True)
+                    except OSError:
+                        pass
+            except OSError:
+                pass
+    return len(expired)
+
+
+def _skill_limit_cleanup_worker():
+    while True:
+        time.sleep(60)
+        try:
+            _cleanup_expired_skill_limit_sessions()
+        except Exception:
+            traceback.print_exc()
 
 CONFIG_KEYS = frozenset(DEFAULT_CONFIG)
 SECRET_KEYS = frozenset(("ssh_password", "mysql_password"))
@@ -532,7 +592,7 @@ def _read_fate_package_source():
                 archive = archive_stream.getvalue()
             finally:
                 sftp.close()
-        from dpk_reader import extract_dpk_entry
+        from scripts.dpk_reader import extract_dpk_entry
         data = extract_dpk_entry(archive, FATE_DPK_ENTRY_PATH)
         _fate_package_source_cache = _decode_fate_info(data)
         try:
@@ -2010,9 +2070,11 @@ class Handler(BaseHTTPRequestHandler):
                 except Exception as e:
                     return self._json({"ok": False, "error": str(e)}, 500)
             if p == "/favicon.ico":
-                ico = os.path.join(RES_DIR, "icon.ico")
-                if os.path.exists(ico):
-                    return self._file(ico, "image/x-icon")
+                logo = os.path.join(RES_DIR, "logos", "logo.png")
+                if not os.path.exists(logo):
+                    logo = os.path.join(APP_DIR, "logos", "logo.png")
+                if os.path.exists(logo):
+                    return self._file(logo, "image/png")
                 self.send_response(204)
                 self.end_headers()
                 return
@@ -2271,18 +2333,22 @@ class Handler(BaseHTTPRequestHandler):
                     **{label: len(rows) for label, rows in server_skills.items()},
                     "客户端与主包共有": len(info["skills"])}
                 info["career_group_names"] = CAREER_GROUP_NAMES
-                _skill_limit_server_sessions[session_id] = {
-                    "paths": server_paths, "local_paths": local_paths,
-                    "provenance_key": provenance_key,
-                    "skills": {row["id"]: row for row in shared_skills}}
+                with _skill_limit_server_sessions_lock:
+                    _skill_limit_server_sessions[session_id] = {
+                        "paths": server_paths, "local_paths": local_paths,
+                        "provenance_key": provenance_key,
+                        "skills": {row["id"]: row for row in shared_skills}}
                 op_log("读取三份技能配置包", {"sha256": info["sha256"],
                     "shared_skills": len(info["skills"]), "client_path": str(client_path)})
                 return self._json({"ok": True, "data": info})
             if p == "/api/skill-limits/apply":
                 session_id = str(body.get("session_id", ""))
+                if not touch_client_session(session_id):
+                    raise ValueError("技能包会话已过期，请重新读取客户端 mb.dpk")
                 raw_changes = body.get("changes")
                 target_profession = qint(body.get("target_profession"))
-                server_session = _skill_limit_server_sessions.get(session_id)
+                with _skill_limit_server_sessions_lock:
+                    server_session = _skill_limit_server_sessions.get(session_id)
                 if not server_session:
                     raise ValueError("服务端技能包会话已失效，请重新选择客户端 mb.dpk")
                 if not isinstance(raw_changes, list) or not raw_changes:
@@ -2393,7 +2459,8 @@ class Handler(BaseHTTPRequestHandler):
                         skill["assigned_to"].append(target_profession)
                         if target_group not in skill["career_groups"]:
                             skill["career_groups"].append(target_group)
-                server_session["local_paths"] = server_outputs
+                with _skill_limit_server_sessions_lock:
+                    server_session["local_paths"] = server_outputs
                 self.send_response(200)
                 self.send_header("Content-Type", "application/octet-stream")
                 self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
@@ -2811,6 +2878,8 @@ def main():
         return
     print(f"GM 控制台已启动：{URL}")
     print(f"配置：{CONFIG_PATH}")
+    threading.Thread(target=_skill_limit_cleanup_worker,
+                     name="skill-limit-cache-cleaner", daemon=True).start()
     srv_thread = threading.Thread(target=SRV.serve_forever, daemon=True)
     srv_thread.start()
     if CFG.get("auto_open_browser", False):
