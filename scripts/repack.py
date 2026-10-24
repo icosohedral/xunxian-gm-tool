@@ -15,17 +15,30 @@ from typing import BinaryIO, Sequence
 
 from Crypto.Cipher import DES
 
-from unpack import (
-    BLOCK_SIZE,
-    CONTENT_KEY,
-    PACKAGE_KEY,
-    DpkEntry,
-    DpkReader,
-    decode_whsc,
-    decrypt_payload,
-    read_exact_at,
-    read_u32,
-)
+try:
+    from .unpack import (
+        BLOCK_SIZE,
+        CONTENT_KEY,
+        PACKAGE_KEY,
+        DpkEntry,
+        DpkReader,
+        decode_whsc,
+        decrypt_payload,
+        read_exact_at,
+        read_u32,
+    )
+except ImportError:  # Allow `python scripts/repack.py` from the project root.
+    from unpack import (
+        BLOCK_SIZE,
+        CONTENT_KEY,
+        PACKAGE_KEY,
+        DpkEntry,
+        DpkReader,
+        decode_whsc,
+        decrypt_payload,
+        read_exact_at,
+        read_u32,
+    )
 
 
 ROOT_DATA_OFFSET = 32

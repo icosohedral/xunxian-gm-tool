@@ -7,8 +7,8 @@ import hashlib
 import tempfile
 from pathlib import Path
 
-from repack import replace_resource
-from unpack import DpkReader
+from .repack import replace_resource
+from .unpack import DpkReader
 
 
 SUMMON_SKILL_ID = 3126

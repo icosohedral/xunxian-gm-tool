@@ -28,11 +28,11 @@ from urllib.parse import parse_qs, urlparse
 from pathlib import Path
 
 import paramiko
-from skill_limits import (CAREER_GROUP, CAREER_GROUP_NAMES, inspect_client_dpk,
-                          inspect_dpk_career_groups, inspect_dpk_skills,
-                          patch_client_dpk, patch_dpk_changes,
-                          refresh_client_session)
-from summon_config import load_catalog, load_friend_catalog, patch_summon_dpk
+from scripts.skill_limits import (CAREER_GROUP, CAREER_GROUP_NAMES, inspect_client_dpk,
+                                  inspect_dpk_career_groups, inspect_dpk_skills,
+                                  patch_client_dpk, patch_dpk_changes,
+                                  refresh_client_session)
+from scripts.summon_config import load_catalog, load_friend_catalog, patch_summon_dpk
 
 
 FROZEN = bool(getattr(sys, "frozen", False))

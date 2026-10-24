@@ -7,8 +7,8 @@ import tempfile
 import uuid
 from pathlib import Path
 
-from repack import replace_resource
-from unpack import DpkReader
+from .repack import replace_resource
+from .unpack import DpkReader
 
 
 SKILL_LEARN = "skill/skill_learn.txt"
