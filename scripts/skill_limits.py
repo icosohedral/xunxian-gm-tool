@@ -49,13 +49,12 @@ def _resources(path: Path, wanted: set[str]) -> dict[str, bytes]:
 
 def inspect_client_dpk(path: Path, cache_dir: Path) -> dict:
     professions, skills, encoding = inspect_dpk_skills(path)
-    cache_dir.mkdir(parents=True, exist_ok=True)
     session_id = uuid.uuid4().hex
-    stored = cache_dir / f"skill-limits-{session_id}.dpk"
+    # The server registers the persistent shared work package here. Keeping a
+    # second full-size DPK per inspect session defeats the shared-copy model.
     archive = path.read_bytes()
-    stored.write_bytes(archive)
     with SESSION_LOCK:
-        SESSIONS[session_id] = stored
+        SESSIONS[session_id] = path
         SESSION_LAST_USED[session_id] = time.time()
     return {"session_id": session_id, "sha256": hashlib.sha256(archive).hexdigest(),
             "professions": professions, "skills": skills, "encoding": encoding}

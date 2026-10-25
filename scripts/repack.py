@@ -648,14 +648,15 @@ def write_virtual_file(
     data: bytes,
     *,
     allow_chain_shrink: bool,
+    allow_chain_growth: bool,
 ) -> tuple[tuple[int, ...], tuple[int, ...]]:
     needed = required_block_count(len(data))
     available = len(chain.block_numbers)
 
-    if needed > available:
+    if needed > available and not allow_chain_growth:
         raise RepackError(
             f"新 WHSC 需要 {needed} 个块，原链只有 {available} 个块；"
-            "安全原位模式不会追加块"
+            "未启用块链扩展"
         )
     if needed < available and not allow_chain_shrink:
         raise RepackError(
@@ -664,8 +665,19 @@ def write_virtual_file(
             "--allow-chain-shrink"
         )
 
-    used = chain.block_numbers[:needed]
-    detached = chain.block_numbers[needed:]
+    archive_size = os.fstat(fp.fileno()).st_size
+    if archive_size % BLOCK_SIZE:
+        raise RepackError("输入 DPK 大小不是 1024 字节的整数倍")
+    archive_block_count = archive_size // BLOCK_SIZE
+    growth = max(0, needed - available)
+    first_new_block = archive_block_count
+    if growth and first_new_block + growth > 0x100000000:
+        raise RepackError("DPK 块号超出 32 位范围，无法扩展块链")
+
+    used = chain.block_numbers[:min(needed, available)]
+    if growth:
+        used += tuple(range(first_new_block, first_new_block + growth))
+    detached = chain.block_numbers[needed:] if needed < available else ()
     position = 0
 
     root_number = used[0]
@@ -689,11 +701,14 @@ def write_virtual_file(
     fp.write(root)
 
     for index, block_number in enumerate(used[1:], start=1):
-        block = bytearray(read_exact_at(
-            fp,
-            block_number * BLOCK_SIZE,
-            BLOCK_SIZE,
-        ))
+        if block_number < archive_block_count:
+            block = bytearray(read_exact_at(
+                fp,
+                block_number * BLOCK_SIZE,
+                BLOCK_SIZE,
+            ))
+        else:
+            block = bytearray(BLOCK_SIZE)
         write_u32(block, 0, used[index - 1])
         write_u32(
             block,
@@ -802,6 +817,7 @@ def replace_resource(
     report_path: Path | None,
     replacement_data: bytes | None = None,
     line_edits: Sequence[LineFieldEdit] | None = None,
+    allow_chain_growth: bool = False,
 ) -> PatchReport:
     archive = archive.resolve()
     resolved_replacement = (
@@ -963,10 +979,10 @@ def replace_resource(
     )
     compression_hint = format_compression_hint(preserving_levels)
 
-    if len(new_whsc) > chain.capacity:
+    if len(new_whsc) > chain.capacity and not allow_chain_growth:
         raise RepackError(
             f"新 WHSC 为 {len(new_whsc)} 字节，原块链容量只有 "
-            f"{chain.capacity} 字节；安全原位模式不会追加块。"
+            f"{chain.capacity} 字节；未启用块链扩展。"
             f"{compression_hint}"
         )
     if needed < len(chain.block_numbers) and not allow_chain_shrink:
@@ -1000,6 +1016,7 @@ def replace_resource(
                 chain,
                 new_whsc,
                 allow_chain_shrink=allow_chain_shrink,
+                allow_chain_growth=allow_chain_growth,
             )
             fp.flush()
             os.fsync(fp.fileno())
@@ -1010,7 +1027,7 @@ def replace_resource(
             expected_entries=entries,
             target=target,
             expected_plain=new_plain,
-            expected_size=archive_size,
+            expected_size=(archive_size + max(0, needed - len(chain.block_numbers)) * BLOCK_SIZE),
         )
 
         os.replace(temporary, output)
@@ -1185,6 +1202,11 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--allow-chain-growth",
+        action="store_true",
+        help="允许在 DPK 末尾追加新块以扩展目标资源的块链",
+    )
+    parser.add_argument(
         "--overwrite-output",
         action="store_true",
         help=(
@@ -1262,6 +1284,7 @@ def main() -> int:
             zlib_strategy=args.zlib_strategy,
             auto_zlib_parameters=args.auto_zlib_parameters,
             allow_chain_shrink=args.allow_chain_shrink,
+            allow_chain_growth=args.allow_chain_growth,
             overwrite_output=args.overwrite_output,
             overwrite_report=args.overwrite_report,
             max_input_size=args.max_input_size,

@@ -9,10 +9,11 @@ import json
 import math
 import hashlib
 import ipaddress
-import io
 import os
+import posixpath
 import re
 import shlex
+import shutil
 import socket
 import struct
 import sys
@@ -30,12 +31,20 @@ from pathlib import Path
 import paramiko
 from scripts.skill_limits import (CAREER_GROUP, CAREER_GROUP_NAMES, inspect_client_dpk,
                                   inspect_dpk_career_groups, inspect_dpk_skills,
-                                  patch_client_dpk, patch_dpk_changes,
-                                  refresh_client_session, touch_client_session,
+                                  patch_dpk_changes, touch_client_session,
                                   SESSIONS as _skill_limit_client_sessions,
                                   SESSION_LAST_USED as _skill_limit_session_last_used,
                                   SESSION_LOCK as _skill_limit_session_lock)
 from scripts.summon_config import load_catalog, load_friend_catalog, patch_summon_dpk
+from scripts.dungeon_limits import (inspect_archive as inspect_dungeon_archive,
+                                   patch_archive as patch_dungeon_archive,
+                                   patch_define_overlay)
+from scripts.profession_skills import (inspect_archive as inspect_profession_skills,
+                                      has_skill as profession_skill_exists,
+                                      patch_archive_batch as patch_profession_skills_batch)
+from scripts.ride_speed import (inspect_archive as inspect_ride_archive,
+                                patch_archive as patch_ride_archive)
+from scripts.unpack import DpkReader
 
 
 FROZEN = bool(getattr(sys, "frozen", False))
@@ -43,9 +52,27 @@ APP_DIR = os.path.dirname(os.path.abspath(sys.executable if FROZEN else __file__
 RES_DIR = getattr(sys, "_MEIPASS", APP_DIR)
 LOG_DIR = os.path.join(APP_DIR, "logs")
 CACHE_DIR = os.path.join(APP_DIR, "data")
+CLIENT_WORK_PACKAGE_PATH = Path(CACHE_DIR) / "client_mb_work.dpk"
+CLIENT_WORK_METADATA_PATH = Path(CACHE_DIR) / "client_mb_work.json"
+SERVER_MB_CACHE_PATHS = {
+    "主包": Path(CACHE_DIR) / "server_mb_main.dpk",
+    "动态包": Path(CACHE_DIR) / "server_mb_dynamic.dpk",
+}
+SERVER_MB_CACHE_LOCK = threading.RLock()
+
+
+def _is_shared_server_cache_path(path):
+    return Path(path).resolve() in {item.resolve() for item in SERVER_MB_CACHE_PATHS.values()}
+
+
 FATE_PACKAGE_CACHE_PATH = os.path.join(CACHE_DIR, "fate_info_package_cache.json")
 SKILL_LIMIT_PROVENANCE_PATH = os.path.join(CACHE_DIR, "skill_limit_provenance.json")
 SUMMON_CONFIG_PATH = os.path.join(CACHE_DIR, "summon_skill_config.json")
+DUNGEON_LIMIT_SESSIONS = {}
+DUNGEON_LIMIT_LOCK = threading.Lock()
+DUNGEON_LIMIT_INSPECT_LOCK = threading.Lock()
+RIDE_SPEED_SESSIONS = {}
+RIDE_SPEED_LOCK = threading.Lock()
 LOG_PATH = os.path.join(LOG_DIR, "ops.jsonl")
 SERVER_LOG = os.path.join(LOG_DIR, "server.log")
 CONFIG_PATH = os.path.join(APP_DIR, "gm_config.json")
@@ -53,7 +80,8 @@ RATE_FILE_PATH = "/opt/xxserver/runtime/xx/shm/TTYGZS/dynamicmb/server_set.txt"
 FATE_INFO_FILE_PATH = "/opt/xxserver/runtime/xx/shm/TTYGZS/mb/quest/fate_info.txt"
 SHOP_FILE_PATH = "/opt/xxserver/runtime/xx/shm/TTYGZS/dynamicmb/xy_shop_item.txt"
 MB_DPK_FILE_PATH = "/opt/xxserver/runtime/xx/shm/TTYGZS/mb.dpk"
-MB_DPK_DYNAMIC_FILE_PATH = os.path.join(os.path.dirname(MB_DPK_FILE_PATH), "dynamicmb", "mb.dpk")
+MB_DPK_DYNAMIC_FILE_PATH = posixpath.join(
+    posixpath.dirname(MB_DPK_FILE_PATH), "dynamicmb", "mb.dpk")
 FATE_DPK_ENTRY_PATH = "quest/fate_info.txt"
 SHOP_CATEGORIES = [
     {"id": 1, "name": "卖场"}, {"id": 2, "name": "形象"},
@@ -123,6 +151,7 @@ DBI_HOST, DBI_PORT = "127.0.0.1", 13724
 _lock = threading.Lock()
 _fate_package_cache_lock = threading.Lock()
 _fate_package_source_cache = None
+_fate_package_source_digest = None
 _grant_lock = threading.Lock()
 _client = None
 _shop_mutation_lock = threading.Lock()
@@ -130,12 +159,71 @@ _shop_restart_lock = threading.Lock()
 _shop_restart_state = {"running": False, "phase": "", "error": "", "updated_at": 0}
 _skill_limit_server_sessions = {}
 _skill_limit_server_sessions_lock = threading.RLock()
+_profession_skill_sessions = {}
+_profession_skill_sessions_lock = threading.RLock()
 SKILL_LIMIT_SESSION_TTL_SECONDS = 60 * 60
 _skill_limit_provenance_lock = threading.Lock()
+_client_package_lock = threading.RLock()
+
+
+def _configured_client_package_path():
+    raw = str(CFG.get("client_mb_dpk") or "").strip()
+    if not raw:
+        raise ValueError("请先在 运维管理 → 连接配置 中设置客户端 mb.dpk 路径并保存")
+    path = Path(os.path.expanduser(raw))
+    if not path.is_file():
+        raise ValueError("找不到客户端 mb.dpk：" + str(path))
+    return path
+
+
+def _ensure_client_work_package():
+    """Create the persistent shared client package once; features build on it."""
+    with _client_package_lock:
+        source = _configured_client_package_path()
+        if CLIENT_WORK_PACKAGE_PATH.is_file():
+            if CLIENT_WORK_METADATA_PATH.is_file():
+                try:
+                    metadata = json.loads(CLIENT_WORK_METADATA_PATH.read_text(encoding="utf-8"))
+                except (OSError, ValueError):
+                    metadata = {}
+                original = metadata.get("source_path")
+                if original and original != str(source.resolve()):
+                    raise ValueError(
+                        "连接配置中的客户端 mb.dpk 路径与工作副本来源不同。"
+                        "如需改用新客户端包，请先备份并删除 data/client_mb_work.dpk "
+                        "及 data/client_mb_work.json，再重新读取。")
+            return CLIENT_WORK_PACKAGE_PATH
+        CLIENT_WORK_PACKAGE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        temporary = CLIENT_WORK_PACKAGE_PATH.with_suffix(".dpk.tmp")
+        try:
+            shutil.copyfile(source, temporary)
+            os.replace(temporary, CLIENT_WORK_PACKAGE_PATH)
+            metadata_tmp = CLIENT_WORK_METADATA_PATH.with_suffix(".json.tmp")
+            try:
+                metadata_tmp.write_text(json.dumps({"source_path": str(source.resolve())},
+                                                   ensure_ascii=False), encoding="utf-8")
+                os.replace(metadata_tmp, CLIENT_WORK_METADATA_PATH)
+            finally:
+                metadata_tmp.unlink(missing_ok=True)
+        finally:
+            temporary.unlink(missing_ok=True)
+        return CLIENT_WORK_PACKAGE_PATH
+
+
+def _replace_client_work_package(data):
+    """Atomically update the shared DPK so interrupted writes never corrupt it."""
+    with _client_package_lock:
+        CLIENT_WORK_PACKAGE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        temporary = CLIENT_WORK_PACKAGE_PATH.with_suffix(".dpk.tmp")
+        try:
+            temporary.write_bytes(data)
+            os.replace(temporary, CLIENT_WORK_PACKAGE_PATH)
+        finally:
+            temporary.unlink(missing_ok=True)
 
 
 def _cleanup_expired_skill_limit_sessions():
-    """Remove local DPK working copies for sessions idle for at least one hour."""
+    """Remove expired session outputs while preserving the shared DPK caches."""
     now = time.time()
     cutoff = now - SKILL_LIMIT_SESSION_TTL_SECONDS
     with _skill_limit_session_lock:
@@ -152,7 +240,9 @@ def _cleanup_expired_skill_limit_sessions():
                 for path in paths:
                     if path:
                         try:
-                            Path(path).unlink(missing_ok=True)
+                            if (Path(path).resolve() != CLIENT_WORK_PACKAGE_PATH.resolve()
+                                    and not _is_shared_server_cache_path(path)):
+                                Path(path).unlink(missing_ok=True)
                         except OSError:
                             pass
                 # Also remove older per-session patched snapshots from repeated applies.
@@ -177,6 +267,39 @@ def _cleanup_expired_skill_limit_sessions():
                         pass
             except OSError:
                 pass
+        with _profession_skill_sessions_lock:
+            expired_profession = [session_id for session_id, session in
+                _profession_skill_sessions.items()
+                if session.get("last_used", 0) <= cutoff]
+            for session_id in expired_profession:
+                session = _profession_skill_sessions.pop(session_id, {})
+                for path in session.get("local_paths", {}).values():
+                    if not _is_shared_server_cache_path(path):
+                        Path(path).unlink(missing_ok=True)
+                for path in Path(CACHE_DIR).glob(f"profession-skills-{session_id}-*.dpk"):
+                    path.unlink(missing_ok=True)
+            active_profession = set(_profession_skill_sessions)
+            try:
+                for path in Path(CACHE_DIR).glob("profession-skills-*.dpk"):
+                    match = re.match(r"^profession-skills-([0-9a-f]{32})-", path.name)
+                    if not match or match.group(1) in active_profession:
+                        continue
+                    try:
+                        if path.stat().st_mtime <= cutoff:
+                            path.unlink(missing_ok=True)
+                    except OSError:
+                        pass
+            except OSError:
+                pass
+            try:
+                for path in Path(CACHE_DIR).glob("summon-*.dpk"):
+                    try:
+                        if path.stat().st_mtime <= cutoff:
+                            path.unlink(missing_ok=True)
+                    except OSError:
+                        pass
+            except OSError:
+                pass
     return len(expired)
 
 
@@ -185,8 +308,36 @@ def _skill_limit_cleanup_worker():
         time.sleep(60)
         try:
             _cleanup_expired_skill_limit_sessions()
+            _cleanup_expired_dungeon_limit_sessions()
+            with RIDE_SPEED_LOCK:
+                cutoff = time.time() - SKILL_LIMIT_SESSION_TTL_SECONDS
+                for session_id, session in list(RIDE_SPEED_SESSIONS.items()):
+                    if session["created"] <= cutoff:
+                        RIDE_SPEED_SESSIONS.pop(session_id, None)
         except Exception:
             traceback.print_exc()
+
+
+def _cleanup_expired_dungeon_limit_sessions():
+    cutoff = time.time() - 3600
+    with DUNGEON_LIMIT_LOCK:
+        for session_id, item in list(DUNGEON_LIMIT_SESSIONS.items()):
+            if item["created"] <= cutoff:
+                DUNGEON_LIMIT_SESSIONS.pop(session_id, None)
+                for path in item["local"].values():
+                    if not _is_shared_server_cache_path(path):
+                        Path(path).unlink(missing_ok=True)
+                _dungeon_cache_metadata_path(session_id).unlink(missing_ok=True)
+        active = set(DUNGEON_LIMIT_SESSIONS)
+    for path in Path(CACHE_DIR).glob("dungeon-limits-*"):
+        match = re.match(r"^dungeon-limits-([0-9a-f]{32})-", path.name)
+        if not match or match.group(1) in active:
+            continue
+        try:
+            if path.is_file() and path.stat().st_mtime <= cutoff:
+                path.unlink(missing_ok=True)
+        except OSError:
+            pass
 
 CONFIG_KEYS = frozenset(DEFAULT_CONFIG)
 SECRET_KEYS = frozenset(("ssh_password", "mysql_password"))
@@ -195,6 +346,11 @@ SECRET_KEYS = frozenset(("ssh_password", "mysql_password"))
 def _skill_limit_provenance_key(client_path):
     canonical_path = os.path.normcase(os.path.abspath(os.path.expanduser(str(client_path))))
     return hashlib.sha256(canonical_path.encode("utf-8")).hexdigest()
+
+
+def _sftp_remote_path(path):
+    """Normalize a Linux server path before passing it to Paramiko SFTP."""
+    return str(path).replace("\\", "/")
 
 
 def _load_skill_limit_provenance():
@@ -567,9 +723,12 @@ def _decode_fate_info(data):
 
 
 def _read_fate_package_source():
-    global _fate_package_source_cache
+    global _fate_package_source_cache, _fate_package_source_digest
     with _fate_package_cache_lock:
-        if _fate_package_source_cache is not None:
+        paths = {"主包": MB_DPK_FILE_PATH, "动态包": MB_DPK_DYNAMIC_FILE_PATH}
+        local, signatures = _ensure_server_mb_cache(paths)
+        digest = signatures["主包"][2]
+        if _fate_package_source_digest == digest and _fate_package_source_cache is not None:
             return _fate_package_source_cache
         cached = None
         try:
@@ -577,29 +736,20 @@ def _read_fate_package_source():
                 cached = json.load(f)
         except (OSError, ValueError, TypeError):
             pass
-        with _lock:
-            c = ssh()
-            sftp = c.open_sftp()
-            try:
-                stat = sftp.stat(MB_DPK_FILE_PATH)
-                signature = {"size": stat.st_size, "mtime": stat.st_mtime}
-                if (isinstance(cached, dict) and cached.get("signature") == signature
-                        and isinstance(cached.get("source"), str)):
-                    _fate_package_source_cache = cached["source"]
-                    return _fate_package_source_cache
-                archive_stream = io.BytesIO()
-                sftp.getfo(MB_DPK_FILE_PATH, archive_stream)
-                archive = archive_stream.getvalue()
-            finally:
-                sftp.close()
+        if (isinstance(cached, dict) and cached.get("sha256") == digest
+                and isinstance(cached.get("source"), str)):
+            _fate_package_source_cache = cached["source"]
+            _fate_package_source_digest = digest
+            return _fate_package_source_cache
         from scripts.dpk_reader import extract_dpk_entry
-        data = extract_dpk_entry(archive, FATE_DPK_ENTRY_PATH)
+        data = extract_dpk_entry(local["主包"].read_bytes(), FATE_DPK_ENTRY_PATH)
         _fate_package_source_cache = _decode_fate_info(data)
+        _fate_package_source_digest = digest
         try:
             os.makedirs(CACHE_DIR, exist_ok=True)
             temp_path = FATE_PACKAGE_CACHE_PATH + ".tmp"
             with open(temp_path, "w", encoding="utf-8") as f:
-                json.dump({"signature": signature, "source": _fate_package_source_cache},
+                json.dump({"sha256": digest, "source": _fate_package_source_cache},
                           f, ensure_ascii=False)
             os.replace(temp_path, FATE_PACKAGE_CACHE_PATH)
         except OSError:
@@ -1288,6 +1438,7 @@ def read_logs(n=200):
 
 
 _items = None
+_items_source = None
 _scenes = None
 _partitions = None
 
@@ -1308,12 +1459,9 @@ def _write_json(path, obj):
         traceback.print_exc()
 
 
-def _parse_item_list(path):
+def _parse_item_list_text(text):
     data = []
-    with open(path, "rb") as f:
-        raw = f.read()
-    text = raw.decode("gb18030", "replace")
-    for ln in text.replace("\r\n", "\n").split("\n")[1:]:
+    for ln in text.splitlines():
         if not ln.strip():
             continue
         c = ln.split("\t")
@@ -1327,25 +1475,66 @@ def _parse_item_list(path):
     return data
 
 
+def _parse_item_list(path):
+    with open(path, "rb") as f:
+        return _parse_item_list_text(f.read().decode("gb18030", "replace"))
+
+
+def _parse_client_item_lists(path):
+    names = ("item/item_list.txt", "item/item_list2.txt", "item/item_list3.txt")
+    items = {}
+    with DpkReader(Path(path)) as reader:
+        entries = {entry.path.lower(): entry for entry in reader.read_entries()}
+        if names[0] not in entries:
+            raise ValueError("客户端 mb.dpk 缺少 item/item_list.txt")
+        for name in names:
+            entry = entries.get(name)
+            if entry is None:
+                continue
+            text = reader.extract(entry).decode("gb18030", "replace")
+            for item in _parse_item_list_text(text):
+                items[item["id"]] = item
+    return [items[item_id] for item_id in sorted(items)]
+
+
 def load_items():
-    global _items
-    if _items is not None:
+    global _items, _items_source
+    client_path = Path(str(CFG.get("client_mb_dpk") or "")).expanduser()
+    client_ok = client_path.is_file()
+    ext_ok = os.path.isfile(ITEM_LIST)
+    client_stat = client_path.stat() if client_ok else None
+    ext_stat = os.stat(ITEM_LIST) if ext_ok else None
+    source = ((str(client_path), client_stat.st_mtime_ns, client_stat.st_size)
+              if client_stat else None,
+              (ITEM_LIST, ext_stat.st_mtime_ns, ext_stat.st_size)
+              if ext_stat else None)
+    if _items is not None and source == _items_source:
         return _items
     cache = os.path.join(CACHE_DIR, "items.json")
     bundled = os.path.join(RES_DIR, "items.json")
-    ext_ok = os.path.exists(ITEM_LIST)
     data = None
-    if os.path.exists(cache) and (not ext_ok or os.path.getmtime(cache) >= os.path.getmtime(ITEM_LIST)):
-        data = _read_json(cache)
-    if not data and not ext_ok and os.path.exists(bundled):
-        data = _read_json(bundled)
+    if client_ok:
+        try:
+            data = _parse_client_item_lists(client_path)
+            if ext_ok:
+                by_id = {item["id"]: item for item in data}
+                by_id.update({item["id"]: item for item in _parse_item_list(ITEM_LIST)})
+                data = [by_id[item_id] for item_id in sorted(by_id)]
+            _write_json(cache, data)
+        except Exception:
+            traceback.print_exc()
     if not data and ext_ok:
         try:
             data = _parse_item_list(ITEM_LIST)
             _write_json(cache, data)
         except Exception:
             traceback.print_exc()
+    if not data and os.path.exists(bundled):
+        data = _read_json(bundled)
+    if not data and os.path.exists(cache):
+        data = _read_json(cache)
     _items = data or []
+    _items_source = source
     return _items
 
 
@@ -1994,6 +2183,462 @@ def set_point(account, mode, value):
             "initialized": t is None}
 
 
+def _dungeon_cache_metadata_path(session_id):
+    return Path(CACHE_DIR) / f"dungeon-limits-{session_id}-metadata.json"
+
+
+def _dungeon_remote_signatures(paths, connection=None):
+    """Read a cheap remote fingerprint before deciding whether DPK downloads are needed."""
+    if connection is None:
+        with _lock:
+            return _dungeon_remote_signatures(paths, ssh())
+    sftp = connection.open_sftp()
+    try:
+        stats = {label: sftp.stat(_sftp_remote_path(remote))
+                 for label, remote in paths.items()}
+    finally:
+        sftp.close()
+    command = "sha256sum -- " + " ".join(shlex.quote(p) for p in paths.values())
+    _, stdout, stderr = connection.exec_command(command, timeout=30)
+    lines = stdout.read().decode("utf-8", "replace").strip().splitlines()
+    error = stderr.read().decode("utf-8", "replace").strip()
+    if stdout.channel.recv_exit_status() != 0 or len(lines) != len(paths):
+        raise RuntimeError("校验服务器副本包失败：" + (error or "SHA-256 返回格式无效"))
+    signatures = {}
+    for (label, _), line in zip(paths.items(), lines):
+        digest = line.split()[0]
+        if not re.fullmatch(r"[0-9a-f]{64}", digest):
+            raise RuntimeError("服务器副本包 SHA-256 格式无效")
+        stat = stats[label]
+        signatures[label] = (stat.st_size, stat.st_mtime, digest)
+    return signatures
+
+
+def _dungeon_local_matches(local, signatures):
+    for label, path in local.items():
+        try:
+            if path.stat().st_size != signatures[label][0]:
+                return False
+            with path.open("rb") as source:
+                digest = hashlib.file_digest(source, "sha256").hexdigest()
+            if digest != signatures[label][2]:
+                return False
+        except OSError:
+            return False
+    return True
+
+
+def _ensure_server_mb_cache(paths):
+    """Return the shared server packages, downloading only when they changed."""
+    signatures = _dungeon_remote_signatures(paths)
+    with SERVER_MB_CACHE_LOCK:
+        if _dungeon_local_matches(SERVER_MB_CACHE_PATHS, signatures):
+            if _dungeon_remote_signatures(paths) == signatures:
+                return dict(SERVER_MB_CACHE_PATHS), signatures
+            signatures = _dungeon_remote_signatures(paths)
+
+        downloads = {label: Path(CACHE_DIR) / f"server-mb-download-{uuid.uuid4().hex}-{label}.dpk"
+                     for label in paths}
+        try:
+            with _lock:
+                sftp = ssh().open_sftp()
+                try:
+                    for label, remote in paths.items():
+                        sftp.get(_sftp_remote_path(remote), str(downloads[label]))
+                finally:
+                    sftp.close()
+            if (_dungeon_remote_signatures(paths) != signatures
+                    or not _dungeon_local_matches(downloads, signatures)):
+                raise RuntimeError("服务器包在读取期间发生变化，请重试")
+            _update_server_mb_cache(downloads)
+            return dict(SERVER_MB_CACHE_PATHS), signatures
+        finally:
+            for path in downloads.values():
+                path.unlink(missing_ok=True)
+
+
+def _update_server_mb_cache(packages):
+    """Atomically make successfully written server packages the latest cache."""
+    with SERVER_MB_CACHE_LOCK:
+        staged = {}
+        try:
+            for label, source in packages.items():
+                cache_path = SERVER_MB_CACHE_PATHS[label]
+                temporary = cache_path.with_name(cache_path.name + ".tmp-" + uuid.uuid4().hex)
+                shutil.copyfile(source, temporary)
+                staged[label] = (temporary, cache_path)
+            for temporary, cache_path in staged.values():
+                os.replace(temporary, cache_path)
+        finally:
+            for temporary, _ in staged.values():
+                temporary.unlink(missing_ok=True)
+
+
+def _file_sha256(path):
+    with Path(path).open("rb") as source:
+        return hashlib.file_digest(source, "sha256").hexdigest()
+
+
+def inspect_ride_speeds():
+    client_path = _ensure_client_work_package()
+    paths = {"主包": MB_DPK_FILE_PATH, "动态包": MB_DPK_DYNAMIC_FILE_PATH}
+    local, signatures = _ensure_server_mb_cache(paths)
+    client = inspect_ride_archive(client_path)
+    main = inspect_ride_archive(local["主包"])
+    dynamic = inspect_ride_archive(local["动态包"])
+    rows = {}
+    for ride_id in set(main["pets"]) | set(client["item_rides"]):
+        if ride_id not in main["rides"] or ride_id not in client["rides"]:
+            continue
+        pets = main["pets"].get(ride_id, [])
+        items = client["item_rides"].get(ride_id, [])
+        pet_names = list(dict.fromkeys(pet["name"] for pet in pets if pet["name"]))
+        item_names = list(dict.fromkeys(item["name"] for item in items if item["name"]))
+        if not pet_names and not item_names:
+            continue
+        name = "、".join(pet_names) if pet_names else min(item_names, key=lambda value: (len(value), value))
+        effective = dynamic["rides"].get(ride_id, main["rides"][ride_id])
+        rows[ride_id] = {"id": ride_id, "name": name,
+                         "run": effective["run"], "terrain": effective["terrain"],
+                         "fly": main["rides"][ride_id]["fly"],
+                         "cast": main["rides"][ride_id]["cast"],
+                         "connection_id": main["rides"][ride_id]["connection_id"],
+                         "connection_name": main["rides"][ride_id]["connection_name"],
+                         "kinds": (["pet"] if pets else []) + (["item"] if items else []),
+                         "pet_ids": [pet["id"] for pet in pets],
+                         "item_ids": [item["id"] for item in items]}
+    if not rows:
+        raise RuntimeError("主包中没有找到客户端也包含的骑宠速度记录")
+    groups = {}
+    names = {}
+    for ride_id, row in rows.items():
+        groups.setdefault(row["connection_id"], []).append(ride_id)
+        names.setdefault(row["name"], []).append(ride_id)
+    for ride_id, row in rows.items():
+        row["shared_ids"] = sorted(groups[row["connection_id"]])
+        row["same_name_ids"] = sorted(names[row["name"]])
+    session_id = uuid.uuid4().hex
+    with RIDE_SPEED_LOCK:
+        RIDE_SPEED_SESSIONS[session_id] = {
+            "created": time.time(), "paths": paths, "signatures": signatures,
+            "client_sha256": _file_sha256(client_path), "rows": rows}
+    return {"session_id": session_id,
+            "rows": sorted(rows.values(), key=lambda row: (row["name"], row["id"]))}
+
+
+def apply_ride_speeds(session_id, raw_changes):
+    with RIDE_SPEED_LOCK:
+        session = RIDE_SPEED_SESSIONS.get(session_id)
+    if not session or time.time() - session["created"] > SKILL_LIMIT_SESSION_TTL_SECONDS:
+        raise ValueError("骑宠速度读取结果已过期，请重新进入页面")
+    if not isinstance(raw_changes, list) or not raw_changes:
+        raise ValueError("没有待修改的骑宠设置")
+    changes = {}
+    cast_targets = {}
+    speed_targets = {}
+    for item in raw_changes:
+        if not isinstance(item, dict) or isinstance(item.get("id"), bool):
+            raise ValueError("骑宠速度修改格式无效")
+        try:
+            ride_id = int(item["id"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("骑宠 RideID 无效") from exc
+        if ride_id not in session["rows"] or ride_id in changes:
+            raise ValueError(f"骑宠 RideID {ride_id} 无效或重复")
+        run = item.get("run")
+        terrain = item.get("terrain")
+        fly = item.get("fly")
+        cast = item.get("cast")
+        if isinstance(run, bool) or not isinstance(run, int) or not 1 <= run <= 9999:
+            raise ValueError("跑步速度须为 1 至 9999 的整数")
+        if terrain not in ("land", "water", "both"):
+            raise ValueError("使用场景须为仅陆地、仅水中或陆地和水中")
+        if type(fly) is not bool:
+            raise ValueError("允许飞行设置须为允许或不允许")
+        if cast not in ("none", "partial", "all"):
+            raise ValueError("乘骑施法设置无效")
+        values = {"run": run, "terrain": terrain, "fly": fly, "cast": cast}
+        changed = {key: value for key, value in values.items()
+                   if value != session["rows"][ride_id][key]}
+        if not changed:
+            raise ValueError(f"骑宠 RideID {ride_id} 的设置没有变化")
+        changes[ride_id] = changed
+        if "run" in changed:
+            group = tuple(session["rows"][ride_id]["same_name_ids"])
+            if group in speed_targets and speed_targets[group] != run:
+                raise ValueError("同名坐骑不能设置不同的移动速度")
+            speed_targets[group] = run
+        if "cast" in changed:
+            group = tuple(session["rows"][ride_id]["shared_ids"])
+            if group in cast_targets and cast_targets[group] != cast:
+                raise ValueError("共用乘骑连接的骑宠不能设置不同施法权限")
+            cast_targets[group] = cast
+    for group, run in speed_targets.items():
+        for ride_id in group:
+            if session["rows"][ride_id]["run"] != run:
+                changes.setdefault(ride_id, {})["run"] = run
+    for group, cast in cast_targets.items():
+        for ride_id in group:
+            changes.setdefault(ride_id, {})["cast"] = cast
+    connection_changes = {
+        session["rows"][group[0]]["connection_id"]: cast
+        for group, cast in cast_targets.items()
+    }
+    if _dungeon_remote_signatures(session["paths"]) != session["signatures"]:
+        raise ValueError("服务器骑宠包已变化，请重新进入页面")
+    client_path = _ensure_client_work_package()
+    if _file_sha256(client_path) != session["client_sha256"]:
+        raise ValueError("客户端工作包已变化，请重新进入页面")
+    run_id = uuid.uuid4().hex
+    client_output = Path(CACHE_DIR) / f"ride-speed-{run_id}-client.dpk"
+    server_outputs = {}
+    try:
+        client_found, client_changed = patch_ride_archive(
+            client_path, client_output, changes, connection_changes)
+        if client_found != set(changes):
+            raise RuntimeError("客户端包缺少骑宠 RideID：" +
+                               ", ".join(map(str, sorted(set(changes) - client_found))))
+        for label, source in SERVER_MB_CACHE_PATHS.items():
+            output = Path(CACHE_DIR) / f"ride-speed-{run_id}-{label}.dpk"
+            found, modified = patch_ride_archive(
+                source, output, changes, connection_changes)
+            if label == "主包" and found != set(changes):
+                raise RuntimeError("服务器主包缺少骑宠 RideID：" +
+                                   ", ".join(map(str, sorted(set(changes) - found))))
+            if modified:
+                server_outputs[label] = output
+        if not server_outputs:
+            raise RuntimeError("服务器包中没有需要更新的骑宠速度")
+        stamp = time.strftime("%Y%m%d-%H%M%S") + f"-{time.time_ns() % 1_000_000_000:09d}"
+        backups = {label: session["paths"][label] + ".bak.ride-speed." + stamp
+                   for label in server_outputs}
+        uploads = {label: "/tmp/gmtool-ride-speed-" + uuid.uuid4().hex + ".dpk"
+                   for label in server_outputs}
+        with _lock:
+            connection = ssh()
+            if _dungeon_remote_signatures(session["paths"], connection) != session["signatures"]:
+                raise ValueError("服务器骑宠包已变化，请重新进入页面")
+            sftp = connection.open_sftp()
+            try:
+                for label, output in server_outputs.items():
+                    sftp.put(str(output), _sftp_remote_path(uploads[label]))
+            finally:
+                sftp.close()
+            commands = ["set -e", "backup_ready=0", "committed=0",
+                "rollback(){ if [ \"$backup_ready\" = 1 ] && [ \"$committed\" = 0 ]; then " +
+                "; ".join("cp -p " + shlex.quote(backups[label]) + " " +
+                          shlex.quote(session["paths"][label]) for label in server_outputs) +
+                "; fi; }", "trap rollback EXIT"]
+            for label in server_outputs:
+                remote = session["paths"][label]
+                commands.append("cp -p " + shlex.quote(remote) + " " + shlex.quote(backups[label]))
+            commands.append("backup_ready=1")
+            for label in server_outputs:
+                remote = session["paths"][label]
+                staged = remote + ".gmtool.tmp." + uuid.uuid4().hex
+                commands.extend((
+                    "cp " + shlex.quote(uploads[label]) + " " + shlex.quote(staged),
+                    "chown --reference=" + shlex.quote(remote) + " " + shlex.quote(staged),
+                    "chmod --reference=" + shlex.quote(remote) + " " + shlex.quote(staged),
+                    "mv -f " + shlex.quote(staged) + " " + shlex.quote(remote)))
+            commands.extend(("committed=1", "trap - EXIT"))
+            commands.extend("rm -f " + shlex.quote(path) for path in uploads.values())
+            _, stdout, stderr = connection.exec_command(
+                "sudo -n sh -c " + shlex.quote("; ".join(commands)), timeout=180)
+            out = stdout.read().decode("utf-8", "replace").strip()
+            err = stderr.read().decode("utf-8", "replace").strip()
+            if stdout.channel.recv_exit_status() != 0:
+                raise RuntimeError("服务器骑宠包替换失败：" + (err or out))
+            _, stdout, stderr = connection.exec_command("sha256sum " + " ".join(
+                shlex.quote(session["paths"][label]) for label in server_outputs), timeout=30)
+            hashes = stdout.read().decode("utf-8", "replace").strip().splitlines()
+            if stdout.channel.recv_exit_status() != 0 or len(hashes) != len(server_outputs):
+                raise RuntimeError("服务器骑宠包已替换，但 SHA-256 校验失败")
+            for (label, output), line in zip(server_outputs.items(), hashes):
+                if line.split()[0] != _file_sha256(output):
+                    raise RuntimeError(f"服务器{label} SHA-256 校验失败")
+        _update_server_mb_cache(server_outputs)
+        payload = client_output.read_bytes() if client_changed else client_path.read_bytes()
+        if client_changed:
+            _replace_client_work_package(payload)
+        with RIDE_SPEED_LOCK:
+            RIDE_SPEED_SESSIONS.pop(session_id, None)
+        op_log("修改骑宠设置", {"changes": changes, "backups": backups})
+        return payload, backups
+    finally:
+        client_output.unlink(missing_ok=True)
+        for output in server_outputs.values():
+            output.unlink(missing_ok=True)
+
+
+def _dungeon_inspected_rows(local):
+    rows = {}
+    for label in ("主包", "动态包"):
+        for row in inspect_dungeon_archive(local[label]):
+            rows[row["key"]] = row
+    if not rows:
+        raise RuntimeError("服务器包中没有找到副本次数限制记录")
+    return rows
+
+
+def _dungeon_cache_response(session_id, rows, cached):
+    return {"session_id": session_id, "cached": cached,
+            "rows": sorted(rows.values(), key=lambda row: (
+                {"场景限制": 0, "活动副本 CD": 1, "镇妖塔每日 CD": 2,
+                 "心魔砺炼每日上限": 3}[row["source"]],
+                int(row["scene_id"]) if row["scene_id"].isdigit() else 999999,
+                row["key"]))}
+
+
+def inspect_dungeon_limits():
+    paths = {"主包": MB_DPK_FILE_PATH, "动态包": MB_DPK_DYNAMIC_FILE_PATH}
+    with DUNGEON_LIMIT_INSPECT_LOCK:
+        local, signatures = _ensure_server_mb_cache(paths)
+        now = time.time()
+        with DUNGEON_LIMIT_LOCK:
+            live = list(DUNGEON_LIMIT_SESSIONS.items())
+        for session_id, session in live:
+            if (now - session["created"] < 3600 and session["paths"] == paths
+                    and session["signatures"] == signatures
+                    and _dungeon_local_matches(session["local"], signatures)):
+                with DUNGEON_LIMIT_LOCK:
+                    if DUNGEON_LIMIT_SESSIONS.get(session_id) is not session:
+                        continue
+                    session["created"] = now
+                return _dungeon_cache_response(session_id, session["rows"], True)
+        session_id = uuid.uuid4().hex
+        rows = _dungeon_inspected_rows(local)
+        session = {"created": now, "local": local, "paths": paths,
+                   "signatures": signatures, "rows": rows}
+        with DUNGEON_LIMIT_LOCK:
+            DUNGEON_LIMIT_SESSIONS[session_id] = session
+        return _dungeon_cache_response(session_id, rows, False)
+
+
+def apply_dungeon_limits(session_id, raw_changes):
+    with DUNGEON_LIMIT_LOCK:
+        session = DUNGEON_LIMIT_SESSIONS.get(session_id)
+    if not session or time.time() - session["created"] > 3600:
+        raise ValueError("读取结果已过期，请刷新页面重新读取")
+    if not isinstance(raw_changes, list) or not raw_changes:
+        raise ValueError("没有待修改的副本次数")
+    changes = {}
+    for item in raw_changes:
+        if not isinstance(item, dict) or not isinstance(item.get("key"), str):
+            raise ValueError("副本次数修改格式无效")
+        key, count = item["key"], item.get("count")
+        if key not in session["rows"] or key in changes:
+            raise ValueError("副本记录无效或重复：" + key)
+        if isinstance(count, bool) or not isinstance(count, int) or not 1 <= count <= 9999:
+            raise ValueError("次数须为 1 至 9999 的整数")
+        changes[key] = count
+    if _dungeon_remote_signatures(session["paths"]) != session["signatures"]:
+        raise ValueError("服务器副本包已变化，请刷新页面重新读取")
+    outputs = {label: Path(CACHE_DIR) / f"dungeon-limits-{session_id}-{label}-patched.dpk"
+               for label in session["paths"]}
+    overlay_output = Path(CACHE_DIR) / f"dungeon-limits-{session_id}-define-overlay.txt"
+    found = set()
+    success = False
+    try:
+        for label, source in session["local"].items():
+            hit = patch_dungeon_archive(source, outputs[label], changes)
+            found.update(hit)
+            if not hit:
+                import shutil
+                shutil.copyfile(source, outputs[label])
+        if found != set(changes):
+            raise RuntimeError("服务器包缺少记录：" + ", ".join(sorted(set(changes) - found)))
+        targets = dict(session["paths"])
+        if "heart:1047" in changes:
+            overlay_remote = DEFINITION_FILES["base"]["path"]
+            with _lock:
+                c = ssh()
+                sftp = c.open_sftp()
+                try:
+                    stat = sftp.stat(_sftp_remote_path(overlay_remote))
+                    overlay_signature = (stat.st_size, stat.st_mtime)
+                finally:
+                    sftp.close()
+                _, stdout, stderr = c.exec_command(
+                    "sudo -n cat -- " + shlex.quote(overlay_remote), timeout=20)
+                overlay_data = stdout.read()
+                err = stderr.read().decode("utf-8", "replace").strip()
+                if stdout.channel.recv_exit_status() != 0:
+                    raise RuntimeError("读取服务器松散定义表失败：" + err)
+            patched_overlay = patch_define_overlay(overlay_data, changes["heart:1047"])
+            if patched_overlay is None:
+                raise RuntimeError("服务器松散定义表缺少 1047，无法同步心魔砺炼上限")
+            overlay_output.write_bytes(patched_overlay)
+            targets["定义表"] = overlay_remote
+            outputs["定义表"] = overlay_output
+        stamp = time.strftime("%Y%m%d-%H%M%S") + f"-{time.time_ns() % 1_000_000_000:09d}"
+        backups = {label: remote + ".bak.dungeon-limits." + stamp
+                   for label, remote in targets.items()}
+        uploads = {label: "/tmp/gmtool-dungeon-limits-" + uuid.uuid4().hex + ".dpk"
+                   for label in outputs}
+        with _lock:
+            c = ssh()
+            if _dungeon_remote_signatures(session["paths"], c) != session["signatures"]:
+                raise ValueError("服务器副本包已变化，请刷新页面重新读取")
+            if "定义表" in targets:
+                sftp = c.open_sftp()
+                try:
+                    stat = sftp.stat(_sftp_remote_path(targets["定义表"]))
+                    if (stat.st_size, stat.st_mtime) != overlay_signature:
+                        raise ValueError("服务器松散定义表已变化，请刷新页面重新读取")
+                finally:
+                    sftp.close()
+            sftp = c.open_sftp()
+            try:
+                for label, path in outputs.items():
+                    sftp.put(str(path), _sftp_remote_path(uploads[label]))
+            finally:
+                sftp.close()
+            commands = ["set -e", "backup_ready=0", "committed=0",
+                "rollback(){ if [ \"$backup_ready\" = 1 ] && [ \"$committed\" = 0 ]; then " +
+                "; ".join("cp -p " + shlex.quote(backups[label]) + " " + shlex.quote(remote)
+                          for label, remote in targets.items()) + "; fi; }",
+                "trap rollback EXIT"]
+            for label, remote in targets.items():
+                commands.append("cp -p " + shlex.quote(remote) + " " + shlex.quote(backups[label]))
+            commands.append("backup_ready=1")
+            for label, remote in targets.items():
+                staged = remote + ".gmtool.tmp." + uuid.uuid4().hex
+                commands.extend(("cp " + shlex.quote(uploads[label]) + " " + shlex.quote(staged),
+                    "chown --reference=" + shlex.quote(remote) + " " + shlex.quote(staged),
+                    "chmod --reference=" + shlex.quote(remote) + " " + shlex.quote(staged),
+                    "mv -f " + shlex.quote(staged) + " " + shlex.quote(remote)))
+            commands.extend(("committed=1", "trap - EXIT"))
+            commands.extend("rm -f " + shlex.quote(path) for path in uploads.values())
+            _, stdout, stderr = c.exec_command("sudo -n sh -c " + shlex.quote("; ".join(commands)), timeout=180)
+            out = stdout.read().decode("utf-8", "replace").strip()
+            err = stderr.read().decode("utf-8", "replace").strip()
+            if stdout.channel.recv_exit_status() != 0:
+                raise RuntimeError("服务器包替换失败：" + (err or out))
+            _, stdout, stderr = c.exec_command("sha256sum " + " ".join(
+                shlex.quote(p) for p in targets.values()), timeout=30)
+            hashes = stdout.read().decode("utf-8", "replace").strip().splitlines()
+            if stdout.channel.recv_exit_status() != 0 or len(hashes) != len(targets):
+                raise RuntimeError("服务器包已替换，但 SHA-256 校验失败")
+            for (label, path), line in zip(outputs.items(), hashes):
+                if line.split()[0] != hashlib.sha256(path.read_bytes()).hexdigest():
+                    raise RuntimeError("服务器" + label + " SHA-256 校验失败")
+        _update_server_mb_cache({label: outputs[label] for label in session["paths"]})
+        with DUNGEON_LIMIT_LOCK:
+            DUNGEON_LIMIT_SESSIONS.pop(session_id, None)
+        _dungeon_cache_metadata_path(session_id).unlink(missing_ok=True)
+        op_log("修改副本进入限制", {"changes": changes, "backups": backups})
+        success = True
+        return backups
+    finally:
+        for path in outputs.values():
+            path.unlink(missing_ok=True)
+        if success:
+            for path in session["local"].values():
+                if not _is_shared_server_cache_path(path):
+                    path.unlink(missing_ok=True)
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "XunxianGM/1.0"
 
@@ -2036,6 +2681,14 @@ class Handler(BaseHTTPRequestHandler):
             return False
 
     def do_GET(self):
+        path = urlparse(self.path).path
+        if path in {"/api/summons/catalog", "/api/dungeon-limits", "/api/ride-speeds",
+                    "/api/skill-limits/inspect", "/api/profession-skills/download"}:
+            with _client_package_lock:
+                return self._do_GET()
+        return self._do_GET()
+
+    def _do_GET(self):
         u = urlparse(self.path)
         qs = parse_qs(u.query)
         p = u.path
@@ -2046,7 +2699,7 @@ class Handler(BaseHTTPRequestHandler):
                     page = os.path.join(APP_DIR, "index.html")
                 return self._file(page, "text/html; charset=utf-8")
             if p in {f"/logos/{name}.png" for name in
-                     ("logo", "status", "account", "item", "mail", "logs", "rate", "skill")}:
+                     ("logo", "status", "account", "item", "mail", "logs", "rate", "skill", "pet")}:
                 filename = p.rsplit("/", 1)[-1]
                 image = os.path.join(RES_DIR, "logos", filename)
                 if not os.path.exists(image):
@@ -2059,7 +2712,10 @@ class Handler(BaseHTTPRequestHandler):
                 try:
                     catalog = load_catalog(catalog_path)
                     client_path_text = str(CFG.get("client_mb_dpk") or "").strip()
-                    client_path = Path(os.path.expanduser(client_path_text)) if client_path_text else None
+                    try:
+                        client_path = _ensure_client_work_package() if client_path_text else None
+                    except ValueError:
+                        client_path = None
                     friends = load_friend_catalog(client_path)
                     saved = {}
                     if os.path.exists(SUMMON_CONFIG_PATH):
@@ -2082,6 +2738,35 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": True, "data": get_game_rates()})
             if p == "/api/fate-lock":
                 return self._json({"ok": True, "data": get_fate_locks()})
+            if p == "/api/dungeon-limits":
+                if not self._config_request_allowed():
+                    return self._json({"ok": False, "error": "仅允许从本机控制台读取配置"}, 403)
+                return self._json({"ok": True, "data": inspect_dungeon_limits()})
+            if p == "/api/ride-speeds":
+                if not self._config_request_allowed():
+                    return self._json({"ok": False, "error": "仅允许从本机控制台读取配置"}, 403)
+                return self._json({"ok": True, "data": inspect_ride_speeds()})
+            if p == "/api/profession-skills/download":
+                if not self._config_request_allowed():
+                    return self._json({"ok": False, "error": "仅允许从本机控制台下载配置"}, 403)
+                session_id = (qs.get("session_id") or [""])[0]
+                with _profession_skill_sessions_lock:
+                    session = _profession_skill_sessions.get(session_id)
+                if not session:
+                    return self._json({"ok": False, "error": "职业技能配置会话已过期"}, 410)
+                session["last_used"] = time.time()
+                if not CLIENT_WORK_PACKAGE_PATH.is_file():
+                    return self._json({"ok": False, "error": "客户端工作包不存在"}, 404)
+                payload = CLIENT_WORK_PACKAGE_PATH.read_bytes()
+                filename = "mb.profession-skills.dpk"
+                self.send_response(200)
+                self.send_header("Content-Type", "application/octet-stream")
+                self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+                self.send_header("Content-Length", str(len(payload)))
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                self.wfile.write(payload)
+                return
             if p == "/api/shop":
                 return self._json({"ok": True, "data": get_shop(qs.get("q", [""])[0])})
             if p == "/api/shop/restart":
@@ -2160,7 +2845,7 @@ class Handler(BaseHTTPRequestHandler):
                     res = [x for x in data if q in x["name"]][:limit]
                 else:
                     res = data[:limit]
-                return self._json({"ok": True, "rows": res})
+                return self._json({"ok": True, "rows": res, "total": len(data)})
             if p == "/api/scenes":
                 return self._json({"ok": True, "rows": [
                     {"id": k, "name": v} for k, v in sorted(load_scenes().items())]})
@@ -2212,12 +2897,22 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"ok": False, "error": str(e)}, 500)
 
     def do_POST(self):
+        path = urlparse(self.path).path
+        if path in {"/api/dungeon-limits", "/api/ride-speeds", "/api/skill-limits/inspect",
+                    "/api/skill-limits/apply", "/api/profession-skills/inspect",
+                    "/api/profession-skills/apply", "/api/summons/apply"}:
+            with _client_package_lock:
+                return self._do_POST()
+        return self._do_POST()
+
+    def _do_POST(self):
         p = urlparse(self.path).path
         if p in ("/api/config", "/api/definitions", "/api/shop/add",
                  "/api/shop/delete", "/api/shop/delete-batch", "/api/shop/restart",
-                 "/api/server/control", "/api/fate-lock", "/api/config/pick-path",
+                 "/api/server/control", "/api/fate-lock", "/api/dungeon-limits", "/api/ride-speeds", "/api/config/pick-path",
                  "/api/skill-limits/inspect",
-                 "/api/skill-limits/apply", "/api/summons/apply"):
+                 "/api/skill-limits/apply", "/api/profession-skills/inspect",
+                 "/api/profession-skills/apply", "/api/summons/apply"):
             if not self._config_request_allowed():
                 return self._json({"ok": False, "error": "仅允许从本机控制台修改配置"}, 403)
             if self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/json":
@@ -2229,6 +2924,170 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             body = {}
         try:
+            if p == "/api/profession-skills/inspect":
+                configured_client_path = _configured_client_package_path()
+                client_path = _ensure_client_work_package()
+                info = inspect_profession_skills(client_path)
+                session_id = uuid.uuid4().hex
+                server_paths = {"主包": MB_DPK_FILE_PATH, "动态包": MB_DPK_DYNAMIC_FILE_PATH}
+                local_paths, signatures = _ensure_server_mb_cache(server_paths)
+                with _profession_skill_sessions_lock:
+                    expired = [key for key, value in _profession_skill_sessions.items()
+                               if time.time() - value.get("last_used", 0) > SKILL_LIMIT_SESSION_TTL_SECONDS]
+                    for key in expired:
+                        old = _profession_skill_sessions.pop(key, {})
+                        for local_path in old.get("local_paths", {}).values():
+                            if not _is_shared_server_cache_path(local_path):
+                                Path(local_path).unlink(missing_ok=True)
+                    _profession_skill_sessions[session_id] = {
+                        "paths": server_paths,
+                        "local_paths": {label: str(path) for label, path in local_paths.items()},
+                        "signatures": signatures,
+                        "skills": {(item["profession_id"], item["id"]): item
+                                   for item in info["skills"]},
+                        "last_used": time.time(),
+                    }
+                info.update({"session_id": session_id,
+                    "client_path": str(configured_client_path)})
+                op_log("读取职业技能配置", {"skills": len(info["skills"]),
+                    "client_path": str(configured_client_path)})
+                return self._json({"ok": True, "data": info})
+            if p == "/api/profession-skills/apply":
+                session_id = str(body.get("session_id") or "")
+                try:
+                    profession_id = int(body.get("profession_id"))
+                    changes = [{
+                        "skill_ids": sorted({int(value) for value in item["skill_ids"]}),
+                        "cooldown": int(item["cooldown"]),
+                        "distance": item.get("distance"),
+                    } for item in body.get("changes", [])]
+                except (TypeError, ValueError):
+                    raise ValueError("技能参数无效")
+                except (KeyError, AttributeError):
+                    raise ValueError("技能参数无效")
+                if not changes or any(not item["skill_ids"] for item in changes):
+                    raise ValueError("请先加入要修改的技能")
+                all_skill_ids = [skill_id for item in changes for skill_id in item["skill_ids"]]
+                if len(set(all_skill_ids)) != len(all_skill_ids):
+                    raise ValueError("同一技能不能重复加入修改列表")
+                with _profession_skill_sessions_lock:
+                    session = _profession_skill_sessions.get(session_id)
+                if not session:
+                    raise ValueError("职业技能配置会话已过期，请重新读取")
+                session["last_used"] = time.time()
+                if any((profession_id, skill_id) not in session["skills"] for skill_id in all_skill_ids):
+                    raise ValueError("所选技能不属于本次读取的职业技能列表")
+                if _dungeon_remote_signatures(session["paths"]) != session["signatures"]:
+                    raise ValueError("服务器包已变化，请重新读取职业技能")
+                client_path = _ensure_client_work_package()
+                client_output = Path(CACHE_DIR) / f"profession-skills-{session_id}-client-patched.dpk"
+                client_result = Path(CACHE_DIR) / f"profession-skills-{session_id}-client-result.dpk"
+                server_outputs = {}
+                try:
+                    patch_profession_skills_batch(client_path, client_output, profession_id,
+                        changes)
+                    client_output.replace(client_result)
+                    for label, source in session["local_paths"].items():
+                        source_path = Path(source)
+                        server_changes = []
+                        for change in changes:
+                            existing_skill_ids = [skill_id for skill_id in change["skill_ids"]
+                                if profession_skill_exists(source_path, skill_id, profession_id)]
+                            if existing_skill_ids:
+                                server_changes.append({**change, "skill_ids": existing_skill_ids})
+                        if not server_changes:
+                            if label == "主包":
+                                raise ValueError(f"服务器主包缺少所选技能定义，无法同步")
+                            continue
+                        output = Path(CACHE_DIR) / f"profession-skills-{session_id}-{label}-patched.dpk"
+                        patch_profession_skills_batch(source_path, output, profession_id,
+                            server_changes, allow_missing=True)
+                        server_outputs[label] = output
+                    if not server_outputs:
+                        raise ValueError("服务器包中没有可更新的技能定义")
+                    stamp = time.strftime("%Y%m%d-%H%M%S") + f"-{time.time_ns() % 1_000_000_000:09d}"
+                    backups = {label: session["paths"][label] + ".bak.profession-skill." + stamp
+                               for label in server_outputs}
+                    uploads = {label: "/tmp/gmtool-profession-skill-" + uuid.uuid4().hex + ".dpk"
+                               for label in server_outputs}
+                    with _lock:
+                        connection = ssh()
+                        if _dungeon_remote_signatures(session["paths"], connection) != session["signatures"]:
+                            raise ValueError("服务器包已变化，请重新读取职业技能")
+                        sftp = connection.open_sftp()
+                        try:
+                            for label, output in server_outputs.items():
+                                sftp.put(str(output), _sftp_remote_path(uploads[label]))
+                        finally:
+                            sftp.close()
+                        commands = ["set -e", "backup_ready=0", "committed=0",
+                            "rollback(){ if [ \"$backup_ready\" = 1 ] && [ \"$committed\" = 0 ]; then " +
+                            "; ".join("cp -p " + shlex.quote(backups[label]) + " " +
+                                      shlex.quote(session["paths"][label]) for label in server_outputs) +
+                            "; fi; }", "trap rollback EXIT"]
+                        for label in server_outputs:
+                            remote = session["paths"][label]
+                            commands.append("cp -p " + shlex.quote(remote) + " " + shlex.quote(backups[label]))
+                        commands.append("backup_ready=1")
+                        for label in server_outputs:
+                            remote = session["paths"][label]
+                            staged = remote + ".gmtool.tmp." + uuid.uuid4().hex
+                            commands.extend(("cp " + shlex.quote(uploads[label]) + " " + shlex.quote(staged),
+                                "chown --reference=" + shlex.quote(remote) + " " + shlex.quote(staged),
+                                "chmod --reference=" + shlex.quote(remote) + " " + shlex.quote(staged),
+                                "mv -f " + shlex.quote(staged) + " " + shlex.quote(remote)))
+                        commands.extend(("committed=1", "trap - EXIT"))
+                        commands.extend("rm -f " + shlex.quote(path) for path in uploads.values())
+                        _, stdout, stderr = connection.exec_command(
+                            "sudo -n sh -c " + shlex.quote("; ".join(commands)), timeout=180)
+                        out = stdout.read().decode("utf-8", "replace").strip()
+                        err = stderr.read().decode("utf-8", "replace").strip()
+                        if stdout.channel.recv_exit_status() != 0:
+                            raise RuntimeError("服务器技能包替换失败：" + (err or out))
+                        _, stdout, stderr = connection.exec_command("sha256sum " + " ".join(
+                            shlex.quote(session["paths"][label]) for label in server_outputs), timeout=30)
+                        hashes = stdout.read().decode("utf-8", "replace").strip().splitlines()
+                        if stdout.channel.recv_exit_status() != 0 or len(hashes) != len(server_outputs):
+                            raise RuntimeError("服务器包已替换，但 SHA-256 校验失败")
+                        for (label, output), line in zip(server_outputs.items(), hashes):
+                            if line.split()[0] != hashlib.sha256(output.read_bytes()).hexdigest():
+                                raise RuntimeError(f"服务器{label} SHA-256 校验失败")
+                        session["signatures"] = _dungeon_remote_signatures(session["paths"], connection)
+                    _update_server_mb_cache(server_outputs)
+                    _replace_client_work_package(client_result.read_bytes())
+                    for change in changes:
+                        for skill_id in change["skill_ids"]:
+                            updates = {"cooldown": str(change["cooldown"])}
+                            if change.get("distance") not in (None, ""):
+                                updates["range"] = str(change["distance"])
+                            session["skills"][(profession_id, skill_id)].update(updates)
+                    op_log("修改职业技能参数", {"profession_id": profession_id,
+                        "changes": changes,
+                        "backups": backups})
+                    return self._json({"ok": True, "data": {"backups": backups,
+                        "changes": changes}})
+                finally:
+                    client_output.unlink(missing_ok=True)
+                    client_result.unlink(missing_ok=True)
+                    for output in server_outputs.values():
+                        output.unlink(missing_ok=True)
+            if p == "/api/dungeon-limits":
+                backups = apply_dungeon_limits(
+                    body.get("session_id"), body.get("changes"))
+                return self._json({"ok": True, "data": {"backups": backups,
+                    "updated": list(backups)}})
+            if p == "/api/ride-speeds":
+                payload, backups = apply_ride_speeds(
+                    body.get("session_id"), body.get("changes"))
+                self.send_response(200)
+                self.send_header("Content-Type", "application/octet-stream")
+                self.send_header("Content-Disposition", 'attachment; filename="mb.ride-config.dpk"')
+                self.send_header("Content-Length", str(len(payload)))
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("X-Server-Backups", json.dumps(backups))
+                self.end_headers()
+                self.wfile.write(payload)
+                return
             if p == "/api/config":
                 try:
                     result = update_config(body)
@@ -2244,15 +3103,11 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError("文件选择器等待超时") from e
                 return self._json({"ok": True, "data": {"field": field, "path": selected}})
             if p == "/api/skill-limits/inspect":
-                client_path_text = str(CFG.get("client_mb_dpk") or "").strip()
-                if not client_path_text:
-                    raise ValueError("请先在 运维管理 → 连接配置 中设置客户端 mb.dpk 路径并保存")
-                client_path = Path(os.path.expanduser(client_path_text))
-                if not client_path.is_file():
-                    raise ValueError("找不到客户端 mb.dpk：" + str(client_path))
+                configured_client_path = _configured_client_package_path()
+                client_path = _ensure_client_work_package()
                 info = inspect_client_dpk(client_path, Path(CACHE_DIR))
-                info["client_path"] = str(client_path)
-                provenance_key = _skill_limit_provenance_key(client_path)
+                info["client_path"] = str(configured_client_path)
+                provenance_key = _skill_limit_provenance_key(configured_client_path)
                 with _skill_limit_provenance_lock:
                     client_provenance = _load_skill_limit_provenance().get(provenance_key, {})
                 session_id = info["session_id"]
@@ -2260,16 +3115,9 @@ class Handler(BaseHTTPRequestHandler):
                     "主包": MB_DPK_FILE_PATH,
                     "动态包": MB_DPK_DYNAMIC_FILE_PATH,
                 }
-                local_paths = {}
-                with _lock:
-                    sftp = ssh().open_sftp()
-                    try:
-                        for label, remote_path in server_paths.items():
-                            local = os.path.join(CACHE_DIR, f"skill-limits-{session_id}-{label}.dpk")
-                            sftp.get(remote_path, local)
-                            local_paths[label] = local
-                    finally:
-                        sftp.close()
+                local_package_paths, server_signatures = _ensure_server_mb_cache(server_paths)
+                local_paths = {label: str(path)
+                               for label, path in local_package_paths.items()}
                 server_skills = {}
                 server_career_groups = {}
                 for label, local in local_paths.items():
@@ -2336,6 +3184,7 @@ class Handler(BaseHTTPRequestHandler):
                 with _skill_limit_server_sessions_lock:
                     _skill_limit_server_sessions[session_id] = {
                         "paths": server_paths, "local_paths": local_paths,
+                        "signatures": server_signatures,
                         "provenance_key": provenance_key,
                         "skills": {row["id"]: row for row in shared_skills}}
                 op_log("读取三份技能配置包", {"sha256": info["sha256"],
@@ -2351,6 +3200,8 @@ class Handler(BaseHTTPRequestHandler):
                     server_session = _skill_limit_server_sessions.get(session_id)
                 if not server_session:
                     raise ValueError("服务端技能包会话已失效，请重新选择客户端 mb.dpk")
+                if _dungeon_remote_signatures(server_session["paths"]) != server_session.get("signatures"):
+                    raise ValueError("服务器包已变化，请重新读取技能配置")
                 if not isinstance(raw_changes, list) or not raw_changes:
                     raise ValueError("没有待应用的技能修改")
                 if target_profession not in CAREER_GROUP:
@@ -2375,7 +3226,8 @@ class Handler(BaseHTTPRequestHandler):
                         raise ValueError(f"技能 {skill_id} 没有状态变化")
                     changes[skill_id] = item["assigned"]
                     source_professions[skill_id] = int(source_ids[0])
-                result, filename = patch_client_dpk(session_id, target_profession,
+                client_path = _ensure_client_work_package()
+                result, filename = patch_dpk_changes(client_path, target_profession,
                     changes, source_professions, Path(CACHE_DIR))
                 server_outputs = {}
                 for label, source_path in server_session["local_paths"].items():
@@ -2395,10 +3247,12 @@ class Handler(BaseHTTPRequestHandler):
                     for label in server_outputs}
                 with _lock:
                     c = ssh()
+                    if _dungeon_remote_signatures(server_session["paths"], c) != server_session.get("signatures"):
+                        raise ValueError("服务器包已变化，请重新读取技能配置")
                     sftp = c.open_sftp()
                     try:
                         for label, local in server_outputs.items():
-                            sftp.put(local, uploads[label])
+                            sftp.put(local, _sftp_remote_path(uploads[label]))
                     finally:
                         sftp.close()
                     commands = ["set -e", "backup_ready=0", "committed=0",
@@ -2433,7 +3287,11 @@ class Handler(BaseHTTPRequestHandler):
                         expected = hashlib.sha256(Path(local).read_bytes()).hexdigest()
                         if line.split()[0] != expected:
                             raise RuntimeError(f"服务端{label} SHA-256 与本地生成包不一致")
-                refresh_client_session(session_id, result)
+                    server_session["signatures"] = _dungeon_remote_signatures(
+                        server_session["paths"], c)
+                _update_server_mb_cache({label: Path(path)
+                                         for label, path in server_outputs.items()})
+                _replace_client_work_package(result)
                 with _skill_limit_provenance_lock:
                     provenance = _load_skill_limit_provenance()
                     client_provenance = provenance.setdefault(server_session["provenance_key"], {})
@@ -2460,7 +3318,10 @@ class Handler(BaseHTTPRequestHandler):
                         if target_group not in skill["career_groups"]:
                             skill["career_groups"].append(target_group)
                 with _skill_limit_server_sessions_lock:
-                    server_session["local_paths"] = server_outputs
+                    server_session["local_paths"] = {
+                        label: str(path) for label, path in SERVER_MB_CACHE_PATHS.items()}
+                for output_path in server_outputs.values():
+                    Path(output_path).unlink(missing_ok=True)
                 self.send_response(200)
                 self.send_header("Content-Type", "application/octet-stream")
                 self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
@@ -2477,12 +3338,8 @@ class Handler(BaseHTTPRequestHandler):
                     "server_backups": backups})
                 return
             if p == "/api/summons/apply":
-                client_path_text = str(CFG.get("client_mb_dpk") or "").strip()
-                if not client_path_text:
-                    raise ValueError("请先在 运维管理 → 连接配置 中设置客户端 mb.dpk 路径并保存")
-                client_path = Path(os.path.expanduser(client_path_text))
-                if not client_path.is_file():
-                    raise ValueError("找不到客户端 mb.dpk：" + str(client_path))
+                _configured_client_package_path()
+                client_path = _ensure_client_work_package()
                 if not isinstance(body.get("skills"), list):
                     raise ValueError("召唤物技能配置无效")
                 catalog_path = Path(RES_DIR) / "doc" / "召唤物列表.csv"
@@ -2493,8 +3350,6 @@ class Handler(BaseHTTPRequestHandler):
                 if summon_type not in {"monster", "friend"}:
                     raise ValueError("召唤类型无效")
                 if summon_type == "friend":
-                    client_path_text = str(CFG.get("client_mb_dpk") or "").strip()
-                    client_path = Path(os.path.expanduser(client_path_text)) if client_path_text else None
                     catalog += load_friend_catalog(client_path)
                 config = {
                     "summon_type": summon_type,
@@ -2507,23 +3362,17 @@ class Handler(BaseHTTPRequestHandler):
                 }
                 run_id = uuid.uuid4().hex
                 client_output = Path(CACHE_DIR) / f"summon-{run_id}-client.dpk"
-                result, client_report = patch_summon_dpk(client_path, client_output, config, catalog=catalog)
+                try:
+                    result, client_report = patch_summon_dpk(
+                        client_path, client_output, config, catalog=catalog)
+                finally:
+                    client_output.unlink(missing_ok=True)
                 server_paths = {
                     "主包": MB_DPK_FILE_PATH,
                     "动态包": MB_DPK_DYNAMIC_FILE_PATH,
                 }
-                local_sources = {
-                    label: Path(CACHE_DIR) / f"summon-{run_id}-{label}-source.dpk"
-                    for label in server_paths
-                }
-                with _lock:
-                    connection = ssh()
-                    sftp = connection.open_sftp()
-                    try:
-                        for label, remote in server_paths.items():
-                            sftp.get(remote, str(local_sources[label]))
-                    finally:
-                        sftp.close()
+                local_sources, server_signatures = (
+                    _ensure_server_mb_cache(server_paths))
                 server_outputs = {}
                 server_reports = {}
                 for label, source in local_sources.items():
@@ -2541,10 +3390,12 @@ class Handler(BaseHTTPRequestHandler):
                            for label in server_outputs}
                 with _lock:
                     connection = ssh()
+                    if _dungeon_remote_signatures(server_paths, connection) != server_signatures:
+                        raise ValueError("服务器包已变化，请重新应用召唤配置")
                     sftp = connection.open_sftp()
                     try:
                         for label, local in server_outputs.items():
-                            sftp.put(str(local), uploads[label])
+                            sftp.put(str(local), _sftp_remote_path(uploads[label]))
                     finally:
                         sftp.close()
                     commands = ["set -e", "backup_ready=0", "committed=0",
@@ -2581,6 +3432,10 @@ class Handler(BaseHTTPRequestHandler):
                         if line.split()[0] != expected:
                             raise RuntimeError(f"服务端{label} SHA-256 与生成包不一致")
 
+                _update_server_mb_cache(server_outputs)
+                _replace_client_work_package(result)
+                for path in server_outputs.values():
+                    path.unlink(missing_ok=True)
                 with open(SUMMON_CONFIG_PATH, "w", encoding="utf-8") as f:
                     json.dump(config, f, ensure_ascii=False, indent=2)
                 filename = f"mb.summon.{hashlib.sha256(result).hexdigest()[:8]}.dpk"

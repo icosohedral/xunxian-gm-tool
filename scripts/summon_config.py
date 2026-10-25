@@ -20,6 +20,7 @@ SUMMON_METHOD_ID_MAP = {"30174": "30422", "30173": "30423", "30063": "30424"}
 NPC_SKILL_DIR = "skill/skill_data_npc"
 NPC_SKILL_CHOOSE = "object/cha_skill_choose.txt"
 CHA_LIST = "object/cha_list.txt"
+CHA_FIGHT = "object/cha_fight.txt"
 SUMMON_SKILL = "summon/summon_skill.txt"
 SUMMON_SKILL_INDEX = "summon/summon_skill_index.txt"
 SKILL_DATA = "skill/skill_data_yx.txt"
@@ -31,11 +32,16 @@ NPC_TEACH = "skill/npc_teach_skill.txt"
 CAREER_SKILLS = "skill/skill_cha_yx.txt"
 SKILL_CHOOSE_FIELDS = (5, 9, 13, 17, 21)
 IMMORTAL_FRIENDS = [
-    ("驭剑游侠", 17164, 16246, 3), ("奇门游侠", 17168, 16250, 4),
-    ("控火法师", 17166, 16248, 5), ("掌电法师", 17170, 16252, 6),
-    ("金刚力士", 17163, 16245, 2), ("罗刹力士", 17167, 16249, 1),
-    ("天君符咒师", 17165, 16247, 7), ("幽冥符咒师", 17169, 16251, 8),
-    ("乘风法师", 37651, 11574, 9), ("乾坤游侠", 37652, 11571, 10),
+    ("罗刹导师真身", 37643, 11568, 1),
+    ("金刚导师真身", 37644, 11567, 2),
+    ("驭剑导师真身", 37645, 11569, 3),
+    ("奇门导师真身", 37646, 11570, 4),
+    ("控火导师真身", 37647, 11573, 5),
+    ("掌电导师真身", 37648, 11572, 6),
+    ("幽冥导师真身", 37649, 11576, 8),
+    ("天君导师真身", 37650, 11575, 7),
+    ("乘风导师真身", 37651, 11574, 9),
+    ("乾坤导师真身", 37652, 11571, 10),
 ]
 
 
@@ -129,7 +135,7 @@ def _replace_resource_data(source: Path, output: Path, entry: str, data: bytes) 
         source, entry, None, output, line_edit=None, line_edits=None,
         replacement_data=data, compression_level=6, zlib_mem_level=8,
         zlib_strategy="default", auto_zlib_parameters=True,
-        allow_chain_shrink=False, overwrite_output=False,
+        allow_chain_shrink=True, allow_chain_growth=True, overwrite_output=False,
         overwrite_report=False, max_input_size=2 * 1024 * 1024 * 1024,
         report_path=None,
     )
@@ -141,7 +147,7 @@ def _resources(path: Path) -> tuple[dict[str, str], dict[str, bytes]]:
         selected = {name for name in all_entries if name in {
             SKILL_DATA, SKILL_METHOD_DATA, SKILL_LEARN, SKILL_LEVELUP,
             SKILL_TRIGGER, NPC_TEACH, CAREER_SKILLS,
-            NPC_SKILL_CHOOSE, CHA_LIST, SUMMON_SKILL, SUMMON_SKILL_INDEX,
+            NPC_SKILL_CHOOSE, CHA_LIST, CHA_FIGHT, SUMMON_SKILL, SUMMON_SKILL_INDEX,
         }}
         selected.update(name for name in all_entries
                         if name.startswith(NPC_SKILL_DIR) and name.endswith(".txt"))
@@ -485,30 +491,46 @@ def _summon_type_for_role(data: bytes, role_id: int, form_id: int,
     return matches[0]
 
 
-def _ensure_friend_cha_list(data: bytes, creature: dict) -> bytes:
-    """Add a minimal client character row for supplied仙友 IDs absent from mb.dpk."""
+def _ensure_friend_cha_list(data: bytes, creature: dict,
+                            reference_data: bytes | None = None) -> bytes:
+    """Copy the selected mentor's character row into a package that lacks it."""
     lines, encoding = _decode(data, CHA_LIST)
     role_id, form_id = int(creature["role_id"]), int(creature["form_id"])
     for line in lines:
         fields = line.rstrip("\r\n").split("\t")
         if len(fields) > 5 and fields[1] == str(role_id) and fields[5] == str(form_id):
             return data
-    template = next((line for line in lines if len(line.rstrip("\r\n").split("\t")) > 5 and
-                     line.rstrip("\r\n").split("\t")[1] in {"37651", "37652"}), None)
-    if template is None:
-        raise ValueError("cha_list.txt 找不到仙友角色模板")
-    fields = template.rstrip("\r\n").split("\t")
-    existing_types = []
-    for line in lines:
-        row = line.rstrip("\r\n").split("\t")
-        if len(row) > 4 and row[4].isdigit(): existing_types.append(int(row[4]))
-    fields[0], fields[1], fields[4], fields[5] = creature["name"], str(role_id), str(max(existing_types, default=0) + 1), str(form_id)
+    if reference_data is None:
+        raise ValueError(f"cha_list.txt 找不到导师真身 {role_id} 的角色记录")
+    reference_lines, _ = _decode(reference_data, CHA_LIST)
+    matches = [line for line in reference_lines
+               if len(fields := line.rstrip("\r\n").split("\t")) > 5
+               and fields[1] == str(role_id) and fields[5] == str(form_id)]
+    if len(matches) != 1:
+        raise ValueError(f"客户端 cha_list.txt 中导师真身 {role_id} 的记录不唯一或缺失")
+    target_header = next((row for line in lines
+                          if (row := line.rstrip("\r\n").split("\t"))[1:2] == ["ID"]), None)
+    reference_header = next((row for line in reference_lines
+                             if (row := line.rstrip("\r\n").split("\t"))[1:2] == ["ID"]), None)
+    if (target_header and reference_header and
+            target_header[1:] != reference_header[1:len(target_header)]):
+        raise ValueError("cha_list.txt 与客户端导师真身记录列结构不一致")
+    widths = {len(line.rstrip("\r\n").split("\t")) for line in lines
+              if len(line.rstrip("\r\n").split("\t")) > 5}
+    if len(widths) != 1:
+        raise ValueError("cha_list.txt 角色行列数不一致")
+    target_width = widths.pop()
+    fields = matches[0].rstrip("\r\n").split("\t")
+    if len(fields) < target_width:
+        raise ValueError("cha_list.txt 仙友模板列数不足")
+    fields = fields[:target_width]
     ending = "\r\n" if lines and lines[-1].endswith("\r\n") else "\n"
     lines.append("\t".join(fields) + ending)
     return "".join(lines).encode(encoding)
 
 
-def _ensure_friend_npc_skills(resources: dict[str, bytes], skills: list[dict]) -> None:
+def _ensure_friend_npc_skills(resources: dict[str, bytes], skills: list[dict],
+                              reference_resources: dict[str, bytes] | None = None) -> None:
     """Expose selected player profession skills through the NPC skill table."""
     npc_paths = sorted(path for path in resources
                        if path.startswith(NPC_SKILL_DIR) and path.endswith(".txt")
@@ -516,7 +538,7 @@ def _ensure_friend_npc_skills(resources: dict[str, bytes], skills: list[dict]) -
     source_paths = sorted(path for path in resources
                           if path.startswith("skill/skill_data_")
                           and not path.startswith(NPC_SKILL_DIR) and not path.endswith("_pet.txt"))
-    if not npc_paths or not source_paths:
+    if not npc_paths:
         raise ValueError("当前包缺少可写入仙友职业技能的技能定义表")
     existing: set[int] = set()
     for path in npc_paths:
@@ -528,23 +550,38 @@ def _ensure_friend_npc_skills(resources: dict[str, bytes], skills: list[dict]) -
     if not wanted: return
     definitions: dict[int, str] = {}
     source_encoding = None
-    for path in source_paths:
-        lines, encoding = _decode(resources[path], path)
-        source_encoding = source_encoding or encoding
-        for line in lines:
-            fields = line.rstrip("\r\n").split("\t")
-            if len(fields) > 1 and fields[1].isdigit() and int(fields[1]) in wanted:
-                sid = int(fields[1])
-                if sid in definitions:
-                    raise ValueError(f"职业技能定义 ID {sid} 重复，无法加入仙友技能表")
-                definitions[sid] = line
+    for source in (resources, reference_resources or {}):
+        paths = source_paths if source is resources else sorted(
+            path for path in source if path.startswith("skill/skill_data_")
+            and not path.startswith(NPC_SKILL_DIR) and not path.endswith("_pet.txt"))
+        remaining = wanted - definitions.keys()
+        if not remaining:
+            break
+        for path in paths:
+            lines, encoding = _decode(source[path], path)
+            source_encoding = source_encoding or encoding
+            for line in lines:
+                fields = line.rstrip("\r\n").split("\t")
+                if len(fields) > 1 and fields[1].isdigit() and int(fields[1]) in remaining:
+                    sid = int(fields[1])
+                    if sid in definitions:
+                        raise ValueError(f"职业技能定义 ID {sid} 重复，无法加入仙友技能表")
+                    definitions[sid] = line
     missing = wanted - definitions.keys()
     if missing: raise ValueError("职业技能定义表缺少技能：" + ", ".join(map(str, sorted(missing))))
     target = npc_paths[0]
     target_lines, target_encoding = _decode(resources[target], target)
     if target_encoding != source_encoding: raise ValueError("仙友技能表编码与职业技能表不一致")
+    widths = {len(line.rstrip("\r\n").split("\t")) for line in target_lines if "\t" in line}
+    if len(widths) != 1:
+        raise ValueError("仙友技能表列数不一致")
+    target_width = widths.pop()
     ending = "\r\n" if target_lines and target_lines[-1].endswith("\r\n") else "\n"
-    target_lines.extend(definitions[sid].rstrip("\r\n") + ending for sid in sorted(wanted))
+    for sid in sorted(wanted):
+        fields = definitions[sid].rstrip("\r\n").split("\t")
+        if len(fields) < target_width:
+            raise ValueError(f"职业技能 {sid} 定义列数不足")
+        target_lines.append("\t".join(fields[:target_width]) + ending)
     resources[target] = "".join(target_lines).encode(target_encoding)
 
 
@@ -651,6 +688,7 @@ def patch_summon_dpk(source: Path, output: Path, config: dict,
         skill_cds[sid] = cd
 
     entries, resources = _resources(source)
+    reference_resources: dict[str, bytes] = {}
     if reference is not None:
         _, reference_resources = _resources(reference)
         for path, key_column, key, multiple in (
@@ -684,7 +722,7 @@ def patch_summon_dpk(source: Path, output: Path, config: dict,
         return resources.get(path.lower())
 
     if config.get("summon_type") == "friend":
-        _ensure_friend_npc_skills(resources, selected)
+        _ensure_friend_npc_skills(resources, selected, reference_resources)
 
     summon_desc = f"召唤出{creature['name']}，协助你战斗，持续十分钟"
     skill_data = get(SKILL_DATA)
@@ -758,9 +796,22 @@ def patch_summon_dpk(source: Path, output: Path, config: dict,
     cha_list = get(CHA_LIST)
     if cha_list is not None:
         if config.get("summon_type") == "friend":
-            cha_list = _ensure_friend_cha_list(cha_list, creature)
+            patched_cha_list = _ensure_friend_cha_list(
+                cha_list, creature, reference_resources.get(CHA_LIST.lower()))
+            if patched_cha_list != cha_list:
+                changes[CHA_LIST.lower()] = patched_cha_list
+            cha_list = patched_cha_list
         summon_type = _summon_type_for_role(cha_list, role_id, form_id,
             required=(not optional_resources or config.get("summon_type") == "friend"))
+        if config.get("summon_type") == "friend" and summon_type:
+            fight = get(CHA_FIGHT)
+            if fight is None:
+                raise ValueError("当前包缺少导师真身战斗属性表")
+            fight_lines, _ = _decode(fight, CHA_FIGHT)
+            ability_rows = [line for line in fight_lines
+                            if line.rstrip("\r\n").split("\t")[0] == summon_type]
+            if len(ability_rows) != 1:
+                raise ValueError(f"cha_fight.txt 中战斗能力 ID {summon_type} 不唯一或缺失")
         if summon_type:
             changes.update(_patch_summon_skill_bar(resources, summon_type, selected,
                                                     required=not optional_resources))

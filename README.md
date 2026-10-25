@@ -23,21 +23,39 @@
 
 ## 安装与启动
 
-在项目目录打开终端，运行：
+首次安装时，在项目目录打开终端，创建虚拟环境并安装依赖：
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
+```
+
+之后每次启动，在项目目录运行：
+
+```bash
+source .venv/bin/activate
 python gm_server.py
 ```
 
-Windows PowerShell 可运行：
+也可以直接运行虚拟环境中的 Python：
+
+```bash
+./.venv/bin/python gm_server.py
+```
+
+Windows PowerShell 首次安装：
 
 ```powershell
 py -3.13 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
+```
+
+Windows PowerShell 日常启动：
+
+```powershell
+.\.venv\Scripts\Activate.ps1
 python gm_server.py
 ```
 

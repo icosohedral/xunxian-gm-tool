@@ -248,6 +248,10 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .rate-status{min-height:19px;margin-top:10px;color:var(--ok);font-size:11px}
 .rate-status.is-bad{color:var(--danger)}
 .game-config-tabs{margin-bottom:10px}
+.dungeon-status{margin-top:10px;font-size:11px;color:var(--ink-soft);overflow-wrap:anywhere}
+.dungeon-status.is-bad{color:var(--danger)}
+#dungeon-tag[hidden]{display:none}
+.dungeon-empty-loading{display:inline-flex;align-items:center;justify-content:center;gap:7px;color:var(--ink-soft);font-size:12px;font-weight:650}
 .fate-lock-card{width:min(100%,460px)}
 .fate-lock-card .card-body{padding:12px 16px}
 .fate-lock-levels{display:grid;grid-template-columns:minmax(140px,1fr) auto;max-width:430px;margin-top:2px;row-gap:2px}
@@ -264,7 +268,7 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .fate-lock-switch.is-loading::before{content:"";position:absolute;inset:4px;border:2px solid transparent;border-top-color:#fff;
   border-radius:50%;animation:fate-spin .7s linear infinite;z-index:1}
 .fate-lock-actions{display:flex;align-items:center;justify-content:flex-start;gap:10px;margin-top:8px}
-.fate-lock-actions-note{color:var(--ink-faint);font-size:11px}
+.fate-lock-actions-note,.dungeon-toolbar-note{color:var(--ink-faint);font-size:11px}
 @keyframes fate-spin{to{transform:rotate(360deg)}}
 .fate-lock-status{min-height:0;margin-top:7px;color:var(--ok);font-size:11px;overflow-wrap:anywhere}
 .fate-lock-status.is-bad{color:var(--danger)}
@@ -281,6 +285,48 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .skill-limits-profession-filter button.is-active{border-color:var(--jade);background:var(--mint);color:var(--pine)}
 .skill-confirm-list{max-height:min(55vh,420px);margin:0;padding:0 0 0 24px;overflow:auto}
 .skill-confirm-list li{padding:3px 0;color:var(--ink);font-size:12px;line-height:1.5}
+.profession-skill-toolbar{display:grid;grid-template-columns:minmax(190px,.7fr) minmax(220px,1fr);gap:10px;align-items:end;margin:6px 0 14px}
+.profession-skill-toolbar .field{min-width:0;margin:0}
+.profession-skill-layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(330px,.75fr);gap:12px;align-items:start}
+.profession-skill-layout .definition-table-wrap{height:min(58vh,500px);min-height:300px}
+.definition-table.profession-skill-table{width:100%;min-width:540px}
+.definition-table.profession-skill-table th:first-child,.definition-table.profession-skill-table td:first-child{width:86px}
+.definition-table.profession-skill-table th:nth-child(2),.definition-table.profession-skill-table td:nth-child(2){width:auto}
+.definition-table.profession-skill-table th:nth-child(3),.definition-table.profession-skill-table td:nth-child(3){width:112px}
+.definition-table.profession-skill-table th:nth-child(4),.definition-table.profession-skill-table td:nth-child(4){width:90px;text-align:left}
+.profession-skill-row{cursor:pointer!important}
+.profession-skill-row.is-active{background:var(--mint)!important}
+.profession-skill-row.is-pending,.profession-skill-row.is-pending:hover,.profession-skill-row.is-pending.is-active{background:#fdf0ee!important}
+.profession-skill-row.is-pending.is-active td:first-child{box-shadow:inset 3px 0 var(--danger)}
+.profession-skill-side{display:grid;gap:12px;min-width:0}
+.profession-skill-editor{min-width:0;padding:16px;border:1px solid #cfe4da;border-radius:11px;background:#fff;box-shadow:0 5px 18px rgba(12,69,55,.055)}
+.profession-skill-editor-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;min-width:0;padding-bottom:13px;border-bottom:1px solid var(--line)}
+.profession-skill-editor h4{min-width:0;margin:0;color:var(--pine);font-size:16px;line-height:1.3;overflow-wrap:anywhere}
+.profession-skill-editor-id{flex:none;margin:0;color:var(--ink-faint);font:650 11px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace}
+.profession-skill-editor-id:empty{display:none}
+.profession-skill-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:14px 0 12px}
+.profession-skill-editor .field{min-width:0;margin:0}
+.profession-skill-editor .field>span{font-size:11px;font-weight:750;color:var(--ink)}
+.profession-skill-editor input{height:38px;background:#fbfdfc;font-variant-numeric:tabular-nums}
+.profession-skill-editor input:disabled{background:#f3f6f4;color:var(--ink-faint)}
+.profession-skill-stage{width:100%}
+.profession-skill-pending{min-width:0}
+.profession-skill-pending .card-head{min-height:48px;padding:0 14px}
+.profession-skill-pending .card-body{padding:12px 14px 14px}
+.profession-skill-pending-title{display:flex;align-items:center;gap:8px;min-width:0}
+.profession-skill-pending-clear{padding:4px 2px;border:0;background:transparent;color:var(--ink-soft);font-size:11px;cursor:pointer}
+.profession-skill-pending-clear:hover:not(:disabled),.profession-skill-pending-clear:focus-visible{color:var(--danger);outline:0;text-decoration:underline}
+.profession-skill-pending-clear:disabled{opacity:.5;cursor:default}
+.profession-skill-pending-list{display:grid;gap:7px;max-height:210px;overflow:auto}
+.profession-skill-pending-list>.cart-empty{min-height:92px;display:grid;place-items:center}
+.profession-skill-pending-item{display:grid;grid-template-columns:minmax(0,1fr) 30px;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:#f8fbfa}
+.profession-skill-pending-detail{min-width:0;display:grid;gap:3px}
+.profession-skill-pending-detail b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink);font-size:12px}
+.profession-skill-pending-detail small{color:var(--ink-faint);font-size:10px;line-height:1.4}
+.profession-skill-pending-apply{width:100%;height:38px;margin-top:12px}
+@media(max-width:860px){.profession-skill-layout{grid-template-columns:minmax(0,1fr)}.profession-skill-layout .definition-table-wrap{height:min(45vh,380px);min-height:230px}}
+@media(max-width:640px){.profession-skill-toolbar{grid-template-columns:1fr}}
+@media(max-width:420px){.profession-skill-fields{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:640px){.skill-limits-toolbar{grid-template-columns:minmax(0,1fr) auto}.skill-limits-toolbar .field{grid-column:1/-1}}
 .skill-limits-hint{color:var(--ink-faint);font-size:12px;margin:8px 0}
 .skill-limits-check{width:16px;height:16px;accent-color:var(--jade)}
@@ -340,6 +386,41 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
   background:transparent;color:var(--ink);font:12px/1.35 ui-monospace,SFMono-Regular,Menlo,monospace;transition:.13s ease}
 .definition-value:hover{border-color:var(--line);background:#fff}
 .definition-value:focus{border-color:var(--jade);background:#fff;outline:0;box-shadow:0 0 0 3px rgba(0,155,128,.1)}
+.dungeon-toolbar select{width:170px;height:34px}
+.definition-table.dungeon-table{width:100%;min-width:760px}
+.definition-table.dungeon-table th:first-child,.definition-table.dungeon-table td:first-child{width:100px}
+.definition-table.dungeon-table th:nth-child(2),.definition-table.dungeon-table td:nth-child(2){width:auto}
+.definition-table.dungeon-table th:nth-child(3),.definition-table.dungeon-table td:nth-child(3){width:155px}
+.definition-table.dungeon-table th:nth-child(4),.definition-table.dungeon-table td:nth-child(4){width:105px;text-align:left}
+.definition-table.dungeon-table th:nth-child(5),.definition-table.dungeon-table td:nth-child(5){width:120px}
+.dungeon-table td:nth-child(2){white-space:normal;line-height:1.45;font-weight:650}
+.dungeon-table .definition-value{min-width:0;max-width:100px}
+.ride-config-layout{display:grid;grid-template-columns:minmax(290px,.95fr) minmax(340px,1.05fr);gap:12px;align-items:start}
+.ride-config-list-card,.ride-config-editor-card{min-width:0}
+.ride-config-list-card .card-body{padding:12px}
+.ride-config-toolbar{display:grid;grid-template-columns:minmax(0,1fr) 126px;gap:8px;margin-bottom:10px}
+.ride-config-search{width:100%;min-width:0}
+.ride-config-kind{min-width:0}
+.ride-config-list{height:min(66vh,620px);min-height:300px;overflow:auto;display:grid;align-content:start;gap:7px}
+.ride-config-item{width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);text-align:left;cursor:pointer}
+.ride-config-item:hover{border-color:#afd8ca;background:#f8fcfa}
+.ride-config-item.is-active{border-color:var(--jade);background:var(--mint)}
+.ride-config-item.is-changed{box-shadow:inset 3px 0 var(--danger)}
+.ride-config-item b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+.ride-config-item small{color:var(--ink-faint);font-size:10px}
+.ride-config-item span{grid-column:1/-1;color:var(--ink-soft);font-size:11px}
+.ride-config-editor-card .card-body{padding:18px}
+.ride-config-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 12px}
+.ride-config-fields .field{min-width:0;margin:0}
+.ride-config-fields input,.ride-config-fields select{height:38px;background:#fbfdfc}
+.ride-config-shared{grid-column:1/-1;color:var(--ink-faint);font-size:11px;line-height:1.5}
+.ride-config-shared-link{border:0;padding:0;background:none;color:var(--jade);font:inherit;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.ride-config-shared-link:hover{color:var(--pine)}
+.ride-config-shared-list{margin:0;padding-left:20px;max-height:min(50vh,360px);overflow:auto;color:var(--ink)}
+.ride-config-shared-list li+li{margin-top:4px}
+.ride-config-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:20px}
+.ride-config-actions .dungeon-toolbar-note{line-height:1.5}
+@media(max-width:860px){.ride-config-layout{grid-template-columns:minmax(0,1fr)}.ride-config-list{height:min(40vh,330px);min-height:200px}}
 .definition-favorite{display:inline-grid;place-items:center;width:30px;height:30px;padding:0;border:1px solid transparent;border-radius:9px;
   background:transparent;color:#9aa5a1;cursor:pointer;transition:color .15s ease,border-color .15s ease,background .15s ease,transform .15s ease}
 .definition-favorite svg{width:16px;height:16px;fill:transparent;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;transition:fill .15s ease,transform .15s ease}
@@ -508,11 +589,11 @@ tbody tr.is-static:hover{background:transparent}
 .cart-title b{min-width:0;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cart-title small{flex:none;color:var(--ink-faint);font-size:10px}
 .cart-item input{height:29px;text-align:center;font-size:11.5px;font-weight:700}
-.cart-item .cart-remove{width:30px;height:30px;display:grid;place-items:center;border:0;border-radius:7px;
+.cart-remove{width:30px;height:30px;display:grid;place-items:center;border:0;border-radius:7px;cursor:pointer;
   background:#fdf0ee;color:var(--danger)}
-.cart-item .cart-remove svg{width:15px;height:15px;stroke:currentColor;fill:none;
+.cart-remove svg{width:15px;height:15px;stroke:currentColor;fill:none;
   stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.cart-item .cart-remove:hover{background:#f9d9d3;color:#a13d2e}
+.cart-remove:hover,.cart-remove:focus-visible{background:#f9d9d3;color:#a13d2e;outline:0}
 .cart-empty{padding:26px 12px;text-align:center;color:var(--ink-faint);font-size:11px;
   border:1px dashed var(--line-strong);border-radius:10px}
 .cart-target{margin-top:12px}
@@ -596,6 +677,7 @@ tbody tr.is-static:hover{background:transparent}
 .modal-head h3{margin:0;font-size:15px;font-family:var(--font-display)}
 .modal-body{padding:10px 18px 16px;color:var(--ink-soft);font-size:12px;line-height:1.75}
 .modal-body b{color:var(--ink)}
+.server-action-timer{margin:10px 0 0;font-variant-numeric:tabular-nums;color:var(--pine)}
 .modal-body .confirm-error{margin-top:10px;padding:8px 10px;border:1px solid #f0d3ce;border-radius:8px;
   background:#fdf0ee;color:var(--danger);line-height:1.5}
 .modal-foot{padding:12px 18px;display:flex;justify-content:flex-end;gap:8px;
@@ -699,6 +781,10 @@ tbody tr.is-static:hover{background:transparent}
       <button class="rail-item" data-view="skill-config" title="技能配置">
         <img src="/logos/skill.png" alt="" aria-hidden="true">
         <span>技能配置</span>
+      </button>
+      <button class="rail-item" data-view="pet-config" title="宠物配置">
+        <img src="/logos/pet.png" alt="" aria-hidden="true">
+        <span>宠物配置</span>
       </button>
       <button class="rail-item" data-view="rates" title="游戏配置">
         <img src="/logos/rate.png" alt="" aria-hidden="true">
@@ -1072,18 +1158,19 @@ tbody tr.is-static:hover{background:transparent}
             <button type="button" role="tab" aria-selected="false" data-gcm="base">基础定义表</button>
             <button type="button" role="tab" aria-selected="false" data-gcm="dynamic">动态定义表</button>
             <button type="button" role="tab" aria-selected="false" data-gcm="fate">等级锁定</button>
+            <button type="button" role="tab" aria-selected="false" data-gcm="dungeon">副本进入限制</button>
           </div>
         </div>
         <div id="game-config-panel-rates" role="tabpanel">
           <article class="card rate-card">
-            <div class="card-head"><h3>倍率设置</h3><span class="tag plain" id="rate-load-tag">未读取</span></div>
+            <div class="card-head"><h3>倍率设置</h3></div>
             <div class="card-body">
               <form id="rate-form" class="rate-form" novalidate>
                 <label class="field" for="rate-exp"><span>经验倍率</span><input id="rate-exp" type="number" min="0" max="100000" step="0.1" required></label>
                 <label class="field" for="rate-money"><span>掉钱倍率</span><input id="rate-money" type="number" min="0" max="100000" step="0.1" required></label>
                 <div class="rate-actions">
-                  <button class="btn btn-primary" type="submit" id="rate-save">保存倍率</button>
-                  <button class="btn" type="button" id="rate-refresh">重新读取</button>
+                  <button class="btn btn-primary" type="submit" id="rate-save">保存修改</button>
+                  <span class="dungeon-toolbar-note">修改后重启服务端生效</span>
                 </div>
               </form>
               <div class="rate-status" id="rate-status" role="status" aria-live="polite"></div>
@@ -1092,12 +1179,12 @@ tbody tr.is-static:hover{background:transparent}
         </div>
         <div id="game-config-panel-base" class="is-hidden" role="tabpanel">
           <article class="card definition-card">
-            <div class="card-head"><h3>基础定义表</h3><span class="tag plain" id="definitions-tag-base">未读取</span></div>
+            <div class="card-head"><h3>基础定义表</h3></div>
             <div class="card-body">
               <div class="definition-toolbar">
                 <input class="definition-search" id="definitions-search-base" type="search" placeholder="搜索编号、数据或项目" aria-label="搜索基础定义表">
                 <button class="btn btn-primary" type="button" id="definitions-save-base" disabled>保存修改</button>
-                <button class="btn" type="button" id="definitions-refresh-base">重新读取</button>
+                <span class="dungeon-toolbar-note">修改后重启服务端生效</span>
                 <span class="tag plain" id="definitions-count-base"></span>
               </div>
               <div class="table-wrap definition-table-wrap"><table class="definition-table"><thead><tr><th>编号</th><th>数据</th><th>项目</th><th>收藏</th></tr></thead><tbody id="definitions-rows-base"><tr class="is-static"><td colspan="4" style="padding:0;border:0"><div class="empty"><b>切换标签后读取</b></div></td></tr></tbody></table></div>
@@ -1107,12 +1194,11 @@ tbody tr.is-static:hover{background:transparent}
         </div>
         <div id="game-config-panel-dynamic" class="is-hidden" role="tabpanel">
           <article class="card definition-card">
-            <div class="card-head"><h3>动态定义表</h3><span class="tag plain" id="definitions-tag-dynamic">未读取</span></div>
+            <div class="card-head"><h3>动态定义表</h3></div>
             <div class="card-body">
               <div class="definition-toolbar">
                 <input class="definition-search" id="definitions-search-dynamic" type="search" placeholder="搜索编号、数据或项目" aria-label="搜索动态定义表">
                 <button class="btn btn-primary" type="button" id="definitions-save-dynamic" disabled>保存修改</button>
-                <button class="btn" type="button" id="definitions-refresh-dynamic">重新读取</button>
                 <span class="tag plain" id="definitions-count-dynamic"></span>
               </div>
               <div class="table-wrap definition-table-wrap"><table class="definition-table"><thead><tr><th>编号</th><th>数据</th><th>项目</th><th>收藏</th></tr></thead><tbody id="definitions-rows-dynamic"><tr class="is-static"><td colspan="4" style="padding:0;border:0"><div class="empty"><b>切换标签后读取</b></div></td></tr></tbody></table></div>
@@ -1130,8 +1216,49 @@ tbody tr.is-static:hover{background:transparent}
                 <button class="btn btn-primary fate-lock-save" type="button" id="fate-lock-save" disabled>
                   保存修改
                 </button>
-                <span class="fate-lock-actions-note" id="fate-lock-restart-note" hidden>重启服务端后生效</span>
+                <span class="fate-lock-actions-note">修改后重启服务端生效</span>
               </div>
+            </div>
+          </article>
+        </div>
+        <div id="game-config-panel-dungeon" class="is-hidden" role="tabpanel">
+          <article class="card definition-card">
+            <div class="card-head"><h3>副本进入限制</h3><span class="tag plain" id="dungeon-tag" hidden></span></div>
+            <div class="card-body">
+              <div class="definition-toolbar dungeon-toolbar">
+                <input class="definition-search" id="dungeon-search" type="search" placeholder="搜索副本名称或场景 ID" aria-label="搜索副本">
+                <select id="dungeon-source" aria-label="限制来源"><option value="">全部来源</option><option>场景限制</option><option>活动副本 CD</option><option>镇妖塔每日 CD</option><option>心魔砺炼每日上限</option></select>
+                <button class="btn" type="button" id="dungeon-set-all" title="将全部次数设为 999，再点击应用修改" disabled>一键设置</button>
+                <button class="btn btn-primary" type="button" id="dungeon-apply" disabled>应用修改</button>
+                <span class="dungeon-toolbar-note">修改后重启服务端生效</span>
+              </div>
+              <div class="table-wrap definition-table-wrap"><table class="definition-table dungeon-table"><thead><tr><th>场景 ID</th><th>副本</th><th>限制来源</th><th>当前次数</th><th>调整为</th></tr></thead><tbody id="dungeon-rows"><tr class="is-static"><td colspan="5" style="padding:0;border:0"><div class="empty"><span class="dungeon-empty-loading"><span class="spinner" aria-hidden="true"></span>正在读取</span></div></td></tr></tbody></table></div>
+              <div class="dungeon-status" id="dungeon-status" role="status" aria-live="polite"></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ============ 宠物配置 ============ -->
+      <section id="view-pet-config" class="view is-hidden">
+        <div class="view-actions"><div class="segmented" role="tablist" aria-label="宠物配置类型"><button type="button" class="is-active" role="tab" aria-selected="true">骑宠设置</button></div></div>
+        <div class="ride-config-layout">
+          <article class="card ride-config-list-card">
+            <div class="card-head"><h3>骑宠</h3><span class="tag plain" id="ride-speed-count" hidden></span></div>
+            <div class="card-body"><div class="ride-config-toolbar"><input class="definition-search ride-config-search" id="ride-speed-search" type="search" placeholder="搜索骑宠名称" aria-label="搜索骑宠"><select class="ride-config-kind" id="ride-speed-kind" aria-label="坐骑类型"><option value="all">显示所有</option><option value="pet">骑宠</option><option value="item">道具坐骑</option></select></div><div class="ride-config-list" id="ride-speed-rows" role="listbox" aria-label="骑宠列表"><div class="empty"><b>进入后读取骑宠</b></div></div></div>
+          </article>
+          <article class="card ride-config-editor-card">
+            <div class="card-head"><h3 id="ride-config-title">选择一个骑宠</h3><span class="tag plain" id="ride-config-id" hidden></span></div>
+            <div class="card-body">
+              <div class="ride-config-fields">
+                <label class="field"><span>移动速度</span><input id="ride-config-run" type="number" min="1" max="9999" step="1" disabled></label>
+                <label class="field"><span>场景</span><select id="ride-config-terrain" disabled><option value="land">陆地</option><option value="water">水中</option><option value="both">两栖</option></select></label>
+                <label class="field"><span>飞行设置</span><select id="ride-config-fly" disabled><option value="no">不允许</option><option value="yes">允许</option></select></label>
+                <label class="field"><span>施法设置</span><select id="ride-config-cast" disabled><option value="none">不允许</option><option value="partial">部分允许</option><option value="all">允许</option></select></label>
+                <span class="ride-config-shared" id="ride-config-shared" hidden></span>
+              </div>
+              <div class="ride-config-actions"><button class="btn btn-primary" type="button" id="ride-speed-apply" disabled>应用修改</button><span class="dungeon-toolbar-note">修改后重启服务端生效；下载的客户端包需替换游戏目录中的 mb.dpk</span></div>
+              <div class="dungeon-status" id="ride-speed-status" role="status" aria-live="polite"></div>
             </div>
           </article>
         </div>
@@ -1142,6 +1269,7 @@ tbody tr.is-static:hover{background:transparent}
         <div class="view-actions">
           <div class="segmented" id="skill-config-mode" role="tablist" aria-label="技能配置类型">
             <button type="button" class="is-active" role="tab" aria-selected="true" data-scm="cross-career">跨职业技能</button>
+            <button type="button" role="tab" aria-selected="false" data-scm="profession">职业技能配置</button>
             <button type="button" role="tab" aria-selected="false" data-scm="summon">召唤物</button>
           </div>
         </div>
@@ -1158,6 +1286,38 @@ tbody tr.is-static:hover{background:transparent}
               <div class="skill-limits-hint" id="skill-limits-hint"></div>
               <div class="table-wrap definition-table-wrap"><table class="definition-table skill-limits-table"><thead><tr><th><input id="skill-limits-all" type="checkbox" aria-label="选择当前列表全部技能" disabled></th><th>技能 ID</th><th>技能名称</th><th>职业</th></tr></thead><tbody id="skill-limits-rows"></tbody></table></div>
               <div class="definition-status" id="skill-limits-status" role="status" aria-live="polite"></div>
+            </div>
+          </article>
+        </div>
+        <div id="skill-config-panel-profession" class="is-hidden" role="tabpanel">
+          <article class="card definition-card">
+            <div class="card-head"><h3>职业技能配置</h3><span class="skill-limits-loading" id="profession-skills-loading" role="status" hidden><span class="spinner" aria-hidden="true"></span>读取中</span></div>
+            <div class="card-body">
+              <div class="profession-skill-toolbar">
+                  <label class="field"><select id="profession-skills-profession" aria-label="选择职业" disabled></select></label>
+                <input class="definition-search" id="profession-skills-search" type="search" placeholder="搜索技能名称或 ID" aria-label="搜索技能名称或 ID" disabled>
+              </div>
+              <div class="profession-skill-layout">
+                <div class="table-wrap definition-table-wrap"><table class="definition-table profession-skill-table"><thead><tr><th>技能 ID</th><th>技能名称</th><th>冷却（秒）</th><th>距离（步）</th></tr></thead><tbody id="profession-skills-rows"><tr class="is-static"><td colspan="4" style="padding:0;border:0"><div class="empty"><b>选择职业后读取技能</b></div></td></tr></tbody></table></div>
+                <div class="profession-skill-side">
+                  <section class="profession-skill-editor" aria-live="polite">
+                    <div class="profession-skill-editor-head"><h4 id="profession-skill-editor-title">选择一个技能</h4><span class="profession-skill-editor-id" id="profession-skill-editor-id"></span></div>
+                    <div class="profession-skill-fields">
+                      <label class="field" for="profession-skill-cooldown"><span>冷却时间（秒）</span><input id="profession-skill-cooldown" type="number" min="0" max="86400" disabled></label>
+                      <label class="field" for="profession-skill-distance"><span>施放距离（步）</span><input id="profession-skill-distance" type="number" min="1" max="100000" disabled></label>
+                    </div>
+                    <button class="btn profession-skill-stage" id="profession-skill-stage" type="button" disabled>加入待应用</button>
+                  </section>
+                  <section class="card profession-skill-pending" aria-label="待应用修改">
+                    <div class="card-head"><div class="profession-skill-pending-title"><h3>待应用修改</h3><span class="tag plain" id="profession-skill-pending-count">0 项</span></div><button class="profession-skill-pending-clear" id="profession-skill-pending-clear" type="button" disabled>清空</button></div>
+                    <div class="card-body">
+                      <div class="profession-skill-pending-list" id="profession-skill-pending-list"><div class="cart-empty">清单为空，从左侧选择技能并加入</div></div>
+                      <button class="btn btn-primary profession-skill-pending-apply" id="profession-skill-apply" type="button" disabled>应用修改</button>
+                    </div>
+                  </section>
+                </div>
+              </div>
+              <div class="definition-status" id="profession-skills-status" role="status" aria-live="polite"></div>
             </div>
           </article>
         </div>
@@ -1366,6 +1526,10 @@ function confirmDialog(opts){
     const okButton = $('[data-act="ok"]', root);
     const cancelButton = $('[data-act="cancel"]', root);
     cancelButton.textContent = opts.cancelText || '取消';
+    if (opts.infoOnly){
+      cancelButton.style.display = 'none';
+      $('.modal-head i', root).style.display = 'none';
+    }
     okButton.textContent = opts.okText || '确认';
     document.body.classList.add('has-modal');
     let submitting = false;
@@ -1516,13 +1680,17 @@ function readDefinitionFavorites(){
 const state = { view:'home', cart:[], scenes:null, acctId:null, charId:null, logs:[], logFilter:'all',
                 acctMode:'account', itemMode:'item', logsMode:'server', ratesLoaded:false,
                 gameConfigMode:'rates', definitions:{base:null,dynamic:null}, fateLocks:null,
+                dungeonLimits:null, dungeonDraft:new Map(), dungeonTouched:new Set(), dungeonLoading:false, dungeonApplying:false, dungeonEmptyLabel:'',
+                rideSpeeds:null, rideDraft:new Map(), rideSelectedId:null, rideLoading:false, rideApplying:false, rideEmptyLabel:'',
                 skillLimits:null, skillLimitsPath:null, skillLimitsLoading:false,
+                professionSkillData:null, professionSkillSession:null, professionSkillSelectedId:null,
+                professionSkillLoading:false, professionSkillApplying:false, professionSkillPending:new Map(),
                 skillConfigMode:'cross-career', summonCatalog:null, summonFriends:null, summonConfig:null,
                 summonSelectedSkills:new Map(), summonSkillOrder:[], summonDraggedSkillId:null, summonLoading:false, summonApplying:false,
                 skillLimitSourceFilter:'all', skillLimitSelection:new Set(), skillLimitVisibleGroups:[],
                 fateLockDraft:null, fateLockSaving:false, fateLockLoading:false,
                 definitionDirty:{base:{},dynamic:{}}, definitionFavorites:readDefinitionFavorites() };
-const VIEWS = ['home','acct','item','rates','skill-config','logs'];
+const VIEWS = ['home','acct','item','rates','skill-config','pet-config','logs'];
 
 function syncHash(){
   let h = state.view;
@@ -1543,11 +1711,13 @@ function showView(v){
   if (v === 'rates'){
     if (state.gameConfigMode === 'rates' && !state.ratesLoaded) loadRates();
     if (state.gameConfigMode === 'fate' && !state.fateLocks) loadFateLocks();
+    if (state.gameConfigMode === 'dungeon' && !state.dungeonLimits) loadDungeonLimits();
     if (['base','dynamic'].includes(state.gameConfigMode) && !state.definitions[state.gameConfigMode]) loadDefinitions(state.gameConfigMode);
   }
   if (v === 'skill-config'){
     setSkillConfigMode(state.skillConfigMode);
   }
+  if (v === 'pet-config' && !state.rideSpeeds) loadRideSpeeds();
   syncHash();
   window.scrollTo({ top:0, behavior:'smooth' });
 }
@@ -2157,8 +2327,9 @@ async function searchItem(){
   const tb = $('#it-rows');
   tb.innerHTML = skeleton(5);
   try{
-    const j = await api('/api/items?q=' + encodeURIComponent($('#it-q').value.trim()));
-    $('#item-count').textContent = '共 ' + j.rows.length + ' 条';
+    const q = $('#it-q').value.trim();
+    const j = await api('/api/items?q=' + encodeURIComponent(q));
+    $('#item-count').textContent = '共 ' + (q ? j.rows.length : j.total) + ' 条';
     if (!j.rows.length){ tb.innerHTML = emptyRow(5, '没有匹配的物品', '换个物品名或物品 ID 试试'); return; }
     tb.innerHTML = j.rows.map(r => (
       '<tr class="is-static">' +
@@ -2531,26 +2702,18 @@ function setRateStatus(message, bad){
   el.classList.toggle('is-bad', !!bad);
 }
 async function loadRates(){
-  const btn = $('#rate-refresh');
-  if (btn) busy(btn, true, '读取中');
-  $('#rate-load-tag').textContent = '读取中';
   setRateStatus('正在读取游戏服配置…');
   try{
     const j = await api('/api/rates');
     $('#rate-exp').value = j.data.exp;
     $('#rate-money').value = j.data.money;
-    $('#rate-load-tag').textContent = '已连接';
-    setRateStatus('已读取服务器当前配置');
+    setRateStatus('');
     state.ratesLoaded = true;
   } catch(e){
-    $('#rate-load-tag').textContent = '读取失败';
     setRateStatus(e.message, true);
     state.ratesLoaded = false;
-  } finally {
-    if (btn) busy(btn, false);
   }
 }
-$('#rate-refresh').addEventListener('click', loadRates);
 $('#rate-form').addEventListener('submit', async e => {
   e.preventDefault();
   const btn = $('#rate-save');
@@ -2566,7 +2729,6 @@ $('#rate-form').addEventListener('submit', async e => {
     const j = await postJSON('/api/rates', {exp, money});
     $('#rate-exp').value = j.data.exp;
     $('#rate-money').value = j.data.money;
-    $('#rate-load-tag').textContent = '已保存';
     state.ratesLoaded = true;
     setRateStatus('保存成功');
     toast('倍率已保存');
@@ -2582,17 +2744,18 @@ $('#rate-form').addEventListener('submit', async e => {
    游戏配置定义表
    ============================================================ */
 function setGameConfigMode(mode){
-  if (!['rates','base','dynamic','fate'].includes(mode)) mode = 'rates';
+  if (!['rates','base','dynamic','fate','dungeon'].includes(mode)) mode = 'rates';
   state.gameConfigMode = mode;
   $$('#game-config-mode button').forEach(button => {
     const active = button.dataset.gcm === mode;
     button.classList.toggle('is-active', active);
     button.setAttribute('aria-selected', active ? 'true' : 'false');
   });
-  ['rates','base','dynamic','fate'].forEach(key =>
+  ['rates','base','dynamic','fate','dungeon'].forEach(key =>
     $('#game-config-panel-' + key).classList.toggle('is-hidden', key !== mode));
   if (mode === 'rates' && !state.ratesLoaded) loadRates();
   if (mode === 'fate' && !state.fateLocks) loadFateLocks();
+  if (mode === 'dungeon' && !state.dungeonLimits) loadDungeonLimits();
   if (['base','dynamic'].includes(mode) && !state.definitions[mode]) loadDefinitions(mode);
 }
 $('#game-config-mode').addEventListener('click', e => {
@@ -2601,23 +2764,225 @@ $('#game-config-mode').addEventListener('click', e => {
 });
 
 function setSkillConfigMode(mode){
-  state.skillConfigMode = mode === 'summon' ? 'summon' : 'cross-career';
+  state.skillConfigMode = ['profession','summon'].includes(mode) ? mode : 'cross-career';
   $$('#skill-config-mode button').forEach(button => {
     const active = button.dataset.scm === state.skillConfigMode;
     button.classList.toggle('is-active', active);
     button.setAttribute('aria-selected', active ? 'true' : 'false');
   });
   $('#skill-config-panel-cross-career').classList.toggle('is-hidden', state.skillConfigMode !== 'cross-career');
+  $('#skill-config-panel-profession').classList.toggle('is-hidden', state.skillConfigMode !== 'profession');
   $('#skill-config-panel-summon').classList.toggle('is-hidden', state.skillConfigMode !== 'summon');
   if (state.skillConfigMode === 'cross-career'){
     const configuredClientPath = $('#cfg-client_mb_dpk').value.trim();
     if (!state.skillLimitsLoading &&
         (!state.skillLimits || (configuredClientPath && state.skillLimitsPath !== configuredClientPath))) loadSkillLimits();
+  } else if (state.skillConfigMode === 'profession'){
+    if (!state.professionSkillData && !state.professionSkillLoading) loadProfessionSkills();
   } else if (!state.summonCatalog && !state.summonLoading) loadSummonCatalog();
 }
 $('#skill-config-mode').addEventListener('click', e => {
   const button = e.target.closest('[data-scm]');
   if (button) setSkillConfigMode(button.dataset.scm);
+});
+
+function professionSkillGroups(){
+  const professionId = Number($('#profession-skills-profession').value);
+  const groups = new Map();
+  for (const skill of (state.professionSkillData?.skills || []).filter(item => item.profession_id === professionId)){
+    const key = professionId === 4 ? skill.name : String(skill.id);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(skill);
+  }
+  return [...groups.values()].map(items => items.sort((a,b) => a.id - b.id));
+}
+function selectedProfessionSkill(){
+  return professionSkillGroups().find(group =>
+    group.some(skill => skill.id === Number(state.professionSkillSelectedId))) || null;
+}
+function professionSkillPendingKey(group){
+  return Number($('#profession-skills-profession').value) + ':' + group.map(item => item.id).sort((a,b) => a-b).join(',');
+}
+function renderProfessionSkillPending(){
+  const pending = [...state.professionSkillPending.values()];
+  $('#profession-skill-pending-count').textContent = pending.length + ' 项';
+  $('#profession-skill-pending-clear').disabled = !pending.length || state.professionSkillApplying;
+  $('#profession-skill-apply').disabled = !pending.length || state.professionSkillApplying;
+  $('#profession-skills-profession').disabled = state.professionSkillLoading || pending.length > 0 || state.professionSkillApplying;
+  $('#profession-skill-pending-list').innerHTML = pending.length ? pending.map(item =>
+    '<div class="profession-skill-pending-item"><div class="profession-skill-pending-detail"><b>' + esc(item.name) +
+      '</b><small>冷却 ' + esc(item.cooldown) + ' 秒' +
+      (item.has_range ? ' · 距离 ' + esc(item.distance) + ' 步' : '') +
+      '</small></div><button type="button" class="cart-remove" data-remove-profession-pending="' +
+      esc(item.key) + '" aria-label="移除 ' + esc(item.name) + '" title="移除 ' + esc(item.name) +
+      '"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg></button></div>'
+  ).join('') : '<div class="cart-empty">清单为空，从左侧选择技能并加入</div>';
+}
+function renderProfessionSkillRows(){
+  const data = state.professionSkillData;
+  if (!data) return;
+  const professionId = Number($('#profession-skills-profession').value);
+  const query = $('#profession-skills-search').value.trim().toLowerCase();
+  const groups = professionSkillGroups().filter(group =>
+    !query || group.some(skill => String(skill.id).includes(query)) || group[0].name.toLowerCase().includes(query));
+  $('#profession-skills-rows').innerHTML = groups.length ? groups.map(group => {
+    const skill = group[0], ids = group.map(item => item.id);
+    const selected = ids.includes(Number(state.professionSkillSelectedId));
+    const pending = state.professionSkillPending.get(professionSkillPendingKey(group));
+    const cooldowns = pending ? [String(pending.cooldown)] : [...new Set(group.map(item => item.cooldown))];
+    const cooldown = cooldowns.length === 1 ? cooldowns[0] : '';
+    const hasRange = group.some(item => item.has_range);
+    const ranges = pending && pending.has_range ? [String(pending.distance)] :
+      [...new Set(group.flatMap(item => item.range_values?.length ? item.range_values :
+        item.has_range && item.range ? [item.range] : []))];
+    const distance = !hasRange ? '—' : ranges.length === 1 ? esc(ranges[0]) : '多值';
+    return '<tr class="profession-skill-row' + (selected ? ' is-active' : '') +
+      (pending ? ' is-pending' : '') + '" data-profession-skill="' + skill.id + '">' +
+      '<td class="definition-id">' + skill.id + (ids.length > 1 ? ' +…' : '') + '</td><td>' + esc(skill.name) + '</td><td>' +
+      (!cooldown ? '多值' : Number(cooldown) < 0 ? '特殊值' : esc(cooldown)) +
+      '</td><td>' + distance + '</td></tr>';
+  }).join('') : '<tr class="is-static"><td colspan="4" style="padding:0;border:0"><div class="empty"><b>该职业没有匹配的技能</b></div></td></tr>';
+  const selectedGroup = selectedProfessionSkill();
+  const selected = selectedGroup?.[0] || null;
+  const pending = selectedGroup ? state.professionSkillPending.get(professionSkillPendingKey(selectedGroup)) : null;
+  $('#profession-skill-editor-title').textContent = selected?.name || '选择一个技能';
+  $('#profession-skill-editor-id').textContent = selected ? '#' + selected.id + (selectedGroup.length > 1 ? '…' : '') : '';
+  const selectedCooldowns = selectedGroup ? [...new Set(selectedGroup.map(item => item.cooldown))] : [];
+  const selectedRanges = selectedGroup ? [...new Set(selectedGroup.map(item => item.range))] : [];
+  if (document.activeElement !== $('#profession-skill-cooldown')) $('#profession-skill-cooldown').value = pending ? pending.cooldown : selected && selectedCooldowns.length === 1 && Number(selectedCooldowns[0]) >= 0 ? selectedCooldowns[0] : '';
+  if (document.activeElement !== $('#profession-skill-distance')) $('#profession-skill-distance').value = pending ? (pending.distance ?? '') : selected && selected.has_range && selectedRanges.length === 1 ? selectedRanges[0] : '';
+  $('#profession-skill-cooldown').disabled = !selected || state.professionSkillApplying;
+  $('#profession-skill-distance').disabled = !selected || !selected.has_range || state.professionSkillApplying;
+  $('#profession-skill-distance').placeholder = selected && !selected.has_range ? '不适用' : '';
+  const cooldownValue = $('#profession-skill-cooldown').value.trim();
+  const distanceValue = $('#profession-skill-distance').value.trim();
+  $('#profession-skill-stage').disabled = !selected || state.professionSkillApplying ||
+    !cooldownValue || !Number.isFinite(Number(cooldownValue)) ||
+    Number(cooldownValue) < 0 || Number(cooldownValue) > 86400 ||
+    (selected?.has_range && (!distanceValue || !Number.isFinite(Number(distanceValue)) ||
+    Number(distanceValue) < 1 || Number(distanceValue) > 100000));
+  $('#profession-skill-stage').textContent = pending ? '更新待应用项' : '加入待应用';
+  renderProfessionSkillPending();
+}
+async function loadProfessionSkills(){
+  if (state.professionSkillLoading) return;
+  state.professionSkillLoading = true;
+  $('#profession-skills-loading').hidden = false;
+  $('#profession-skills-status').textContent = '';
+  $('#profession-skills-status').classList.remove('is-bad');
+  try{
+    const response = await postJSON('/api/profession-skills/inspect', {});
+    state.professionSkillData = response.data;
+    state.professionSkillSession = response.data.session_id;
+    const options = response.data.professions.map(profession =>
+      '<option value="' + profession.id + '">' + esc(profession.name) + '</option>').join('');
+    $('#profession-skills-profession').innerHTML = options;
+    if (response.data.professions.some(item => item.id === 4)) $('#profession-skills-profession').value = '4';
+    $('#profession-skills-search').disabled = false;
+    const selected = response.data.skills.find(skill => skill.profession_id === Number($('#profession-skills-profession').value));
+    state.professionSkillSelectedId = selected?.id ?? null;
+    renderProfessionSkillRows();
+  }catch(error){
+    state.professionSkillData = null;
+    $('#profession-skills-status').textContent = error.message;
+    $('#profession-skills-status').classList.add('is-bad');
+  }finally{
+    state.professionSkillLoading = false;
+    $('#profession-skills-loading').hidden = true;
+    if (state.professionSkillData) renderProfessionSkillRows();
+  }
+}
+$('#profession-skills-profession').addEventListener('change', () => {
+  state.professionSkillSelectedId = state.professionSkillData?.skills.find(skill =>
+    skill.profession_id === Number($('#profession-skills-profession').value))?.id ?? null;
+  renderProfessionSkillRows();
+});
+$('#profession-skills-search').addEventListener('input', renderProfessionSkillRows);
+$('#profession-skills-rows').addEventListener('click', event => {
+  const row = event.target.closest('[data-profession-skill]');
+  if (!row) return;
+  state.professionSkillSelectedId = Number(row.dataset.professionSkill);
+  renderProfessionSkillRows();
+});
+$('#profession-skill-stage').addEventListener('click', event => {
+  const group = selectedProfessionSkill();
+  const skill = group?.[0] || null;
+  if (!skill || event.currentTarget.disabled) return;
+  const key = professionSkillPendingKey(group);
+  state.professionSkillPending.set(key, {
+    key, profession_id:skill.profession_id, skill_ids:group.map(item => item.id),
+    name:skill.name, cooldown:Number($('#profession-skill-cooldown').value),
+    distance:skill.has_range ? Number($('#profession-skill-distance').value) : null,
+    has_range:skill.has_range
+  });
+  renderProfessionSkillRows();
+  toast('已加入待应用列表');
+});
+$('#profession-skill-pending-list').addEventListener('click', event => {
+  const button = event.target.closest('[data-remove-profession-pending]');
+  if (!button) return;
+  state.professionSkillPending.delete(button.dataset.removeProfessionPending);
+  renderProfessionSkillRows();
+});
+$('#profession-skill-pending-clear').addEventListener('click', () => {
+  state.professionSkillPending.clear();
+  renderProfessionSkillRows();
+});
+const updateProfessionSkillApplyState = () => {
+  const skill = selectedProfessionSkill()?.[0] || null;
+  const cooldownText = $('#profession-skill-cooldown').value.trim(), distanceText = $('#profession-skill-distance').value.trim();
+  const cooldown = Number(cooldownText), distance = Number(distanceText);
+  $('#profession-skill-stage').disabled = !skill || state.professionSkillApplying ||
+    !cooldownText || !Number.isFinite(cooldown) || cooldown < 0 || cooldown > 86400 ||
+    (skill?.has_range && (!distanceText || !Number.isFinite(distance) || distance < 1 || distance > 100000));
+};
+$('#profession-skill-cooldown').addEventListener('input', updateProfessionSkillApplyState);
+$('#profession-skill-distance').addEventListener('input', updateProfessionSkillApplyState);
+$('#profession-skill-apply').addEventListener('click', async event => {
+  const pending = [...state.professionSkillPending.values()];
+  if (!pending.length || event.currentTarget.disabled) return;
+  const button = event.currentTarget;
+  state.professionSkillApplying = true;
+  busy(button, true, '应用中');
+  renderProfessionSkillRows();
+  try{
+    await postJSON('/api/profession-skills/apply', {
+      session_id:state.professionSkillSession, profession_id:pending[0].profession_id,
+      changes:pending.map(item => ({skill_ids:item.skill_ids, cooldown:item.cooldown, distance:item.distance}))
+    });
+    const downloadResponse = await fetch('/api/profession-skills/download?session_id=' +
+      encodeURIComponent(state.professionSkillSession));
+    if (!downloadResponse.ok){
+      const error = await downloadResponse.json().catch(() => ({}));
+      throw new Error(error.error || '客户端下载包生成失败');
+    }
+    const blob = await downloadResponse.blob(), url = URL.createObjectURL(blob), anchor = document.createElement('a');
+    anchor.href = url; anchor.download = 'mb.profession-skills.dpk';
+    document.body.appendChild(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url);
+    for (const change of pending){
+      for (const skill of state.professionSkillData.skills.filter(item =>
+        item.profession_id === change.profession_id && change.skill_ids.includes(item.id))){
+        skill.cooldown = String(change.cooldown);
+        if (change.has_range){
+          skill.range = String(change.distance);
+          skill.range_values = [String(change.distance)];
+        }
+      }
+    }
+    state.professionSkillPending.clear();
+    state.skillLimits = null; state.skillLimitsPath = null; state.skillLimitSelection = new Set();
+    $('#profession-skills-status').textContent = pending.length + ' 项技能修改已写入服务器包；客户端修改包已下载。重启服务端并替换客户端 mb.dpk 后生效。';
+    $('#profession-skills-status').classList.remove('is-bad');
+    toast(pending.length + ' 项技能修改已应用');
+    renderProfessionSkillRows();
+  }catch(error){
+    $('#profession-skills-status').textContent = error.message;
+    $('#profession-skills-status').classList.add('is-bad');
+  }finally{
+    state.professionSkillApplying = false;
+    busy(button, false);
+    renderProfessionSkillRows();
+  }
 });
 
 const skillSourceProfessions = skill => skill.source_professions || [skill.profession_id];
@@ -2836,7 +3201,13 @@ async function loadSummonCatalog(){
     const saved = state.summonConfig;
     $('#summon-type').value = saved?.summon_type === 'friend' ? 'friend' : 'monster';
     const activeCreatures = activeSummonCreatures();
-    const savedKey = saved ? (saved.summon_type === 'friend' ? 'friend:' : '') + String(saved.role_id) + ':' + String(saved.form_id) : '';
+    const legacyFriendKeys = {'17167:16249':'37643:11568','17163:16245':'37644:11567',
+      '17164:16246':'37645:11569','17168:16250':'37646:11570',
+      '17166:16248':'37647:11573','17170:16252':'37648:11572',
+      '17169:16251':'37649:11576','17165:16247':'37650:11575'};
+    const savedRoleKey = saved ? String(saved.role_id) + ':' + String(saved.form_id) : '';
+    const savedKey = saved ? (saved.summon_type === 'friend' ? 'friend:' : '') +
+      (saved.summon_type === 'friend' ? legacyFriendKeys[savedRoleKey] || savedRoleKey : savedRoleKey) : '';
     const savedCreature = activeCreatures.find(creature => creature.key === savedKey ||
       (creature.members || []).some(member => member.key === savedKey));
     renderSummonCreatureOptions(savedCreature?.key || '');
@@ -2956,6 +3327,8 @@ $('#summon-apply').addEventListener('click', async e => {
         const url = URL.createObjectURL(blob), a = document.createElement('a');
         a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
         state.summonConfig = payload;
+        state.skillLimits = null; state.skillLimitsPath = null; state.skillLimitSelection = new Set();
+        state.professionSkillData = null; state.professionSkillSession = null;
         $('#summon-status').textContent = '服务器主包和动态包已备份并写入；客户端包 ' + filename + ' 已下载。请将下载包替换到游戏目录的 mb.dpk，重启服务器和客户端后验证。';
         $('#summon-status').classList.remove('is-bad');
       }finally{
@@ -3040,6 +3413,7 @@ $('#skill-limits-build').addEventListener('click', async e => {
         if (assigned) state.skillLimitSelection.add(skill.id);
         else state.skillLimitSelection.delete(skill.id);
       }
+      state.professionSkillData = null; state.professionSkillSession = null;
       renderSkillLimitRows();
     }
   });
@@ -3049,9 +3423,6 @@ function setFateLockStatus(message, bad){
   const el = $('#fate-lock-status');
   el.textContent = message || '';
   el.classList.toggle('is-bad', !!bad);
-}
-function fateLocksAlready200(data){
-  return !!data && data.levels.length === 1 && data.levels[0].level === 200;
 }
 function fateLockChanges(){
   if (!state.fateLocks || !state.fateLockDraft) return [];
@@ -3097,7 +3468,7 @@ async function loadFateLocks(){
     const levels = [...new Set([...(j.data.known_levels || []), ...active])].filter(level => level !== 200);
     state.fateLockDraft = new Map(levels.map(level => [level, active.has(level)]));
     renderFateLocks(j.data);
-    setFateLockStatus(fateLocksAlready200(j.data) ? '当前所有等级锁均为 200' : '');
+    setFateLockStatus('');
   } catch(err){
     setFateLockStatus(err.message, true);
   } finally {
@@ -3129,7 +3500,6 @@ async function saveFateLockChanges(){
     state.fateLockDraft = new Map([...(j.data.known_levels || state.fateLocks.known_levels || []), ...active]
       .filter(level => level !== 200).map(level => [level, active.has(level)]));
     renderFateLocks(state.fateLocks);
-    $('#fate-lock-restart-note').hidden = false;
     setFateLockStatus('');
   } catch(err){
     setFateLockStatus(err.message, true);
@@ -3145,6 +3515,240 @@ $('#fate-lock-levels').addEventListener('click', e => {
   if (button) toggleFateLockDraft(button);
 });
 $('#fate-lock-save').addEventListener('click', () => saveFateLockChanges());
+
+function dungeonChanges(){
+  if (!state.dungeonLimits) return [];
+  return state.dungeonLimits.rows.flatMap(row => {
+    const value = state.dungeonDraft.get(row.key);
+    return state.dungeonTouched.has(row.key) && Number.isInteger(value)
+      ? [{key:row.key,count:value,name:row.name,source:row.source}] : [];
+  });
+}
+function rideSpeedChanges(){
+  if(!state.rideSpeeds)return [];
+  return state.rideSpeeds.rows.flatMap(row=>{
+    const draft=state.rideDraft.get(row.id);
+    return draft && (draft.run!==row.run||draft.terrain!==row.terrain||draft.fly!==row.fly||draft.cast!==row.cast)
+      ? [{id:row.id,name:row.name,run:draft.run,terrain:draft.terrain,fly:draft.fly,cast:draft.cast,
+          oldRun:row.run,oldTerrain:row.terrain,oldFly:row.fly,oldCast:row.cast}] : [];
+  });
+}
+function setRideSpeedStatus(message,bad){
+  const el=$('#ride-speed-status');el.textContent=message||'';el.classList.toggle('is-bad',!!bad);
+}
+const rideCastLabel={none:'不允许',partial:'部分允许',all:'允许'};
+const rideTerrainLabel={land:'陆地',water:'水中',both:'两栖'};
+function rideSummary(draft){
+  return '速度'+(Number.isNaN(draft.run)?'—':draft.run)+' · '+rideCastLabel[draft.cast]+
+    '施法 · '+(draft.fly?'允许飞行':'不允许飞行')+' · '+rideTerrainLabel[draft.terrain];
+}
+function filteredRideRows(){
+  const q=$('#ride-speed-search').value.trim().toLocaleLowerCase();
+  const kind=$('#ride-speed-kind').value;
+  return state.rideSpeeds?.rows.filter(row=>(kind==='all'||row.kinds.includes(kind))&&
+    (row.name+' '+row.id).toLocaleLowerCase().includes(q))||[];
+}
+function syncRideSelection(){
+  const rows=filteredRideRows();
+  if(!rows.some(row=>row.id===state.rideSelectedId))state.rideSelectedId=rows[0]?.id??null;
+  renderRideSpeeds();
+}
+function renderRideSpeeds(){
+  const data=state.rideSpeeds,body=$('#ride-speed-rows');
+  const rows=filteredRideRows();
+  body.innerHTML=!data ? (state.rideLoading
+    ? '<div class="empty"><span class="dungeon-empty-loading"><span class="spinner" aria-hidden="true"></span>正在读取</span></div>'
+    : '<div class="empty"><b>'+esc(state.rideEmptyLabel||'暂无数据')+'</b></div>')
+    : !rows.length ? '<div class="empty"><b>没有匹配的骑宠</b></div>' : rows.map(row=>{
+      const draft=state.rideDraft.get(row.id)||{run:row.run,terrain:row.terrain,fly:row.fly,cast:row.cast};
+      const changed=draft.run!==row.run||draft.terrain!==row.terrain||draft.fly!==row.fly||draft.cast!==row.cast;
+      return '<button class="ride-config-item'+(changed?' is-changed':'')+(state.rideSelectedId===row.id?' is-active':'')+
+        '" type="button" role="option" aria-selected="'+(state.rideSelectedId===row.id)+'" data-ride-select="'+esc(row.id)+'"><b>'+esc(row.name)+
+        '</b><small>#'+esc(row.id)+'</small><span>'+esc(rideSummary(draft))+'</span></button>';
+    }).join('');
+  $('#ride-speed-count').hidden=!data||state.rideLoading;
+  $('#ride-speed-count').textContent=data?rows.length+' 项':'';
+  const selected=data?.rows.find(row=>row.id===state.rideSelectedId);
+  const draft=selected&&state.rideDraft.get(selected.id);
+  $('#ride-config-title').textContent=selected?selected.name:'选择一个骑宠';
+  $('#ride-config-id').hidden=!selected;
+  $('#ride-config-id').textContent=selected?'#'+selected.id:'';
+  $('#ride-config-run').disabled=!selected||state.rideApplying;
+  $('#ride-config-terrain').disabled=!selected||state.rideApplying;
+  $('#ride-config-fly').disabled=!selected||state.rideApplying;
+  $('#ride-config-cast').disabled=!selected||state.rideApplying;
+  $('#ride-config-run').value=draft?.run??'';
+  $('#ride-config-terrain').value=draft?.terrain??'land';
+  $('#ride-config-fly').value=draft?.fly?'yes':'no';
+  $('#ride-config-cast').value=draft?.cast??'none';
+  const shared=selected?.shared_ids||[];
+  $('#ride-config-shared').hidden=shared.length<2;
+  $('#ride-config-shared').innerHTML=shared.length>1
+    ? '将同步修改<button class="ride-config-shared-link" type="button" data-ride-shared>同乘骑配置 ('+shared.length+')</button> 的施法设置' : '';
+  $('#ride-speed-apply').disabled=!data||state.rideLoading||state.rideApplying||!rideSpeedChanges().length;
+}
+async function loadRideSpeeds(){
+  if(state.rideLoading||state.rideApplying)return;
+  state.rideLoading=true;state.rideSpeeds=null;state.rideEmptyLabel='';renderRideSpeeds();setRideSpeedStatus('');
+  try{
+    const result=await api('/api/ride-speeds');
+    state.rideSpeeds=result.data;
+    state.rideDraft=new Map(result.data.rows.map(row=>[row.id,{run:row.run,terrain:row.terrain,fly:row.fly,cast:row.cast}]));
+    syncRideSelection();
+  }catch(err){state.rideEmptyLabel='读取失败';setRideSpeedStatus(err.message,true);}
+  finally{state.rideLoading=false;renderRideSpeeds();}
+}
+$('#ride-speed-search').addEventListener('input',syncRideSelection);
+$('#ride-speed-kind').addEventListener('change',syncRideSelection);
+$('#ride-speed-rows').addEventListener('click',e=>{
+  const button=e.target.closest('[data-ride-select]');if(!button)return;
+  state.rideSelectedId=Number(button.dataset.rideSelect);renderRideSpeeds();
+});
+$('#ride-config-shared').addEventListener('click',e=>{
+  if(!e.target.closest('[data-ride-shared]'))return;
+  const selected=state.rideSpeeds?.rows.find(row=>row.id===state.rideSelectedId);
+  if(!selected)return;
+  const sharedRows=selected.shared_ids.map(id=>state.rideSpeeds.rows.find(row=>row.id===id)).filter(Boolean);
+  const nameCounts=new Map();
+  sharedRows.forEach(row=>nameCounts.set(row.name,(nameCounts.get(row.name)||0)+1));
+  confirmDialog({title:'共用乘骑连接的骑宠'+(selected.connection_name?'（'+selected.connection_name+'）':''),
+    danger:false,infoOnly:true,okText:'关闭',
+    html:'<ul class="ride-config-shared-list">'+sharedRows.map(row=>'<li>'+esc(row.name)+
+      (nameCounts.get(row.name)>1?' #'+esc(row.id):'')+'</li>').join('')+'</ul>'});
+});
+$('#ride-config-run').addEventListener('input',e=>{
+  const selected=state.rideSpeeds?.rows.find(row=>row.id===state.rideSelectedId);if(!selected)return;
+  const value=Number(e.target.value);
+  const run=e.target.value!==''&&Number.isInteger(value)?value:NaN;
+  for(const rideId of selected.same_name_ids){
+    const draft=state.rideDraft.get(rideId);
+    const row=state.rideSpeeds.rows.find(item=>item.id===rideId);
+    draft.run=run;
+    const button=$('#ride-speed-rows [data-ride-select="'+rideId+'"]');
+    if(button){button.classList.toggle('is-changed',draft.run!==row.run||draft.terrain!==row.terrain||draft.fly!==row.fly||draft.cast!==row.cast);
+      $('span',button).textContent=rideSummary(draft);}
+  }
+  $('#ride-speed-apply').disabled=!rideSpeedChanges().length;
+});
+$('#ride-config-terrain').addEventListener('change',e=>{
+  const draft=state.rideDraft.get(state.rideSelectedId);if(!draft)return;
+  draft.terrain=e.target.value;
+  renderRideSpeeds();
+});
+$('#ride-config-fly').addEventListener('change',e=>{
+  const draft=state.rideDraft.get(state.rideSelectedId);if(!draft)return;
+  draft.fly=e.target.value==='yes';
+  renderRideSpeeds();
+});
+$('#ride-config-cast').addEventListener('change',e=>{
+  const selected=state.rideSpeeds?.rows.find(row=>row.id===state.rideSelectedId);if(!selected)return;
+  for(const rideId of selected.shared_ids)state.rideDraft.get(rideId).cast=e.target.value;
+  renderRideSpeeds();
+});
+$('#ride-speed-apply').addEventListener('click',async()=>{
+  const changes=rideSpeedChanges();if(!changes.length||state.rideApplying)return;
+  if(changes.some(row=>!Number.isInteger(row.run)||row.run<1||row.run>9999)){
+    setRideSpeedStatus('跑步速度须为 1 至 9999 的整数',true);return;
+  }
+  await confirmDialog({title:'确认修改骑宠设置',danger:false,okText:'应用修改',loadingText:'正在修改包…',
+    html:'<div style="max-height:280px;overflow:auto">'+changes.map(row=>
+      '<div>'+esc(row.name)+' #'+esc(row.id)+'：'+
+      [row.run!==row.oldRun?'速度 '+esc(row.oldRun)+' → '+esc(row.run):'',
+       row.terrain!==row.oldTerrain?'场景 '+esc(rideTerrainLabel[row.oldTerrain])+' → '+esc(rideTerrainLabel[row.terrain]):'',
+       row.fly!==row.oldFly?'飞行设置 '+(row.oldFly?'允许':'不允许')+' → '+(row.fly?'允许':'不允许'):'',
+       row.cast!==row.oldCast?'施法设置 '+esc(rideCastLabel[row.oldCast])+' → '+esc(rideCastLabel[row.cast]):''].filter(Boolean).join('，')+'</div>').join('')+'</div>',
+    onConfirm:async()=>{
+      state.rideApplying=true;renderRideSpeeds();
+      try{
+        const response=await fetch('/api/ride-speeds',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({session_id:state.rideSpeeds.session_id,
+            changes:changes.map(({id,run,terrain,fly,cast})=>({id,run,terrain,fly,cast}))})});
+        if(!response.ok){const error=await response.json().catch(()=>({}));throw new Error(error.error||'修改失败');}
+        const blob=await response.blob(),url=URL.createObjectURL(blob),link=document.createElement('a');
+        link.href=url;link.download='mb.ride-config.dpk';document.body.appendChild(link);link.click();link.remove();
+        setTimeout(()=>URL.revokeObjectURL(url),60000);
+        state.rideApplying=false;
+        await loadRideSpeeds();
+        if(state.rideSpeeds)setRideSpeedStatus('服务器包已写入并备份；客户端包已下载。重启服务端并替换游戏目录中的 mb.dpk 后生效。');
+      }finally{state.rideApplying=false;renderRideSpeeds();}
+    }});
+});
+function setDungeonStatus(message,bad){
+  const el=$('#dungeon-status'); el.textContent=message||''; el.classList.toggle('is-bad',!!bad);
+}
+function renderDungeonLimits(){
+  const data=state.dungeonLimits;
+  const body=$('#dungeon-rows');
+  const q=$('#dungeon-search').value.trim().toLowerCase();
+  const source=$('#dungeon-source').value;
+  const rows=data ? data.rows.filter(row => (!source || row.source===source) &&
+    (!q || (row.name+' '+row.key+' '+row.scene_id).toLowerCase().includes(q))) : [];
+  body.innerHTML=!data ? (state.dungeonLoading ? '<tr class="is-static"><td colspan="5" style="padding:0;border:0"><div class="empty"><span class="dungeon-empty-loading"><span class="spinner" aria-hidden="true"></span>正在读取</span></div></td></tr>' : emptyRow(5,state.dungeonEmptyLabel||'暂无数据'))
+    : !rows.length ? emptyRow(5,'没有匹配的副本') : rows.map(row =>
+    '<tr class="'+(state.dungeonTouched.has(row.key)?'is-changed':'')+'"><td class="definition-id">'+esc(row.scene_id||'—')+
+    '</td><td>'+esc(row.name)+'</td><td class="definition-description">'+esc(row.source)+
+    '</td><td>'+(row.count==null?'未设置':esc(row.count))+'</td><td><input class="definition-value" type="number" min="1" max="9999" step="1" aria-label="'+
+    esc(row.name)+'调整次数" data-dungeon-key="'+esc(row.key)+'" value="'+esc(state.dungeonDraft.get(row.key)??'')+'"></td></tr>').join('');
+  $('#dungeon-tag').hidden=!data||state.dungeonLoading;
+  $('#dungeon-tag').textContent=data&&!state.dungeonLoading ? data.rows.length+' 项':'';
+  $('#dungeon-set-all').disabled=!data||state.dungeonLoading||state.dungeonApplying;
+  $('#dungeon-apply').disabled=!data||state.dungeonLoading||state.dungeonApplying||!dungeonChanges().length;
+}
+async function loadDungeonLimits(){
+  if(state.dungeonLoading||state.dungeonApplying) return;
+  state.dungeonLoading=true; state.dungeonLimits=null; state.dungeonEmptyLabel=''; renderDungeonLimits(); setDungeonStatus('');
+  try{
+    const j=await api('/api/dungeon-limits');
+    state.dungeonLimits=j.data;
+    state.dungeonDraft=new Map(j.data.rows.map(row=>[row.key,row.count]));
+    state.dungeonTouched=new Set();
+    setDungeonStatus('');
+  }catch(err){state.dungeonEmptyLabel='读取失败';setDungeonStatus(err.message,true);}
+  finally{state.dungeonLoading=false;renderDungeonLimits();}
+}
+$('#dungeon-set-all').addEventListener('click',()=>{
+  if(!state.dungeonLimits||state.dungeonLoading||state.dungeonApplying)return;
+  for(const row of state.dungeonLimits.rows){
+    state.dungeonDraft.set(row.key,999);
+    state.dungeonTouched.add(row.key);
+  }
+  renderDungeonLimits();
+  setDungeonStatus('已将全部 '+state.dungeonLimits.rows.length+' 项设为 999，点击“应用修改”保存');
+});
+$('#dungeon-search').addEventListener('input',renderDungeonLimits);
+$('#dungeon-source').addEventListener('change',renderDungeonLimits);
+$('#dungeon-rows').addEventListener('input',e=>{
+  const input=e.target.closest('[data-dungeon-key]'); if(!input)return;
+  const n=Number(input.value);
+  state.dungeonDraft.set(input.dataset.dungeonKey,Number.isInteger(n)&&input.value!==''?n:NaN);
+  state.dungeonTouched.add(input.dataset.dungeonKey);
+  input.closest('tr').classList.add('is-changed');
+  $('#dungeon-apply').disabled=!dungeonChanges().length||state.dungeonApplying;
+});
+$('#dungeon-apply').addEventListener('click',async()=>{
+  const changes=dungeonChanges(); if(!changes.length||state.dungeonApplying)return;
+  if(changes.some(item=>item.count<1||item.count>9999)){
+    setDungeonStatus('次数须为 1 至 9999 的整数',true);return;
+  }
+  await confirmDialog({title:'确认修改副本进入限制',danger:false,okText:'应用修改',loadingText:'正在修改包…',
+    html:'<div style="max-height:280px;overflow:auto">'+changes.map(item=>
+      '<div>'+esc(item.name)+' · '+esc(item.source)+'：'+
+      (state.dungeonLimits.rows.find(row=>row.key===item.key).count===item.count ? '同步为 '+esc(item.count) :
+      (state.dungeonLimits.rows.find(row=>row.key===item.key).count==null?'未设置':esc(state.dungeonLimits.rows.find(row=>row.key===item.key).count))+' → '+esc(item.count))+'</div>').join('')+'</div>',
+    onConfirm:async()=>{
+      state.dungeonApplying=true;renderDungeonLimits();
+      try{
+        const response=await fetch('/api/dungeon-limits',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({session_id:state.dungeonLimits.session_id,
+            changes:changes.map(({key,count})=>({key,count}))})});
+        if(!response.ok){const error=await response.json().catch(()=>({}));throw new Error(error.error||'修改失败');}
+        const result=await response.json();
+        const backups=Object.entries(result.data.backups||{}).map(([label,path])=>label+'：'+path).join('；');
+        state.dungeonLimits=null;state.dungeonDraft=new Map();state.dungeonTouched=new Set();state.dungeonEmptyLabel='修改已完成';
+        setDungeonStatus('服务器配置已写入并备份。备份：'+backups);
+      }finally{state.dungeonApplying=false;renderDungeonLimits();}
+    }});
+});
 
 function setDefinitionStatus(kind, message, bad){
   const el = $('#definitions-status-' + kind);
@@ -3186,38 +3790,21 @@ function filterDefinitions(kind){
     row.hidden = query && !row.dataset.search.includes(query);
   });
 }
-async function loadDefinitions(kind, force){
+async function loadDefinitions(kind){
   if (!['base','dynamic'].includes(kind)) return;
-  const dirty = state.definitionDirty[kind];
-  if (force && Object.keys(dirty).length){
-    const confirmed = await confirmDialog({
-      title:'放弃未保存修改？',
-      html:'重新读取会丢弃当前 ' + Object.keys(dirty).length + ' 项未保存修改。',
-      okText:'重新读取', danger:true
-    });
-    if (!confirmed) return;
-  }
-  const button = $('#definitions-refresh-' + kind);
-  busy(button, true, '读取中');
-  $('#definitions-tag-' + kind).textContent = '读取中';
-  setDefinitionStatus(kind, '读取中');
+  setDefinitionStatus(kind, '');
   try{
     const j = await api('/api/definitions?kind=' + encodeURIComponent(kind));
     state.definitions[kind] = j.data;
     state.definitionDirty[kind] = {};
-    $('#definitions-tag-' + kind).textContent = '已连接';
     renderDefinitions(kind);
-    setDefinitionStatus(kind, '已读取');
+    setDefinitionStatus(kind, '');
   } catch(err){
-    $('#definitions-tag-' + kind).textContent = '读取失败';
     setDefinitionStatus(kind, err.message, true);
     $('#definitions-rows-' + kind).innerHTML = '<tr class="is-static"><td colspan="4" style="padding:0;border:0"><div class="empty"><b>读取失败</b>' + esc(err.message) + '</div></td></tr>';
-  } finally {
-    busy(button, false);
   }
 }
 ['base','dynamic'].forEach(kind => {
-  $('#definitions-refresh-' + kind).addEventListener('click', () => loadDefinitions(kind, true));
   $('#definitions-search-' + kind).addEventListener('input', () => filterDefinitions(kind));
   $('#definitions-rows-' + kind).addEventListener('click', e => {
     const button = e.target.closest('[data-def-favorite]');
@@ -3251,15 +3838,14 @@ async function loadDefinitions(kind, force){
     if (!Object.keys(values).length) return;
     const button = $('#definitions-save-' + kind);
     busy(button, true, '保存中');
-    $('#definitions-refresh-' + kind).disabled = true;
     setDefinitionStatus(kind, '正在保存');
     try{
       const j = await postJSON('/api/definitions', {kind, values});
       state.definitions[kind] = j.data;
       state.definitionDirty[kind] = {};
-      $('#definitions-tag-' + kind).textContent = '已保存';
       renderDefinitions(kind);
-      setDefinitionStatus(kind, '已保存 ' + j.data.saved + ' 项；游戏进程重启后生效');
+      setDefinitionStatus(kind, '已保存 ' + j.data.saved + ' 项' +
+        (kind === 'dynamic' ? '；游戏进程重启后生效' : ''));
       toast('定义表已保存');
     } catch(err){
       setDefinitionStatus(kind, err.message, true);
@@ -3267,7 +3853,6 @@ async function loadDefinitions(kind, force){
     } finally {
       busy(button, false);
       button.disabled = Object.keys(state.definitionDirty[kind]).length === 0;
-      $('#definitions-refresh-' + kind).disabled = false;
     }
   });
 });
@@ -3335,11 +3920,22 @@ async function runServerAction(action){
   const actionButton = restarting ? $('#server-restart') : $('#server-stop');
   await confirmDialog({
     title: '确认' + actionName + '游戏服务端？',
-    html: '<p>此操作会断开当前在线玩家。</p>',
+    html: '<p>此操作会断开当前在线玩家。</p>' +
+      (restarting ? '<p class="server-action-timer" hidden>已用时 <span>00:00</span></p>' : ''),
     okText: actionName + '服务端',
     loadingText: restarting ? '正在重启…' : '正在关闭…',
     onConfirm: async () => {
       busy(actionButton, true, restarting ? '正在重启…' : '正在关闭…');
+      const timer = restarting ? $('.server-action-timer', $('#modal-root')) : null;
+      const startedAt = performance.now();
+      const updateTimer = () => {
+        if (!timer) return;
+        const seconds = Math.floor((performance.now() - startedAt) / 1000);
+        $('span', timer).textContent = String(Math.floor(seconds / 60)).padStart(2, '0') + ':' +
+          String(seconds % 60).padStart(2, '0');
+      };
+      if (timer) timer.hidden = false;
+      const timerInterval = timer ? setInterval(updateTimer, 1000) : null;
       try{
         await postJSON('/api/server/control', {action});
         const deadline = Date.now() + 8 * 60 * 1000;
@@ -3356,6 +3952,8 @@ async function runServerAction(action){
         }
         throw new Error('等待服务端操作超时，请查看操作日志确认结果');
       } finally {
+        if (timerInterval) clearInterval(timerInterval);
+        updateTimer();
         busy(actionButton, false);
       }
     }
