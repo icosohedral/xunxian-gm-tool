@@ -2062,7 +2062,7 @@ $('#weapon-trait-results').addEventListener('keydown', e => {
 $('#weapon-apply').addEventListener('click', async () => {
   if (!state.weaponTemplate || !state.weaponDraft.length){ toast('请先选择武器模板', true); return; }
   const accepted = await confirmDialog({title:'确认生成并同步武器？',
-    html:'<p>将重新检查客户端和服务器物品 ID，写入客户端工作包及服务器主包、动态包。</p><p>服务器包会备份并回读校验，完成后自动重启服务端；当前在线玩家会断开。客户端包会下载到本机，请替换游戏目录中的 mb.dpk。</p>',
+    html:'<p>将重新检查客户端和服务器物品 ID，写入客户端工作包及服务器主包、动态包。</p><p>服务器包会备份并回读校验。不会自动重启服务端；客户端包会下载到本机，请替换游戏目录中的 mb.dpk。重启服务端后加载新武器。</p>',
     okText:'确认应用',danger:false});
   if (!accepted) return;
   const button = $('#weapon-apply');
@@ -2078,30 +2078,11 @@ $('#weapon-apply').addEventListener('click', async () => {
     a.href = '/api/weapons/download?token=' + encodeURIComponent(result.download_token);
     a.download = 'mb.weapon-' + result.id + '.dpk';
     document.body.appendChild(a); a.click(); a.remove();
-    toast('武器 #' + result.id + ' 已写入服务器，客户端包已开始下载');
+    toast('武器 #' + result.id + ' 已写入服务器，客户端包已开始下载；需手动重启服务端后加载');
     applied = true;
-    if (result.restart?.running) monitorWeaponRestart();
-    else if (result.restart?.error) toast('包已写入，但服务端未能自动重启：' + result.restart.error,true);
   }catch(err){ toast(err.message || '武器写入失败',true); }
   finally{ busy(button,false); if (applied){ button.disabled = true; button.textContent = '已应用'; } }
 });
-async function monitorWeaponRestart(){
-  $('#weapon-status').textContent = '服务端重启中…';
-  const deadline = Date.now() + 8 * 60 * 1000;
-  while (Date.now() < deadline){
-    try{
-      const j = await api('/api/server/control'), data = j.data || {};
-      if (!data.running){
-        $('#weapon-status').textContent = '';
-        if (data.error) toast('武器已写入，但服务端重启失败：' + data.error,true);
-        else toast('服务端已重启，武器定义已加载');
-        return;
-      }
-    }catch(err){ $('#weapon-status').textContent = err.message; return; }
-    await new Promise(resolve => setTimeout(resolve,1500));
-  }
-  $('#weapon-status').textContent = '服务端重启仍在进行，请查看服务控制状态';
-}
 
 /* 运维管理页 */
 function setLogsMode(mode, skipLoad){

@@ -2400,14 +2400,10 @@ def _apply_custom_weapon(template_id, fields):
         with WEAPON_DOWNLOADS_LOCK:
             WEAPON_DOWNLOADS[token] = {"path": final_client, "filename": f"mb.weapon-{weapon_id}.dpk",
                                        "last_used": time.time()}
-        try:
-            restart = start_server_action("restart", source="装备新增")
-        except Exception as error:
-            restart = {"running": False, "error": str(error)}
         op_log("新增自定义武器", {"id": weapon_id, "template_id": template_id,
             "reports": reports, "backups": backups, "signatures": new_signatures})
         return {"id": weapon_id, "reports": reports, "backups": backups,
-                "download_token": token, "restart": restart}
+                "download_token": token}
     finally:
         client_out.unlink(missing_ok=True)
         for output in server_out.values():
