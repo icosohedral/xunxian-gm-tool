@@ -46,6 +46,8 @@ from scripts.profession_skills import (inspect_archive as inspect_profession_ski
 from scripts.ride_speed import (inspect_archive as inspect_ride_archive,
                                 patch_archive as patch_ride_archive)
 from scripts.ip_whitelist import normalize_entry as normalize_ip_whitelist_entry, run as run_ip_whitelist
+from scripts.weapon_drafts import weapon_catalog, search_traits
+from scripts.weapon_custom import all_item_ids as weapon_item_ids, append_weapon, verify_weapon
 from scripts.unpack import DpkReader
 
 
@@ -61,6 +63,8 @@ SERVER_MB_CACHE_PATHS = {
     "动态包": Path(CACHE_DIR) / "server_mb_dynamic.dpk",
 }
 SERVER_MB_CACHE_LOCK = threading.RLock()
+WEAPON_DOWNLOADS = {}
+WEAPON_DOWNLOADS_LOCK = threading.Lock()
 
 
 def _is_shared_server_cache_path(path):
@@ -1501,7 +1505,8 @@ def _parse_client_item_lists(path):
 
 def load_items():
     global _items, _items_source
-    client_path = Path(str(CFG.get("client_mb_dpk") or "")).expanduser()
+    client_path = (CLIENT_WORK_PACKAGE_PATH if CLIENT_WORK_PACKAGE_PATH.is_file()
+                   else Path(str(CFG.get("client_mb_dpk") or "")).expanduser())
     client_ok = client_path.is_file()
     ext_ok = os.path.isfile(ITEM_LIST)
     client_stat = client_path.stat() if client_ok else None
@@ -2276,6 +2281,139 @@ def _update_server_mb_cache(packages):
                 temporary.unlink(missing_ok=True)
 
 
+def _apply_custom_weapon(template_id, fields):
+    if not isinstance(fields, list) or len(fields) != 55 or any(not isinstance(value, str) for value in fields):
+        raise ValueError("武器草稿数据无效")
+    if not fields[1].strip():
+        raise ValueError("请输入武器名称")
+    if fields[2] != "100":
+        raise ValueError("物品类必须为武器（100）")
+    if fields[7] != "10" or fields[18] != "300":
+        raise ValueError("物品品质或耐久值异常")
+    if fields[9] not in {"", "1", "2", "3", "4"}:
+        raise ValueError("职业限制值无效")
+    for index, label in ((11, "等级"), (19, "伤害力"), (20, "防御力"),
+                         (21, "体魄"), (22, "力量"), (23, "筋骨"), (24, "元神")):
+        if fields[index] and not fields[index].isdigit():
+            raise ValueError(label + "必须是非负整数")
+    if not fields[4].strip() or not fields[5].isdigit():
+        raise ValueError("道具图片或模型 ID 无效")
+    if any(value and not value.isdigit() for value in fields[25:30]):
+        raise ValueError("装备属性必须填写有效词条 ID")
+    client = _ensure_client_work_package()
+    trait_ids = {int(value) for value in fields[25:30] if value}
+    if len(trait_ids) != sum(bool(value) for value in fields[25:30]):
+        raise ValueError("装备属性不能重复")
+    if trait_ids:
+        known_traits = search_traits(client, ids=trait_ids)["rows"]
+        if {item["id"] for item in known_traits} != trait_ids:
+            raise ValueError("部分装备属性 ID 不存在于客户端词条表")
+    paths = {"主包": MB_DPK_FILE_PATH, "动态包": MB_DPK_DYNAMIC_FILE_PATH}
+    local, signatures = _ensure_server_mb_cache(paths)
+    packages = {"客户端": client, "主包": local["主包"], "动态包": local["动态包"]}
+    used = set()
+    for path in packages.values():
+        used.update(weapon_item_ids(path))
+    weapon_id = max(used, default=0) + 1
+    if weapon_id > 65535:
+        raise ValueError("没有可分配的物品 ID（最大值 65535）")
+    if any(weapon_id in weapon_item_ids(path) for path in packages.values()):
+        raise ValueError("新物品 ID 冲突，请重新读取后再试")
+    fields = list(fields)
+    fields[0] = str(weapon_id)
+    fields[4] = fields[4].strip().lower()
+    client_data = weapon_catalog(client, item_id=template_id)
+    model_id = client_data["icon_models"].get(fields[4])
+    if not model_id or model_id != fields[5]:
+        raise ValueError("模型 ID 与道具图片不匹配，请重新选择图片")
+    with DpkReader(client) as reader:
+        entries = {entry.path.lower(): entry for entry in reader.read_entries()}
+        template_entry = next((entries.get(name) for name in
+            ("item/item_list.txt", "item/item_list2.txt", "item/item_list3.txt")
+            if entries.get(name) and any(row.split("\t", 1)[0] == str(template_id)
+                for row in reader.extract(entries[name]).decode("gb18030").splitlines()[1:])), None)
+    if template_entry is None:
+        raise ValueError("客户端包中找不到所选武器模板")
+    template_resource = template_entry.path.lower()
+    client_out = Path(CACHE_DIR) / f"weapon-{uuid.uuid4().hex}-client.dpk"
+    server_out = {label: Path(CACHE_DIR) / f"weapon-{uuid.uuid4().hex}-{label}.dpk"
+                  for label in ("主包", "动态包")}
+    try:
+        append_weapon(client, client_out, template_id, weapon_id, fields)
+        verify_weapon(client_out, weapon_id, fields)
+        reports = {"客户端": {"resource": template_resource, "columns": 55}}
+        for label in ("主包", "动态包"):
+            fallback = fields if label == "动态包" else None
+            report = append_weapon(local[label], server_out[label], template_id,
+                                   weapon_id, fields, fallback_fields=fallback)
+            verify_weapon(server_out[label], weapon_id, fields)
+            reports[label] = {"resource": report["resource"], "columns": report["columns"]}
+        with _lock:
+            connection = ssh()
+            if _dungeon_remote_signatures(paths, connection) != signatures:
+                raise ValueError("服务器包在校验期间发生变化，请重新应用")
+            uploads = {label: "/tmp/gmtool-weapon-" + uuid.uuid4().hex + ".dpk"
+                       for label in server_out}
+            sftp = connection.open_sftp()
+            try:
+                for label, output in server_out.items():
+                    sftp.put(str(output), _sftp_remote_path(uploads[label]))
+            finally:
+                sftp.close()
+            stamp = time.strftime("%Y%m%d-%H%M%S") + f"-{time.time_ns() % 1_000_000_000:09d}"
+            backups = {label: paths[label] + ".bak.weapon." + stamp for label in server_out}
+            commands = ["set -e", "backup_ready=0", "committed=0",
+                "rollback(){ if [ \"$backup_ready\" = 1 ] && [ \"$committed\" = 0 ]; then " +
+                "; ".join("cp -p " + shlex.quote(backups[label]) + " " + shlex.quote(paths[label])
+                          for label in server_out) + "; fi; }", "trap rollback EXIT"]
+            commands.extend("cp -p " + shlex.quote(paths[label]) + " " + shlex.quote(backups[label])
+                            for label in server_out)
+            commands.append("backup_ready=1")
+            for label in server_out:
+                staged = paths[label] + ".gmtool.tmp." + uuid.uuid4().hex
+                commands.extend(("cp " + shlex.quote(uploads[label]) + " " + shlex.quote(staged),
+                    "chown --reference=" + shlex.quote(paths[label]) + " " + shlex.quote(staged),
+                    "chmod --reference=" + shlex.quote(paths[label]) + " " + shlex.quote(staged),
+                    "mv -f " + shlex.quote(staged) + " " + shlex.quote(paths[label])))
+            commands.extend(("committed=1", "trap - EXIT"))
+            commands.extend("rm -f " + shlex.quote(path) for path in uploads.values())
+            _, stdout, stderr = connection.exec_command(
+                "sudo -n sh -c " + shlex.quote("; ".join(commands)), timeout=240)
+            output = stdout.read().decode("utf-8", "replace").strip()
+            error = stderr.read().decode("utf-8", "replace").strip()
+            if stdout.channel.recv_exit_status() != 0:
+                raise RuntimeError("服务器包替换失败：" + (error or output))
+            _, stdout, stderr = connection.exec_command("sha256sum " + " ".join(
+                shlex.quote(paths[label]) for label in server_out), timeout=30)
+            lines = stdout.read().decode("utf-8", "replace").strip().splitlines()
+            if stdout.channel.recv_exit_status() != 0 or len(lines) != len(server_out):
+                raise RuntimeError("服务器包已替换，但回读校验失败；备份：" + ", ".join(backups.values()))
+            for (label, local_output), line in zip(server_out.items(), lines):
+                if line.split()[0] != hashlib.sha256(local_output.read_bytes()).hexdigest():
+                    raise RuntimeError(f"服务器{label}回读校验失败；备份：{backups[label]}")
+            new_signatures = _dungeon_remote_signatures(paths, connection)
+        _update_server_mb_cache(server_out)
+        token = uuid.uuid4().hex
+        final_client = Path(CACHE_DIR) / f"weapon-{weapon_id}-{token[:8]}-client.dpk"
+        shutil.copyfile(client_out, final_client)
+        _replace_client_work_package(client_out.read_bytes())
+        with WEAPON_DOWNLOADS_LOCK:
+            WEAPON_DOWNLOADS[token] = {"path": final_client, "filename": f"mb.weapon-{weapon_id}.dpk",
+                                       "last_used": time.time()}
+        try:
+            restart = start_server_action("restart", source="装备新增")
+        except Exception as error:
+            restart = {"running": False, "error": str(error)}
+        op_log("新增自定义武器", {"id": weapon_id, "template_id": template_id,
+            "reports": reports, "backups": backups, "signatures": new_signatures})
+        return {"id": weapon_id, "reports": reports, "backups": backups,
+                "download_token": token, "restart": restart}
+    finally:
+        client_out.unlink(missing_ok=True)
+        for output in server_out.values():
+            output.unlink(missing_ok=True)
+
+
 def _file_sha256(path):
     with Path(path).open("rb") as source:
         return hashlib.file_digest(source, "sha256").hexdigest()
@@ -2707,6 +2845,12 @@ class Handler(BaseHTTPRequestHandler):
                 if not os.path.exists(image):
                     image = os.path.join(APP_DIR, "logos", filename)
                 return self._file(image, "image/png")
+            if re.fullmatch(r"/logos/icons/wq/wq[0-9a-z]{1,16}\.png", p):
+                filename = p.rsplit("/", 1)[-1]
+                image = os.path.join(RES_DIR, "logos", "icons", "wq", filename)
+                if not os.path.isfile(image):
+                    image = os.path.join(APP_DIR, "logos", "icons", "wq", filename)
+                return self._file(image, "image/png")
             if p == "/api/summons/catalog":
                 catalog_path = Path(RES_DIR) / "doc" / "召唤物列表.csv"
                 if not catalog_path.is_file():
@@ -2769,6 +2913,24 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_response(200)
                 self.send_header("Content-Type", "application/octet-stream")
                 self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+                self.send_header("Content-Length", str(len(payload)))
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                self.wfile.write(payload)
+                return
+            if p == "/api/weapons/download":
+                if not self._config_request_allowed():
+                    return self._json({"ok": False, "error": "仅允许从本机控制台下载配置"}, 403)
+                token = (qs.get("token") or [""])[0]
+                with WEAPON_DOWNLOADS_LOCK:
+                    item = WEAPON_DOWNLOADS.get(token)
+                if not item or time.time() - item["last_used"] > 3600 or not item["path"].is_file():
+                    return self._json({"ok": False, "error": "客户端包下载已过期"}, 410)
+                item["last_used"] = time.time()
+                payload = item["path"].read_bytes()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/octet-stream")
+                self.send_header("Content-Disposition", f'attachment; filename="{item["filename"]}"')
                 self.send_header("Content-Length", str(len(payload)))
                 self.send_header("Cache-Control", "no-store")
                 self.end_headers()
@@ -2846,6 +3008,28 @@ class Handler(BaseHTTPRequestHandler):
             if p == "/api/item_templates":
                 return self._json({"ok": True,
                                    "data": whstream_template_info(qs.get("char_id", ["0"])[0])})
+            if p == "/api/weapon_templates":
+                profession = qs.get("profession", ["all"])[0]
+                if profession not in {"all", "1", "2", "3", "4", ""}:
+                    raise ValueError("职业筛选无效")
+                template_id = qs.get("id", [""])[0]
+                data = weapon_catalog(_ensure_client_work_package(),
+                    profession=profession, query=qs.get("q", [""])[0].strip(),
+                    item_id=int(template_id) if template_id.isdigit() else None,
+                    other_packages=tuple(SERVER_MB_CACHE_PATHS.values()))
+                if template_id.isdigit():
+                    data["icon_choices"] = sorted(
+                        icon for icon in data["icon_models"]
+                        if re.fullmatch(r"wq[0-9a-z]{1,16}", icon) and any(
+                            (Path(root) / "logos" / "icons" / "wq" / f"{icon}.png").is_file()
+                            for root in (RES_DIR, APP_DIR)))
+                return self._json({"ok": True, "data": data})
+            if p == "/api/weapon_traits":
+                ids_text = qs.get("ids", [""])[0]
+                ids = {int(value) for value in ids_text.split(",") if value.isdigit()} if ids_text else None
+                data = search_traits(_ensure_client_work_package(),
+                                     qs.get("q", [""])[0].strip(), ids=ids)
+                return self._json({"ok": True, "data": data})
             if p == "/api/items":
                 q = qs.get("q", [""])[0].strip()
                 limit = min(200, qint(qs.get("limit", ["60"])[0], 60))
@@ -2913,7 +3097,7 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path in {"/api/dungeon-limits", "/api/ride-speeds", "/api/skill-limits/inspect",
                     "/api/skill-limits/apply", "/api/profession-skills/inspect",
-                    "/api/profession-skills/apply", "/api/summons/apply"}:
+                 "/api/profession-skills/apply", "/api/summons/apply", "/api/weapon/apply"}:
             with _client_package_lock:
                 return self._do_POST()
         return self._do_POST()
@@ -2925,7 +3109,7 @@ class Handler(BaseHTTPRequestHandler):
                  "/api/server/control", "/api/fate-lock", "/api/dungeon-limits", "/api/ride-speeds", "/api/config/pick-path",
                  "/api/skill-limits/inspect",
                  "/api/skill-limits/apply", "/api/ip-whitelist", "/api/profession-skills/inspect",
-                 "/api/profession-skills/apply", "/api/summons/apply"):
+                 "/api/profession-skills/apply", "/api/summons/apply", "/api/weapon/apply"):
             if not self._config_request_allowed():
                 return self._json({"ok": False, "error": "仅允许从本机控制台修改配置"}, 403)
             if self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/json":
@@ -2937,6 +3121,13 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             body = {}
         try:
+            if p == "/api/weapon/apply":
+                try:
+                    template_id = int(body.get("template_id"))
+                except (TypeError, ValueError):
+                    raise ValueError("武器模板 ID 无效")
+                result = _apply_custom_weapon(template_id, body.get("fields"))
+                return self._json({"ok": True, "data": result})
             if p == "/api/ip-whitelist":
                 action = body.get("action")
                 if action not in ("add", "remove"):
