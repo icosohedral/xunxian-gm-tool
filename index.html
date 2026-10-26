@@ -331,12 +331,18 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .skill-limits-hint{color:var(--ink-faint);font-size:12px;margin:8px 0}
 .skill-limits-check{width:16px;height:16px;accent-color:var(--jade)}
 .skill-limits-actions{white-space:nowrap}
-.summon-config-toolbar{display:grid;grid-template-columns:minmax(140px,.75fr) minmax(180px,1fr) minmax(210px,1.4fr) minmax(130px,.55fr);align-items:end;gap:10px;margin:6px 0 14px}
+.summon-config-toolbar{display:grid;grid-template-columns:minmax(130px,.7fr) minmax(210px,1.4fr) minmax(180px,1fr);align-items:end;gap:10px;margin:6px 0 14px}
 .summon-config-toolbar .field{min-width:0;margin:0}
-.summon-config-toolbar input{height:34px}
+.summon-creature-search input{height:34px}
 .summon-selection-summary{margin:0 0 12px;font-size:11px}
-.summon-skills-layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(260px,.85fr);align-items:stretch;gap:12px}
+.summon-skills-layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(230px,.85fr) minmax(210px,.75fr);align-items:stretch;gap:12px}
 .summon-skills-layout .definition-table-wrap{height:min(54vh,460px);min-height:300px}
+.summon-attributes-section{min-width:0;height:min(54vh,460px);min-height:300px;overflow:auto;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#f8fbf9}
+.summon-attributes-list{display:grid;gap:5px;margin:0}
+.summon-attributes-list div{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--line)}
+.summon-attributes-list dt{color:var(--ink-soft);font-size:11px}
+.summon-attributes-list dd{margin:0;color:var(--ink);font-size:11px;font-weight:650;font-variant-numeric:tabular-nums;text-align:right;overflow-wrap:anywhere}
+.summon-attributes-subtitle{margin-top:10px;color:var(--ink-faint);font-size:10px}
 .definition-table.summon-skill-table{width:100%;min-width:0;table-layout:fixed}
 .definition-table.summon-skill-table th:first-child,.definition-table.summon-skill-table td:first-child{width:48px;text-align:center}
 .definition-table.summon-skill-table th:nth-child(2),.definition-table.summon-skill-table td:nth-child(2){width:88px}
@@ -358,9 +364,10 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .summon-order-empty{padding:7px 2px;color:var(--ink-faint);font-size:11px}
 .summon-config-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px}
 .summon-config-footer .muted{font-size:11px}
-@media(max-width:760px){.summon-config-toolbar{grid-template-columns:1fr 1fr}.summon-config-toolbar .field:first-child,.summon-config-toolbar .field:nth-child(3){grid-column:1/-1}}
-@media(max-width:460px){.summon-config-toolbar{grid-template-columns:1fr}.summon-config-toolbar .field:first-child,.summon-config-toolbar .field:nth-child(3){grid-column:auto}}
-@media(max-width:860px){.summon-skills-layout{grid-template-columns:minmax(0,1fr)}.summon-skills-layout .definition-table-wrap{height:min(48vh,380px);min-height:240px}}
+@media(max-width:760px){.summon-config-toolbar{grid-template-columns:minmax(130px,.7fr) minmax(210px,1.4fr)}.summon-creature-search{grid-column:1/-1}}
+@media(max-width:460px){.summon-config-toolbar{grid-template-columns:1fr}.summon-creature-search{grid-column:auto}}
+@media(max-width:900px){.summon-skills-layout{grid-template-columns:minmax(0,1.4fr) minmax(220px,.8fr)}.summon-order-section{grid-column:1/-1}.summon-attributes-section{height:auto;min-height:0;max-height:300px}}
+@media(max-width:760px){.summon-skills-layout{grid-template-columns:minmax(0,1fr)}.summon-skills-layout .definition-table-wrap{height:min(48vh,380px);min-height:240px}.summon-order-section{grid-column:auto}.summon-attributes-section{grid-column:auto}}
 @media(max-width:420px){.definition-table.summon-skill-table th:first-child,.definition-table.summon-skill-table td:first-child{width:38px}.definition-table.summon-skill-table th:nth-child(2),.definition-table.summon-skill-table td:nth-child(2){width:66px}.definition-table.summon-skill-table th:last-child,.definition-table.summon-skill-table td:last-child{width:112px}.definition-table.summon-skill-table th,.definition-table.summon-skill-table td{padding-left:6px;padding-right:6px}.summon-skill-cd{padding-left:5px;padding-right:5px}}
 .definition-search{width:min(340px,100%);height:34px;padding:0 11px;border:1px solid var(--line-strong);border-radius:9px;
   background:#fbfdfc;color:var(--ink);font-size:12px;outline:none;transition:.13s ease}
@@ -1326,14 +1333,17 @@ tbody tr.is-static:hover{background:transparent}
             <div class="card-head"><h3>自定义召唤</h3><span class="skill-limits-loading" id="summon-loading" role="status" hidden><span class="spinner" aria-hidden="true"></span>读取中</span></div>
             <div class="card-body">
               <div class="summon-config-toolbar">
-                <label class="field" for="summon-skill-name"><span>召唤技能名称</span><input id="summon-skill-name" maxlength="32" value="遁甲术·巨甲遁" autocomplete="off"></label>
-                <label class="field" for="summon-type"><span>召唤类型</span><select id="summon-type"><option value="monster">怪物</option><option value="friend">仙友</option></select></label>
+                <label class="field" for="summon-type"><span>召唤类型</span><select id="summon-type"><option value="friend">职业导师</option><option value="monster">怪物</option><option value="catcher">捕快</option></select></label>
                 <label class="field" for="summon-creature"><span>召唤物</span><select id="summon-creature" disabled></select></label>
-                <label class="field" for="summon-cooldown"><span>召唤冷却（秒）</span><input id="summon-cooldown" type="number" min="1" max="3600" value="120"></label>
+                <label class="field summon-creature-search" for="summon-creature-search"><span>搜索召唤物</span><input id="summon-creature-search" placeholder="搜索召唤物名称" autocomplete="off"></label>
               </div>
-              <div class="summon-selection-summary muted"><span id="summon-selection-count">已选择 0/5 个技能</span></div>
+              <div class="summon-selection-summary muted"><span id="summon-selection-count">已选择 0/4 个技能</span></div>
               <div class="summon-skills-layout">
                 <div class="table-wrap definition-table-wrap"><table class="definition-table summon-skill-table"><thead><tr><th>选择</th><th>技能 ID</th><th>召唤物技能</th><th>冷却（秒）</th></tr></thead><tbody id="summon-skill-rows"><tr class="is-static"><td colspan="4" style="padding:0;border:0"><div class="empty"><b>读取召唤物列表</b></div></td></tr></tbody></table></div>
+                <section class="summon-attributes-section" aria-labelledby="summon-attributes-title">
+                  <div class="summon-order-head"><span class="summon-order-title" id="summon-attributes-title">属性值</span></div>
+                  <div id="summon-attributes-content" class="summon-order-empty">选择召唤物后显示</div>
+                </section>
                 <section class="summon-order-section" aria-labelledby="summon-order-title">
                   <div class="summon-order-head"><span class="summon-order-title" id="summon-order-title">技能栏顺序</span></div>
                   <ol class="summon-order-list" id="summon-skill-order-list" aria-label="召唤物技能栏顺序" aria-live="polite"><li class="summon-order-empty">勾选技能后可调整顺序</li></ol>
@@ -1352,6 +1362,7 @@ tbody tr.is-static:hover{background:transparent}
           <div class="segmented" id="logs-mode" role="group" aria-label="切换运维管理页面">
             <button type="button" class="is-active" data-lm="server">服务控制</button>
             <button type="button" data-lm="log">操作日志</button>
+            <button type="button" data-lm="whitelist">IP白名单</button>
             <button type="button" data-lm="config">连接配置</button>
           </div>
         </div>
@@ -1387,6 +1398,25 @@ tbody tr.is-static:hover{background:transparent}
                 <tbody id="log-rows"></tbody>
               </table>
             </div>
+          </article>
+        </div>
+
+        <div id="logs-panel-whitelist" class="is-hidden">
+          <article class="card">
+            <div class="card-head"><h3>允许访问的 IP</h3><button class="btn btn-sm" id="ip-whitelist-refresh" type="button">刷新</button></div>
+            <div class="card-body">
+              <form class="toolbar" id="ip-whitelist-form" style="margin-bottom:12px">
+                <input id="ip-whitelist-input" placeholder="IPv4 地址或 CIDR 网段" aria-label="IPv4 地址或 CIDR 网段" autocomplete="off" style="width:min(320px,100%)">
+                <button class="btn btn-primary" type="submit">添加</button>
+              </form>
+              <div class="table-wrap"><table><thead><tr><th>IP / 网段</th><th style="width:100px">操作</th></tr></thead><tbody id="ip-whitelist-entries"></tbody></table></div>
+              <div class="muted" id="ip-whitelist-note" style="margin-top:10px">修改后重启服务端生效</div>
+            </div>
+          </article>
+          <article class="card" style="margin-top:14px">
+            <div class="card-head"><h3>最近 5 次网络连接记录</h3></div>
+            <div class="table-wrap"><table><thead><tr><th style="width:170px">时间</th><th>来源 IP</th><th style="width:105px">当前白名单</th><th style="width:105px">日志结果</th><th style="width:100px">操作</th></tr></thead><tbody id="ip-whitelist-recent"></tbody></table></div>
+            <div class="muted" id="ip-whitelist-log-note" style="padding:8px 16px"></div>
           </article>
         </div>
 
@@ -1685,7 +1715,7 @@ const state = { view:'home', cart:[], scenes:null, acctId:null, charId:null, log
                 skillLimits:null, skillLimitsPath:null, skillLimitsLoading:false,
                 professionSkillData:null, professionSkillSession:null, professionSkillSelectedId:null,
                 professionSkillLoading:false, professionSkillApplying:false, professionSkillPending:new Map(),
-                skillConfigMode:'cross-career', summonCatalog:null, summonFriends:null, summonConfig:null,
+                skillConfigMode:'cross-career', summonCatalog:null, summonCatchers:null, summonFriends:null, summonConfig:null,
                 summonSelectedSkills:new Map(), summonSkillOrder:[], summonDraggedSkillId:null, summonLoading:false, summonApplying:false,
                 skillLimitSourceFilter:'all', skillLimitSelection:new Set(), skillLimitVisibleGroups:[],
                 fateLockDraft:null, fateLockSaving:false, fateLockLoading:false,
@@ -1694,7 +1724,7 @@ const VIEWS = ['home','acct','item','rates','skill-config','pet-config','logs'];
 
 function syncHash(){
   let h = state.view;
-  if (state.view === 'logs') h = state.logsMode === 'config' ? 'config' : state.logsMode === 'log' ? 'logs' : 'ops';
+  if (state.view === 'logs') h = state.logsMode === 'config' ? 'config' : state.logsMode === 'log' ? 'logs' : state.logsMode === 'whitelist' ? 'ip-whitelist' : 'ops';
   if (state.view === 'item') h = state.itemMode === 'point' ? 'point' : state.itemMode === 'mail' ? 'mail' : 'item';
   if (location.hash.slice(1) !== h) history.replaceState(null, '', '#' + h);
 }
@@ -1756,19 +1786,21 @@ function ensureItemList(){
   if (state.itemMode === 'item' && !$('#it-rows').children.length) searchItem();
 }
 
-/* 运维管理页：服务控制 / 操作日志 / 连接配置 */
+/* 运维管理页 */
 function setLogsMode(mode, skipLoad){
-  state.logsMode = ['server','log','config'].includes(mode) ? mode : 'server';
+  state.logsMode = ['server','log','config','whitelist'].includes(mode) ? mode : 'server';
   $$('#logs-mode button').forEach(b => b.classList.toggle('is-active', b.dataset.lm === state.logsMode));
   $('#logs-panel-server').classList.toggle('is-hidden', state.logsMode !== 'server');
   $('#logs-panel-log').classList.toggle('is-hidden', state.logsMode !== 'log');
   $('#logs-panel-config').classList.toggle('is-hidden', state.logsMode !== 'config');
+  $('#logs-panel-whitelist').classList.toggle('is-hidden', state.logsMode !== 'whitelist');
   if (state.view === 'logs') syncHash();
   if (!skipLoad) ensureLogsPanel();
 }
 function ensureLogsPanel(){
   if (state.logsMode === 'config') loadConfig();
   else if (state.logsMode === 'log') loadLogs();
+  else if (state.logsMode === 'whitelist') loadIpWhitelist();
   else loadServerControlState();
 }
 
@@ -3124,26 +3156,31 @@ function selectedSummonCreature(){
   return activeSummonCreatures().find(creature => creature.key === $('#summon-creature').value) || null;
 }
 function activeSummonCreatures(){
-  return $('#summon-type').value === 'friend' ? (state.summonFriends || []) : (state.summonCatalog || []);
+  const type = $('#summon-type').value;
+  return type === 'friend' ? (state.summonFriends || []) : type === 'catcher' ?
+    (state.summonCatchers || []) : (state.summonCatalog || []);
 }
 function renderSummonCreatureOptions(selectedKey=''){
   const creatures = activeSummonCreatures();
-  $('#summon-creature').innerHTML = creatures.map(creature =>
-    '<option value="' + esc(creature.key) + '">' + esc(creature.name) + '</option>'
+  const query = $('#summon-creature-search').value.trim().toLowerCase();
+  const matches = query ? creatures.filter(creature => creature.name.toLowerCase().includes(query)) : creatures;
+  const nameCounts = new Map();
+  creatures.forEach(creature => nameCounts.set(creature.name, (nameCounts.get(creature.name) || 0) + 1));
+  $('#summon-creature').innerHTML = matches.map(creature =>
+    '<option value="' + esc(creature.key) + '">' + esc(creature.name +
+      (nameCounts.get(creature.name) > 1 ? ' · ' + creature.skills.length + ' 个技能' +
+        (creature.total_hp ? ' · 生命 ' + creature.total_hp.toLocaleString() : '') : '')) + '</option>'
   ).join('');
-  if (selectedKey && creatures.some(creature => creature.key === selectedKey)) $('#summon-creature').value = selectedKey;
-  else if (creatures.length) $('#summon-creature').selectedIndex = 0;
-  $('#summon-creature').disabled = !creatures.length;
+  if (selectedKey && matches.some(creature => creature.key === selectedKey)) $('#summon-creature').value = selectedKey;
+  else if (matches.length) $('#summon-creature').selectedIndex = 0;
+  $('#summon-creature').disabled = !matches.length;
 }
 function updateSummonControls(){
   const selectedCount = state.summonSelectedSkills.size;
-  $('#summon-selection-count').textContent = '已选择 ' + selectedCount + '/5 个技能';
-  const name = $('#summon-skill-name').value.trim();
-  const summonCooldown = Number($('#summon-cooldown').value);
-  const validCooldowns = [...state.summonSelectedSkills.values()].every(value => Number.isInteger(value) && value >= 1 && value <= 3600);
+  $('#summon-selection-count').textContent = '已选择 ' + selectedCount + '/4 个技能';
+  const validCooldowns = [...state.summonSelectedSkills.values()].every(value => Number.isInteger(value) && value >= 0 && value <= 3600);
   $('#summon-apply').disabled = state.summonLoading || state.summonApplying || !selectedSummonCreature() ||
-    !name || name.length > 32 || selectedCount < 1 || selectedCount > 5 || !validCooldowns ||
-    !Number.isInteger(summonCooldown) || summonCooldown < 1 || summonCooldown > 3600;
+    selectedCount < 1 || selectedCount > 4 || !validCooldowns;
 }
 function orderedSummonSkillIds(){
   const ids = state.summonSkillOrder.filter(id => state.summonSelectedSkills.has(id));
@@ -3170,8 +3207,32 @@ function renderSummonSkillOrder(){
       '<span class="summon-order-cooldown">' + (Number.isFinite(cooldown) ? cooldown + '秒' : '') + '</span></li>';
   }).join('');
 }
+function renderSummonAttributes(){
+  const creature = selectedSummonCreature(), content = $('#summon-attributes-content');
+  const attributes = creature?.attributes;
+  if (!attributes){
+    content.className = 'summon-order-empty';
+    content.textContent = creature ? '当前包中没有对应的战斗属性' : '选择召唤物后显示';
+    return;
+  }
+  const value = item => /^-?\d+(?:\.\d+)?$/.test(String(item)) ?
+    Number(item).toLocaleString('zh-CN', {maximumFractionDigits:0}) : String(item);
+  const rows = [
+    ['等级', attributes.level],
+    ['生命值', attributes.total_hp],
+    ['伤害值', attributes.total_damage],
+    ['法术效果', attributes.total_magic_damage],
+    ['防御力', attributes.total_defense],
+    ['法术抗性', attributes.total_magic_resistance],
+  ];
+  content.className = '';
+  content.innerHTML = '<dl class="summon-attributes-list">' + rows.map(([label, item]) =>
+    '<div><dt>' + esc(label) + '</dt><dd>' + esc(value(item ?? '—')) + '</dd></div>').join('') + '</dl>' +
+    (creature.summon_type === 'friend' ? '<div class="summon-attributes-subtitle">来源：影子战斗属性表</div>' : '');
+}
 function renderSummonSkillRows(){
   const creature = selectedSummonCreature();
+  renderSummonAttributes();
   if (!creature){
     $('#summon-skill-rows').innerHTML = '<tr class="is-static"><td colspan="4" style="padding:0;border:0"><div class="empty"><b>请选择召唤物</b></div></td></tr>';
     renderSummonSkillOrder();
@@ -3180,11 +3241,16 @@ function renderSummonSkillRows(){
   const skills = creature.skills || [];
   $('#summon-skill-rows').innerHTML = skills.length ? skills.map(skill => {
     const selected = state.summonSelectedSkills.has(skill.id);
-    const cooldown = state.summonSelectedSkills.get(skill.id) || 15;
+    const savedCooldown = state.summonSelectedSkills.get(skill.id);
+    const originalCooldown = Number(skill.cooldown);
+    const cooldown = savedCooldown !== undefined ? savedCooldown :
+      (Number.isInteger(originalCooldown) && originalCooldown >= 0 && originalCooldown <= 3600 ? originalCooldown : 15);
+    const skillIds = Array.isArray(skill.ids) && skill.ids.length ? skill.ids : [skill.id];
+    const idLabel = skillIds.length > 1 ? String(skill.id) + '…' : String(skill.id);
     return '<tr><td><input type="checkbox" data-summon-skill="' + skill.id + '" ' +
       (selected ? 'checked ' : '') + 'aria-label="选择 ' + esc(skill.name) + '"></td>' +
-      '<td>' + skill.id + '</td><td>' + esc(skill.name) + '</td>' +
-      '<td><input class="summon-skill-cd" type="number" min="1" max="3600" value="' + cooldown + '" ' +
+      '<td title="' + esc(skillIds.join('、')) + '">' + idLabel + '</td><td>' + esc(skill.name) + '</td>' +
+      '<td><input class="summon-skill-cd" type="number" min="0" max="3600" value="' + cooldown + '" ' +
       (selected ? '' : 'disabled ') + 'data-summon-cooldown="' + skill.id + '" aria-label="' +
       esc(skill.name) + ' 冷却秒数"></td></tr>';
   }).join('') : '<tr class="is-static"><td colspan="4" style="padding:0;border:0"><div class="empty"><b>这个召唤物没有可配置技能</b></div></td></tr>';
@@ -3197,9 +3263,10 @@ async function loadSummonCatalog(){
   $('#summon-status').textContent = ''; $('#summon-status').classList.remove('is-bad');
   try{
     const j = await api('/api/summons/catalog');
-    state.summonCatalog = j.data.creatures || []; state.summonFriends = j.data.friends || []; state.summonConfig = j.data.config || null;
+    state.summonCatalog = j.data.creatures || []; state.summonCatchers = j.data.catchers || [];
+    state.summonFriends = j.data.friends || []; state.summonConfig = j.data.config || null;
     const saved = state.summonConfig;
-    $('#summon-type').value = saved?.summon_type === 'friend' ? 'friend' : 'monster';
+    $('#summon-type').value = ['friend','catcher'].includes(saved?.summon_type) ? saved.summon_type : 'monster';
     const activeCreatures = activeSummonCreatures();
     const legacyFriendKeys = {'17167:16249':'37643:11568','17163:16245':'37644:11567',
       '17164:16246':'37645:11569','17168:16250':'37646:11570',
@@ -3211,10 +3278,20 @@ async function loadSummonCatalog(){
     const savedCreature = activeCreatures.find(creature => creature.key === savedKey ||
       (creature.members || []).some(member => member.key === savedKey));
     renderSummonCreatureOptions(savedCreature?.key || '');
-    $('#summon-skill-name').value = saved?.skill_name || '遁甲术·巨甲遁';
-    $('#summon-cooldown').value = saved?.summon_cooldown || 120;
-    state.summonSelectedSkills = new Map((saved?.skills || []).map(item => [Number(item.id), Number(item.cooldown)]));
-    state.summonSkillOrder = (saved?.skills || []).map(item => Number(item.id));
+    const savedSkills = (saved?.skills || []);
+    const skillGroups = new Map();
+    for (const skill of savedCreature?.skills || []){
+      for (const id of (Array.isArray(skill.ids) && skill.ids.length ? skill.ids : [skill.id])){
+        skillGroups.set(Number(id), Number(skill.id));
+      }
+    }
+    const restored = new Map();
+    for (const item of savedSkills){
+      const savedId = Number(item.id), groupId = skillGroups.get(savedId) || savedId;
+      if (!restored.has(groupId) && restored.size < 4) restored.set(groupId, Number(item.cooldown));
+    }
+    state.summonSelectedSkills = restored;
+    state.summonSkillOrder = [...restored.keys()];
     renderSummonSkillRows();
   }catch(err){
     $('#summon-status').textContent = err.message; $('#summon-status').classList.add('is-bad');
@@ -3224,19 +3301,30 @@ async function loadSummonCatalog(){
 }
 $('#summon-type').addEventListener('change', () => {
   state.summonSelectedSkills = new Map(); state.summonSkillOrder = [];
+  $('#summon-creature-search').value = '';
   renderSummonCreatureOptions(); renderSummonSkillRows();
+});
+$('#summon-creature-search').addEventListener('input', () => {
+  const previousKey = $('#summon-creature').value;
+  renderSummonCreatureOptions(previousKey);
+  if ($('#summon-creature').value !== previousKey){
+    state.summonSelectedSkills = new Map(); state.summonSkillOrder = [];
+    renderSummonSkillRows();
+  }
 });
 $('#summon-creature').addEventListener('change', () => { state.summonSelectedSkills = new Map(); state.summonSkillOrder = []; renderSummonSkillRows(); });
 $('#summon-skill-rows').addEventListener('change', e => {
   const checkbox = e.target.closest('[data-summon-skill]');
   if (checkbox){
     const id = Number(checkbox.dataset.summonSkill);
-    if (checkbox.checked && !state.summonSelectedSkills.has(id) && state.summonSelectedSkills.size >= 5){
-      checkbox.checked = false; toast('最多选择 5 个召唤物技能', true); return;
+    if (checkbox.checked && !state.summonSelectedSkills.has(id) && state.summonSelectedSkills.size >= 4){
+      checkbox.checked = false; toast('最多选择 4 个召唤物技能', true); return;
     }
     if (checkbox.checked){
       const input = $('#summon-skill-rows [data-summon-cooldown="' + id + '"]');
-      state.summonSelectedSkills.set(id, Number(input?.value) || 15);
+      const originalCooldown = Number(input?.value);
+      const initialCooldown = Number.isInteger(originalCooldown) && originalCooldown >= 0 && originalCooldown <= 3600 ? originalCooldown : 15;
+      state.summonSelectedSkills.set(id, initialCooldown);
       if (!state.summonSkillOrder.includes(id)) state.summonSkillOrder.push(id);
     } else {
       state.summonSelectedSkills.delete(id);
@@ -3289,14 +3377,15 @@ $('#summon-skill-rows').addEventListener('input', e => {
     renderSummonSkillOrder(); updateSummonControls();
   }
 });
-$('#summon-skill-name').addEventListener('input', updateSummonControls);
-$('#summon-cooldown').addEventListener('input', updateSummonControls);
 $('#summon-apply').addEventListener('click', async e => {
   const creature = selectedSummonCreature(), button = e.currentTarget;
   if (!creature || button.disabled) return;
-  const payload = {summon_type:$('#summon-type').value, role_id:creature.role_id, form_id:creature.form_id,
-    skill_name:$('#summon-skill-name').value.trim(), summon_cooldown:Number($('#summon-cooldown').value),
-    skills:orderedSummonSkillIds().map(id => ({id,cooldown:state.summonSelectedSkills.get(id)}))};
+  const summonType = $('#summon-type').value;
+  const payload = {summon_type:summonType, role_id:creature.role_id, form_id:creature.form_id,
+    skills:orderedSummonSkillIds().map(id => {
+      const skill = (creature.skills || []).find(item => Number(item.id) === id);
+      return {id, ids:Array.isArray(skill?.ids) ? skill.ids : [id], cooldown:state.summonSelectedSkills.get(id)};
+    })};
   const creatureForms = new Set((creature.members || [{form_id:creature.form_id}]).map(member => member.form_id));
   const sharedFormIds = [...creatureForms].filter(formId => (state.summonCatalog || []).some(item =>
     item.key !== creature.key && (item.members || [{form_id:item.form_id}]).some(member => member.form_id === formId)));
@@ -3669,7 +3758,6 @@ $('#ride-speed-apply').addEventListener('click',async()=>{
         setTimeout(()=>URL.revokeObjectURL(url),60000);
         state.rideApplying=false;
         await loadRideSpeeds();
-        if(state.rideSpeeds)setRideSpeedStatus('服务器包已写入并备份；客户端包已下载。重启服务端并替换游戏目录中的 mb.dpk 后生效。');
       }finally{state.rideApplying=false;renderRideSpeeds();}
     }});
 });
@@ -3856,6 +3944,69 @@ async function loadDefinitions(kind){
     }
   });
 });
+/* ============================================================
+   IP 白名单
+   ============================================================ */
+async function loadIpWhitelist(){
+  $('#ip-whitelist-entries').innerHTML = skeleton(2);
+  $('#ip-whitelist-recent').innerHTML = skeleton(5);
+  try{
+    const j = await api('/api/ip-whitelist');
+    renderIpWhitelist(j.data);
+  }catch(e){
+    $('#ip-whitelist-entries').innerHTML = emptyRow(2, '读取失败', e.message);
+    $('#ip-whitelist-recent').innerHTML = emptyRow(5, '读取失败', '');
+    toast(e.message, true);
+  }
+}
+function renderIpWhitelist(data){
+  const entries = data.entries || [];
+  $('#ip-whitelist-entries').innerHTML = entries.length ? entries.map(entry =>
+    '<tr class="is-static"><td class="num">' + esc(entry) + '</td><td><button type="button" class="btn btn-sm" data-ip-remove="' + esc(entry) + '">删除</button></td></tr>'
+  ).join('') : emptyRow(2, '白名单为空', '');
+  const rows = data.recent || [];
+  $('#ip-whitelist-recent').innerHTML = rows.length ? rows.map(row =>
+    '<tr class="is-static"><td class="num">' + esc(row.time || '—') + '</td><td class="num" title="' + esc(row.detail || '') + '">' + esc(row.ip) + '</td>' +
+    '<td><span class="tag ' + (row.allowed ? 'ok' : 'bad') + '">' + (row.allowed ? '已加入' : '未加入') + '</span></td>' +
+    '<td><span class="tag ' + (row.rejected ? 'bad' : 'plain') + '">' + (row.rejected ? '被拒绝' : '未见拒绝') + '</span></td>' +
+    '<td>' + (row.allowed ? '—' : '<button type="button" class="btn btn-sm" data-ip-add="' + esc(row.ip) + '">添加</button>') + '</td></tr>'
+  ).join('') : emptyRow(5, '暂无来源 IP 记录', '');
+  $('#ip-whitelist-log-note').textContent = data.log_note || '';
+  $('#ip-whitelist-note').textContent = data.allow_wan === 'false' ? '修改后重启服务端生效' :
+    'allow_wan 当前为 ' + (data.allow_wan || '未设置') + '；修改后重启服务端生效';
+}
+async function changeIpWhitelist(action, entry){
+  const j = await postJSON('/api/ip-whitelist', {action, entry});
+  renderIpWhitelist(j.data);
+  toast((action === 'add' ? '已添加 ' : '已删除 ') + entry + '，重启服务端后生效');
+}
+$('#ip-whitelist-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const input = $('#ip-whitelist-input');
+  const entry = input.value.trim();
+  if (!entry) return;
+  const button = $('#ip-whitelist-form button[type="submit"]');
+  button.disabled = true;
+  try{ await changeIpWhitelist('add', entry); input.value = ''; }
+  catch(err){ toast(err.message, true); }
+  finally{ button.disabled = false; }
+});
+$('#ip-whitelist-refresh').addEventListener('click', loadIpWhitelist);
+$('#ip-whitelist-recent').addEventListener('click', async e => {
+  const button = e.target.closest('[data-ip-add]');
+  if (!button) return;
+  button.disabled = true;
+  try{ await changeIpWhitelist('add', button.dataset.ipAdd); }
+  catch(err){ toast(err.message, true); button.disabled = false; }
+});
+$('#ip-whitelist-entries').addEventListener('click', async e => {
+  const button = e.target.closest('[data-ip-remove]');
+  if (!button) return;
+  const entry = button.dataset.ipRemove;
+  await confirmDialog({title:'删除白名单地址？', html:'<p>' + esc(entry) + '</p>', okText:'删除',
+    onConfirm:async () => { await changeIpWhitelist('remove', entry); }});
+});
+
 /* ============================================================
    操作日志
    ============================================================ */
@@ -4093,6 +4244,7 @@ function routeFromHash(){
   if (v === 'point'){ goto('point'); return; }
   if (v === 'mail'){ goto('mail'); return; }
   if (v === 'config'){ goto('config'); return; }
+  if (v === 'ip-whitelist'){ setLogsMode('whitelist', true); showView('logs'); return; }
   if (v === 'ops'){ setLogsMode('server', true); showView('logs'); return; }
   if (v === 'logs'){ setLogsMode('log', true); showView('logs'); return; }
   showView(VIEWS.indexOf(v) >= 0 ? v : 'home');

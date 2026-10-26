@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import re
 import tempfile
 from pathlib import Path
 
@@ -12,6 +13,7 @@ from .unpack import DpkReader
 
 
 SUMMON_SKILL_ID = 3126
+SUMMON_SKILL_NAME = "召唤伙伴"
 SUMMON_TRIGGER_ID = "302247"
 SUMMON_TEMPLATE_SKILL_ID = "3046"
 SUMMON_LEARN_TEMPLATE_ID = SUMMON_TEMPLATE_SKILL_ID
@@ -21,6 +23,7 @@ NPC_SKILL_DIR = "skill/skill_data_npc"
 NPC_SKILL_CHOOSE = "object/cha_skill_choose.txt"
 CHA_LIST = "object/cha_list.txt"
 CHA_FIGHT = "object/cha_fight.txt"
+CHA_SHADOW_FIGHT = "object/cha_shadow/cha_shadow_chafight.txt"
 SUMMON_SKILL = "summon/summon_skill.txt"
 SUMMON_SKILL_INDEX = "summon/summon_skill_index.txt"
 SKILL_DATA = "skill/skill_data_yx.txt"
@@ -43,15 +46,69 @@ IMMORTAL_FRIENDS = [
     ("乘风导师真身", 37651, 11574, 9),
     ("乾坤导师真身", 37652, 11571, 10),
 ]
+CATCHER_ROLE_IDS = {37236, 37252}
+CATCHER_EXTRA_SKILL_IDS = {
+    6351, 6357, *range(14088, 14096), 14098, 14099, 14101,
+    *range(14103, 14106), *range(14107, 14117),
+}
+
+
+def _combat_attributes(fields: list[str]) -> dict:
+    """Extract named combat values from cha_fight's stable column layout."""
+    columns = {
+        "level": 1, "total_hp": 24,
+        "total_damage": 27, "total_magic_damage": 28,
+        "total_defense": 29, "total_magic_resistance": 31,
+    }
+    values = {key: fields[index] if len(fields) > index else ""
+              for key, index in columns.items()}
+    if not values["total_hp"].isdigit():
+        values["total_hp"] = "0"
+    return values
+
+
+def _shadow_combat_attributes(header: list[str], fields: list[str]) -> dict:
+    """Read the named totals in the shadow combat table."""
+    columns = {
+        "level": "等级", "total_hp": "总生命", "total_damage": "总伤害",
+        "total_magic_damage": "总法伤", "total_defense": "总防御",
+        "total_magic_resistance": "总抗性",
+    }
+    return {key: fields[header.index(label)] for key, label in columns.items()}
 
 
 def load_friend_catalog(client_path: Path | None) -> list[dict]:
     """Build the selectable仙友 list and their profession skills from mb.dpk."""
     skills_by_profession: dict[int, list[dict]] = {}
+    cooldowns: dict[int, str] = {}
+    friend_fights: dict[int, tuple[int, dict]] = {}
     if client_path is not None and client_path.is_file():
         with DpkReader(client_path) as reader:
             entries = {entry.path.lower(): entry for entry in reader.read_entries()}
+            if CHA_LIST in entries and CHA_SHADOW_FIGHT in entries:
+                fight_rows = {}
+                shadow_lines, _ = _decode(reader.extract(entries[CHA_SHADOW_FIGHT]), CHA_SHADOW_FIGHT)
+                header = shadow_lines[0].rstrip("\r\n").split("\t")
+                for line in shadow_lines[1:]:
+                    fields = line.rstrip("\r\n").split("\t")
+                    if fields[0].isdigit():
+                        fight_rows[fields[0]] = _shadow_combat_attributes(header, fields)
+                friend_ids = {role_id for _, role_id, _, _ in IMMORTAL_FRIENDS}
+                for line in _decode(reader.extract(entries[CHA_LIST]), CHA_LIST)[0]:
+                    fields = line.rstrip("\r\n").split("\t")
+                    if len(fields) > 4 and fields[1].isdigit() and int(fields[1]) in friend_ids:
+                        attributes = fight_rows.get(fields[4])
+                        if attributes:
+                            friend_fights[int(fields[1])] = (int(fields[4]), attributes)
             learn_entry = entries.get(SKILL_LEARN)
+            for path, entry in entries.items():
+                if (path.startswith("skill/skill_data_") and path.endswith(".txt")
+                        and not path.startswith(NPC_SKILL_DIR)):
+                    lines, _ = _decode(reader.extract(entry), entry.path)
+                    for line in lines:
+                        fields = line.rstrip("\r\n").split("\t")
+                        if len(fields) > 21 and fields[1].isdigit():
+                            cooldowns[int(fields[1])] = fields[21].strip()
             if learn_entry:
                 lines, _ = _decode(reader.extract(learn_entry), SKILL_LEARN)
                 for line in lines:
@@ -61,10 +118,26 @@ def load_friend_catalog(client_path: Path | None) -> list[dict]:
                     profession_id, skill_id = int(fields[4]), int(fields[1])
                     if 1 <= profession_id <= 10 and skill_id != SUMMON_SKILL_ID:
                         skills_by_profession.setdefault(profession_id, []).append(
-                            {"id": skill_id, "name": fields[0]})
+                            {"id": skill_id, "name": fields[0],
+                             "cooldown": cooldowns.get(skill_id)})
+    # 奇门导师有大量同名的技能阶级记录。把这些记录作为一个可选技能呈现，
+    # 同时保留全部底层 ID，应用时才能一起写入召唤技能栏与冷却。
+    qimen_skills = skills_by_profession.get(4, [])
+    grouped_qimen: dict[str, list[dict]] = {}
+    for skill in qimen_skills:
+        grouped_qimen.setdefault(skill["name"], []).append(skill)
+    skills_by_profession[4] = []
+    for name, variants in grouped_qimen.items():
+        variants.sort(key=lambda item: item["id"])
+        representative = dict(variants[0])
+        representative["ids"] = [item["id"] for item in variants]
+        skills_by_profession[4].append(representative)
+
     return [{"key": f"friend:{role_id}:{form_id}", "summon_type": "friend",
              "role_id": role_id, "form_id": form_id, "profession_id": profession_id,
              "name": name, "skills": skills_by_profession.get(profession_id, []),
+             "fight_id": friend_fights[role_id][0] if role_id in friend_fights else None,
+             "attributes": friend_fights[role_id][1] if role_id in friend_fights else None,
              "members": [{"key": f"friend:{role_id}:{form_id}",
                           "role_id": role_id, "form_id": form_id}]}
             for name, role_id, form_id, profession_id in IMMORTAL_FRIENDS]
@@ -110,7 +183,7 @@ def load_catalog(csv_path: Path) -> list[dict]:
     result.sort(key=lambda x: (x["name"], x["form_id"], x["role_id"]))
     merged: dict[tuple, dict] = {}
     for creature in result:
-        skill_signature = tuple((item["id"], item["name"]) for item in creature["skills"])
+        skill_signature = tuple(item["id"] for item in creature["skills"])
         signature = creature["name"], skill_signature
         current = merged.get(signature)
         if current is None:
@@ -119,6 +192,138 @@ def load_catalog(csv_path: Path) -> list[dict]:
         current["members"].extend(creature["members"])
         current["instances"] = sorted(set(current["instances"]) | set(creature["instances"]))
     return sorted(merged.values(), key=lambda x: (x["name"], x["form_id"], x["role_id"]))
+
+
+def load_monster_catalog(csv_path: Path, package_path: Path | None) -> list[dict]:
+    """Add combat creatures referenced by cha_list/cha_fight to the curated CSV."""
+    catalog = load_catalog(csv_path)
+    if package_path is None or not package_path.is_file():
+        return catalog
+
+    with DpkReader(package_path) as reader:
+        entries = {entry.path.lower(): entry for entry in reader.read_entries()}
+        required = (CHA_LIST, CHA_FIGHT, NPC_SKILL_CHOOSE)
+        if any(path not in entries for path in required):
+            return catalog
+
+        def rows(path: str) -> list[str]:
+            return _decode(reader.extract(entries[path]), path)[0]
+
+        fights: dict[str, dict] = {}
+        for line in rows(CHA_FIGHT):
+            fields = line.rstrip("\r\n").split("\t")
+            if len(fields) > 24 and fields[0].isdigit():
+                fights[fields[0]] = _combat_attributes(fields)
+
+        skill_defs: dict[int, tuple[str, str]] = {}
+        cooldowns: dict[int, str] = {}
+        for path in entries:
+            if not path.startswith(NPC_SKILL_DIR) or not path.endswith(".txt"):
+                continue
+            for line in rows(path):
+                fields = line.rstrip("\r\n").split("\t")
+                if len(fields) > 3 and fields[1].isdigit():
+                    skill_defs[int(fields[1])] = (fields[0].strip(), fields[3])
+                    if len(fields) > 21:
+                        cooldowns[int(fields[1])] = fields[21].strip()
+
+        conflicting_skills = set()
+        if SUMMON_SKILL_INDEX in entries:
+            for line in rows(SUMMON_SKILL_INDEX):
+                fields = line.rstrip("\r\n").split("\t")
+                if len(fields) > 2 and fields[1].isdigit():
+                    sid = int(fields[1])
+                    if sid in skill_defs and skill_defs[sid] != (fields[0], fields[2]):
+                        conflicting_skills.add(sid)
+
+        choose: dict[str, list[dict]] = {}
+        ambiguous = set()
+        for line in rows(NPC_SKILL_CHOOSE):
+            fields = line.rstrip("\r\n").split("\t")
+            if len(fields) <= max(SKILL_CHOOSE_FIELDS) or not fields[1].isdigit():
+                continue
+            form_id = fields[1]
+            if form_id in choose:
+                ambiguous.add(form_id)
+                continue
+            skill_ids = {int(token) for field in SKILL_CHOOSE_FIELDS
+                         for token in re.findall(r"(?<=\*)\d+", fields[field])
+                         if int(token) in skill_defs and int(token) not in conflicting_skills}
+            choose[form_id] = [
+                {"id": sid, "name": skill_defs[sid][0]}
+                for sid in sorted(skill_ids)
+            ]
+
+        known_pairs = {(member["role_id"], member["form_id"])
+                       for creature in catalog for member in creature["members"]}
+        catalog_by_pair = {(member["role_id"], member["form_id"]): creature
+                           for creature in catalog for member in creature["members"]}
+        by_signature = {
+            (creature["name"], tuple(item["id"] for item in creature["skills"])): creature
+            for creature in catalog
+        }
+        created = set()
+        for line in rows(CHA_LIST):
+            fields = line.rstrip("\r\n").split("\t")
+            if len(fields) <= 8 or not fields[1].isdigit() or not fields[5].isdigit():
+                continue
+            name = fields[0].strip()
+            role_id, fight_id, form_id = int(fields[1]), fields[4], fields[5]
+            existing = catalog_by_pair.get((role_id, int(form_id)))
+            if existing is not None:
+                if (existing["role_id"] == role_id and existing["form_id"] == int(form_id)
+                        and fight_id in fights):
+                    existing["fight_id"] = int(fight_id)
+                    existing["total_hp"] = int(fights[fight_id]["total_hp"] or 0)
+                    existing["attributes"] = {**fights[fight_id], "level": fields[3]}
+                continue
+            # AI group 3 denotes combat creatures; other groups include players,
+            # merchants, quest NPCs and ride props which share fight templates.
+            if (not name or (fields[8] != "3" and role_id not in CATCHER_ROLE_IDS) or fight_id not in fights or
+                    fight_id == "1" or form_id in ambiguous or
+                    not choose.get(form_id) or
+                    re.search(r"测试|废弃|宝箱|宝匣|传送门|演出", name) or
+                    (role_id, int(form_id)) in known_pairs):
+                continue
+            skills = choose[form_id]
+            if role_id in CATCHER_ROLE_IDS:
+                skill_ids = {item["id"] for item in skills}
+                skills = skills + [
+                    {"id": sid, "name": skill_defs[sid][0]}
+                    for sid in sorted(CATCHER_EXTRA_SKILL_IDS - skill_ids)
+                    if sid in skill_defs
+                ]
+            signature = name, tuple(item["id"] for item in skills)
+            member = {"key": f"{role_id}:{form_id}", "role_id": role_id,
+                      "form_id": int(form_id)}
+            creature = by_signature.get(signature)
+            if creature is None:
+                creature = {"key": member["key"], "role_id": role_id,
+                            "form_id": int(form_id), "name": name,
+                            "instances": [], "skills": skills,
+                            "members": [member], "fight_id": int(fight_id),
+                            "total_hp": int(fights[fight_id]["total_hp"] or 0),
+                            "attributes": {**fights[fight_id], "level": fields[3]}}
+                by_signature[signature] = creature
+                catalog.append(creature)
+                created.add(id(creature))
+            else:
+                creature["members"].append(member)
+                # For a new merged group, summon the member with the largest
+                # listed health. Keep the curated CSV's chosen primary intact.
+                if id(creature) in created and int(fights[fight_id]["total_hp"] or 0) > creature["total_hp"]:
+                    creature.update({"key": member["key"], "role_id": role_id,
+                                     "form_id": int(form_id),
+                                     "fight_id": int(fight_id),
+                                     "total_hp": int(fights[fight_id]["total_hp"] or 0),
+                                     "attributes": {**fights[fight_id], "level": fields[3]}})
+            known_pairs.add((role_id, int(form_id)))
+
+    for creature in catalog:
+        for skill in creature.get("skills", []):
+            if skill["id"] in cooldowns:
+                skill["cooldown"] = cooldowns[skill["id"]]
+    return sorted(catalog, key=lambda item: (item["name"], item["form_id"], item["role_id"]))
 
 
 def _decode(data: bytes, label: str) -> tuple[list[str], str]:
@@ -669,23 +874,20 @@ def patch_summon_dpk(source: Path, output: Path, config: dict,
                      reference: Path | None = None) -> tuple[bytes, dict]:
     role_id = int(config["role_id"])
     form_id = int(config["form_id"])
-    name = str(config["skill_name"]).strip()
-    summon_cd = int(config.get("summon_cooldown", 120))
+    name = SUMMON_SKILL_NAME
+    summon_cd = 10
     selected = config.get("skills") or []
-    if not name or len(name) > 32 or any(c in name for c in "\t\r\n"):
-        raise ValueError("召唤技能名称需为 1 到 32 个字符")
-    if not 1 <= summon_cd <= 3600:
-        raise ValueError("召唤技能冷却时间需为 1 到 3600 秒")
-    if not 1 <= len(selected) <= 5:
-        raise ValueError("召唤物至少选择 1 个技能，最多 5 个")
+    if not 1 <= len(selected) <= 4:
+        raise ValueError("召唤物至少选择 1 个技能，最多 4 个")
     skill_cds: dict[int, int] = {}
+    representative_ids: list[int] = []
     for item in selected:
         sid, cd = int(item["id"]), int(item["cooldown"])
-        if sid in skill_cds:
+        if sid in representative_ids:
             raise ValueError("召唤物技能不能重复")
-        if not 1 <= cd <= 3600:
-            raise ValueError(f"技能 {sid} 的冷却时间需为 1 到 3600 秒")
-        skill_cds[sid] = cd
+        if not 0 <= cd <= 3600:
+            raise ValueError(f"技能 {sid} 的冷却时间需为 0 到 3600 秒")
+        representative_ids.append(sid)
 
     entries, resources = _resources(source)
     reference_resources: dict[str, bytes] = {}
@@ -712,9 +914,20 @@ def patch_summon_dpk(source: Path, output: Path, config: dict,
     )), None)
     if not creature:
         raise ValueError("召唤物不在允许列表中")
-    allowed = {item["id"] for item in creature["skills"]}
-    if set(skill_cds) - allowed:
-        raise ValueError("所选技能不属于当前召唤物")
+    skills_by_id = {int(skill["id"]): skill for skill in creature["skills"]}
+    expanded_selected: list[dict] = []
+    for item in selected:
+        sid, cd = int(item["id"]), int(item["cooldown"])
+        skill = skills_by_id.get(sid)
+        if skill is None:
+            raise ValueError("所选技能不属于当前召唤物")
+        variant_ids = skill.get("ids") or [sid]
+        for variant_id in variant_ids:
+            variant_id = int(variant_id)
+            if variant_id in skill_cds:
+                raise ValueError("召唤物技能版本重复")
+            skill_cds[variant_id] = cd
+            expanded_selected.append({"id": variant_id, "cooldown": cd})
 
     changes: dict[str, bytes] = {}
 
@@ -722,7 +935,7 @@ def patch_summon_dpk(source: Path, output: Path, config: dict,
         return resources.get(path.lower())
 
     if config.get("summon_type") == "friend":
-        _ensure_friend_npc_skills(resources, selected, reference_resources)
+        _ensure_friend_npc_skills(resources, expanded_selected, reference_resources)
 
     summon_desc = f"召唤出{creature['name']}，协助你战斗，持续十分钟"
     skill_data = get(SKILL_DATA)
@@ -786,7 +999,7 @@ def patch_summon_dpk(source: Path, output: Path, config: dict,
             "members", [{"form_id": form_id}])})
         for member_form in member_forms:
             patched_choose = _patch_skill_choose(
-                patched_choose, member_form, list(skill_cds),
+                patched_choose, member_form, representative_ids,
                 required=(not optional_resources or config.get("summon_type") == "friend"),
                 row_name=creature["name"] if config.get("summon_type") == "friend" else "自定义召唤物")
         changes[NPC_SKILL_CHOOSE.lower()] = patched_choose
@@ -801,9 +1014,10 @@ def patch_summon_dpk(source: Path, output: Path, config: dict,
             if patched_cha_list != cha_list:
                 changes[CHA_LIST.lower()] = patched_cha_list
             cha_list = patched_cha_list
-        summon_type = _summon_type_for_role(cha_list, role_id, form_id,
+        summon_type = _summon_type_for_role(
+            cha_list, role_id, form_id,
             required=(not optional_resources or config.get("summon_type") == "friend"))
-        if config.get("summon_type") == "friend" and summon_type:
+        if summon_type:
             fight = get(CHA_FIGHT)
             if fight is None:
                 raise ValueError("当前包缺少导师真身战斗属性表")
@@ -813,7 +1027,7 @@ def patch_summon_dpk(source: Path, output: Path, config: dict,
             if len(ability_rows) != 1:
                 raise ValueError(f"cha_fight.txt 中战斗能力 ID {summon_type} 不唯一或缺失")
         if summon_type:
-            changes.update(_patch_summon_skill_bar(resources, summon_type, selected,
+            changes.update(_patch_summon_skill_bar(resources, summon_type, expanded_selected,
                                                     required=not optional_resources))
     elif not optional_resources:
         raise ValueError("当前包缺少召唤物角色表")

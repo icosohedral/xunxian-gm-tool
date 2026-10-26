@@ -35,7 +35,8 @@ from scripts.skill_limits import (CAREER_GROUP, CAREER_GROUP_NAMES, inspect_clie
                                   SESSIONS as _skill_limit_client_sessions,
                                   SESSION_LAST_USED as _skill_limit_session_last_used,
                                   SESSION_LOCK as _skill_limit_session_lock)
-from scripts.summon_config import load_catalog, load_friend_catalog, patch_summon_dpk
+from scripts.summon_config import (CATCHER_ROLE_IDS, SUMMON_SKILL_NAME, load_monster_catalog,
+                                   load_friend_catalog, patch_summon_dpk)
 from scripts.dungeon_limits import (inspect_archive as inspect_dungeon_archive,
                                    patch_archive as patch_dungeon_archive,
                                    patch_define_overlay)
@@ -44,6 +45,7 @@ from scripts.profession_skills import (inspect_archive as inspect_profession_ski
                                       patch_archive_batch as patch_profession_skills_batch)
 from scripts.ride_speed import (inspect_archive as inspect_ride_archive,
                                 patch_archive as patch_ride_archive)
+from scripts.ip_whitelist import normalize_entry as normalize_ip_whitelist_entry, run as run_ip_whitelist
 from scripts.unpack import DpkReader
 
 
@@ -2710,19 +2712,24 @@ class Handler(BaseHTTPRequestHandler):
                 if not catalog_path.is_file():
                     catalog_path = Path(APP_DIR) / "doc" / "召唤物列表.csv"
                 try:
-                    catalog = load_catalog(catalog_path)
                     client_path_text = str(CFG.get("client_mb_dpk") or "").strip()
                     try:
                         client_path = _ensure_client_work_package() if client_path_text else None
                     except ValueError:
                         client_path = None
+                    catalog_source = _configured_client_package_path() if client_path else None
+                    catalog = load_monster_catalog(catalog_path, catalog_source)
+                    # 五岳山麓捕快角色模板
+                    catcher_ids = CATCHER_ROLE_IDS
+                    catchers = [item for item in catalog if item.get("role_id") in catcher_ids]
+                    catalog = [item for item in catalog if item.get("role_id") not in catcher_ids]
                     friends = load_friend_catalog(client_path)
                     saved = {}
                     if os.path.exists(SUMMON_CONFIG_PATH):
                         with open(SUMMON_CONFIG_PATH, "r", encoding="utf-8") as f:
                             saved = json.load(f)
                     return self._json({"ok": True, "data": {"creatures": catalog,
-                        "friends": friends, "config": saved}})
+                        "catchers": catchers, "friends": friends, "config": saved}})
                 except Exception as e:
                     return self._json({"ok": False, "error": str(e)}, 500)
             if p == "/favicon.ico":
@@ -2773,6 +2780,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": True, "data": dict(_shop_restart_state)})
             if p == "/api/server/control":
                 return self._json({"ok": True, "data": dict(_shop_restart_state)})
+            if p == "/api/ip-whitelist":
+                if not self._config_request_allowed():
+                    return self._json({"ok": False, "error": "仅允许从本机控制台读取白名单"}, 403)
+                with _lock:
+                    result = run_ip_whitelist(ssh(), "read")
+                return self._json({"ok": True, "data": result})
             if p == "/api/definitions":
                 kind = (qs.get("kind") or [""])[0]
                 try:
@@ -2911,7 +2924,7 @@ class Handler(BaseHTTPRequestHandler):
                  "/api/shop/delete", "/api/shop/delete-batch", "/api/shop/restart",
                  "/api/server/control", "/api/fate-lock", "/api/dungeon-limits", "/api/ride-speeds", "/api/config/pick-path",
                  "/api/skill-limits/inspect",
-                 "/api/skill-limits/apply", "/api/profession-skills/inspect",
+                 "/api/skill-limits/apply", "/api/ip-whitelist", "/api/profession-skills/inspect",
                  "/api/profession-skills/apply", "/api/summons/apply"):
             if not self._config_request_allowed():
                 return self._json({"ok": False, "error": "仅允许从本机控制台修改配置"}, 403)
@@ -2924,6 +2937,18 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             body = {}
         try:
+            if p == "/api/ip-whitelist":
+                action = body.get("action")
+                if action not in ("add", "remove"):
+                    return self._json({"ok": False, "error": "未知的白名单操作"}, 400)
+                try:
+                    entry = normalize_ip_whitelist_entry(body.get("entry"))
+                    with _lock:
+                        result = run_ip_whitelist(ssh(), action, entry)
+                except ValueError as e:
+                    return self._json({"ok": False, "error": str(e)}, 400)
+                op_log("IP 白名单" + ("添加" if action == "add" else "删除"), {"entry": entry})
+                return self._json({"ok": True, "data": result})
             if p == "/api/profession-skills/inspect":
                 configured_client_path = _configured_client_package_path()
                 client_path = _ensure_client_work_package()
@@ -3345,9 +3370,9 @@ class Handler(BaseHTTPRequestHandler):
                 catalog_path = Path(RES_DIR) / "doc" / "召唤物列表.csv"
                 if not catalog_path.is_file():
                     catalog_path = Path(APP_DIR) / "doc" / "召唤物列表.csv"
-                catalog = load_catalog(catalog_path)
+                catalog = load_monster_catalog(catalog_path, _configured_client_package_path())
                 summon_type = str(body.get("summon_type") or "monster")
-                if summon_type not in {"monster", "friend"}:
+                if summon_type not in {"monster", "catcher", "friend"}:
                     raise ValueError("召唤类型无效")
                 if summon_type == "friend":
                     catalog += load_friend_catalog(client_path)
@@ -3355,8 +3380,8 @@ class Handler(BaseHTTPRequestHandler):
                     "summon_type": summon_type,
                     "role_id": int(body.get("role_id")),
                     "form_id": int(body.get("form_id")),
-                    "skill_name": str(body.get("skill_name") or "").strip(),
-                    "summon_cooldown": int(body.get("summon_cooldown", 120)),
+                    "skill_name": SUMMON_SKILL_NAME,
+                    "summon_cooldown": 10,
                     "skills": [{"id": int(item["id"]), "cooldown": int(item["cooldown"])}
                                for item in body["skills"] if isinstance(item, dict)],
                 }
