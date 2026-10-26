@@ -8,13 +8,29 @@
 
 ![工作台服务概览](doc/screenshots/dashboard.jpg)
 
+### 账号管理
+
+![账号管理](doc/screenshots/accounts.jpg)
+
 ### 物品管理
 
 ![物品管理与发放清单](doc/screenshots/items.jpg)
 
+### 技能配置
+
+![技能配置](doc/screenshots/skills.jpg)
+
+### 宠物配置
+
+![宠物配置](doc/screenshots/pets.jpg)
+
+### 游戏配置
+
+![游戏配置](doc/screenshots/game-config.jpg)
+
 ### 运维管理
 
-![服务端控制](doc/screenshots/operations.jpg)
+![运维管理与服务控制](doc/screenshots/operations.jpg)
 
 ## 功能一览
 
