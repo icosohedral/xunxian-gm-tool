@@ -9,7 +9,7 @@ from pathlib import Path
 import re
 import shlex
 
-from .skill_reload_agent import BASE
+from .skill_reload_agent import master_package
 from .unpack import DpkReader
 
 
@@ -118,7 +118,7 @@ def build_bundle(package: Path, item_ids=()):
              'checks': checks, 'typed_checks': typed_checks}
     if hashlib.sha256(package.read_bytes()).hexdigest() != package_hash:
         raise ValueError('服务器主包在读取期间发生变化，请重新读取')
-    return {'source_path': str(BASE / 'mb.dpk'), 'source_sha256': package_hash,
+    return {'source_path': master_package(), 'source_sha256': package_hash,
             'files': files, 'table': table, 'item_ids': sorted(requested_ids)}
 
 

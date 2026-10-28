@@ -5,11 +5,12 @@ def validate_item_bundle(bundle):
     import base64
     import hashlib
     try:
-        base = BASE
+        package_path = master_package()
     except NameError:
-        from scripts.skill_reload_agent import BASE as base
+        from scripts.skill_reload_agent import master_package as local_master_package
+        package_path = local_master_package()
 
-    if bundle.get('source_path') != str(base / 'mb.dpk'):
+    if bundle.get('source_path') != package_path:
         raise ValueError('物品热重载主包路径不匹配')
     expected_paths = ['item/item_list.txt', 'item/item_list2.txt', 'item/item_list3.txt']
     files = bundle.get('files')

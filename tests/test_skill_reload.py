@@ -2,7 +2,7 @@ import base64
 import copy
 import hashlib
 import json
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 import socket
 import struct
 import tempfile
@@ -14,6 +14,20 @@ from scripts.skill_reload import _rows
 
 
 class ReloadTests(unittest.TestCase):
+    def test_remote_package_path_is_independent_of_host_path_separator(self):
+        with patch.object(agent, 'BASE', PureWindowsPath('/opt/xxserver/runtime/xx/shm/TTYGZS')):
+            path = agent.master_package()
+        self.assertEqual(path, '/opt/xxserver/runtime/xx/shm/TTYGZS/mb.dpk')
+        with self.assertRaisesRegex(ValueError, '合并热重载缺少运行时表校验清单'):
+            agent.validate_bundle({'source_path': path, 'scope': 'combined'})
+        from scripts.item_reload_agent import validate_item_bundle
+        with self.assertRaisesRegex(ValueError, '物品热重载文件清单无效'):
+            validate_item_bundle({'source_path': path})
+        namespace = {'master_package': agent.master_package}
+        exec(Path(agent.__file__).with_name('item_reload_agent.py').read_text(encoding='utf-8'), namespace)
+        with self.assertRaisesRegex(ValueError, '物品热重载文件清单无效'):
+            namespace['validate_item_bundle']({'source_path': path})
+
     def test_frames_accept_fragmentation_and_reject_invalid_headers(self):
         class Fragmented:
             def __init__(self, data):
@@ -56,7 +70,7 @@ class ReloadTests(unittest.TestCase):
             files = [{'id': key, 'path': name, 'rows': 1, 'checks': [[0, 0, 1]],
                       'content': base64.b64encode(contents).decode(),
                       'sha256': hashlib.sha256(contents).hexdigest()} for key, name in agent.scoped_tables(scope).items()]
-            bundle = {'source_path': str(base / 'mb.dpk'), 'source_sha256': agent.sha256(base / 'mb.dpk'), 'files': files, 'scope': scope}
+            bundle = {'source_path': (base / 'mb.dpk').as_posix(), 'source_sha256': agent.sha256(base / 'mb.dpk'), 'files': files, 'scope': scope}
             state = {str(line): {'pid': line, 'start': '100', 'tables': {
                 str(key): {'rows': 1, 'mismatches': 0, 'digest': 'x'} for key in agent.scoped_tables(scope)}}
                      for line in (1, 9)}

@@ -20,6 +20,13 @@ import time
 
 ROOT = Path('/opt/xxserver')
 BASE = ROOT / 'runtime/xx/shm/TTYGZS'
+
+
+def master_package():
+    """Serialize the remote Linux package path independently of the local OS."""
+    return (BASE / 'mb.dpk').as_posix()
+
+
 EXE_HASH = '6d1818f21217f884926af05bb7b26bddcaece76afd912558075443a149eab073'
 GAMEPLAY_HASH = '9a19e9c8deaefeb8ba35d61f10ccc6f32d166ef2ee2aedf1f3ecf06cfa7109bb'
 GM_HASHES = {
@@ -320,7 +327,7 @@ class RuntimeInspector:
 
 
 def validate_bundle(bundle):
-    if bundle.get('source_path') != str(BASE / 'mb.dpk'):
+    if bundle.get('source_path') != master_package():
         raise ValueError('技能主包路径不匹配')
     files = bundle.get('files', [])
     scope = bundle.get('scope', 'definitions')

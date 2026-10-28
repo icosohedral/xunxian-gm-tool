@@ -7,7 +7,7 @@ import shlex
 
 from .item_reload import build_bundle as build_item_bundle
 from .skill_reload import build_selected_bundle as build_skill_bundle
-from .skill_reload_agent import BASE, scoped_tables
+from .skill_reload_agent import master_package, scoped_tables
 
 
 SKILL_SCOPES = {'definitions', 'skill-learn', 'all', 'rides'}
@@ -61,7 +61,7 @@ def build_bundle(package, scopes, item_ids=()):
 
     return {
         'source_path': (item_bundle['source_path'] if item_bundle else skill_bundle['source_path']
-                        if skill_bundle else str(BASE / 'mb.dpk')),
+                        if skill_bundle else master_package()),
         'source_sha256': next(iter(source_hashes)),
         'scope': 'combined',
         'scopes': scopes,

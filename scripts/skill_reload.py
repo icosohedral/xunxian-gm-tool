@@ -9,7 +9,7 @@ from pathlib import Path
 import re
 import shlex
 
-from .skill_reload_agent import BASE, TABLES, EXTRA_TABLES, scoped_tables
+from .skill_reload_agent import master_package, TABLES, EXTRA_TABLES, scoped_tables
 from .unpack import DpkReader
 
 
@@ -89,7 +89,7 @@ def build_selected_bundle(package, selected, scope='combined'):
                           'sha256': hashlib.sha256(data).hexdigest()})
     if hashlib.sha256(package.read_bytes()).hexdigest() != before:
         raise ValueError('服务器缓存包在读取期间发生变化，请重试')
-    return {'source_path': str(BASE / 'mb.dpk'), 'source_sha256': before, 'files': files,
+    return {'source_path': master_package(), 'source_sha256': before, 'files': files,
             'scope': scope, 'no_runtime_rollback': True}
 
 
