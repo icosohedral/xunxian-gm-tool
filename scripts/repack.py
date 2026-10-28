@@ -9,11 +9,26 @@ import stat
 import struct
 import tempfile
 import zlib
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import BinaryIO, Sequence
 
 from Crypto.Cipher import DES
+
+
+_BATCH_REPACKING = ContextVar('batch_repacking', default=False)
+
+
+@contextmanager
+def batch_repacking():
+    """Avoid topology searches when a queued patch already permits resizing."""
+    token = _BATCH_REPACKING.set(True)
+    try:
+        yield
+    finally:
+        _BATCH_REPACKING.reset(token)
 
 try:
     from .unpack import (
@@ -947,11 +962,14 @@ def replace_resource(
         zlib_strategy=zlib_strategy,
     )
     needed = required_block_count(len(new_whsc))
+    permitted_resize = ((needed <= len(chain.block_numbers) or allow_chain_growth)
+                        and (needed >= len(chain.block_numbers) or allow_chain_shrink))
 
     if (
         original_info.flags & 0x01
         and auto_zlib_parameters
         and needed != len(chain.block_numbers)
+        and not (_BATCH_REPACKING.get() and permitted_resize)
     ):
         selected = find_topology_preserving_zlib_parameters(
             new_plain,
@@ -972,12 +990,12 @@ def replace_resource(
             )
             needed = required_block_count(len(new_whsc))
 
-    preserving_levels = (
-        topology_preserving_compression_levels(new_plain, chain)
-        if original_info.flags & 0x01
-        else []
-    )
-    compression_hint = format_compression_hint(preserving_levels)
+    compression_hint = ''
+    if ((len(new_whsc) > chain.capacity and not allow_chain_growth)
+            or (needed < len(chain.block_numbers) and not allow_chain_shrink)):
+        preserving_levels = (topology_preserving_compression_levels(new_plain, chain)
+                             if original_info.flags & 0x01 else [])
+        compression_hint = format_compression_hint(preserving_levels)
 
     if len(new_whsc) > chain.capacity and not allow_chain_growth:
         raise RepackError(

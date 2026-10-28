@@ -44,8 +44,25 @@ from scripts.profession_skills import (inspect_archive as inspect_profession_ski
                                       has_skill as profession_skill_exists,
                                       patch_archive_batch as patch_profession_skills_batch)
 from scripts.ride_speed import (inspect_archive as inspect_ride_archive,
-                                patch_archive as patch_ride_archive)
+                                patch_archive as patch_ride_archive,
+                                configuration_rows as ride_configuration_rows,
+                                prepare_changes as prepare_ride_changes)
 from scripts.ip_whitelist import normalize_entry as normalize_ip_whitelist_entry, run as run_ip_whitelist
+from scripts.skill_reload import run as run_skill_reload
+from scripts.item_reload import run as run_item_reload
+from scripts.backpack_shop import (PRODUCT_PATH as BACKPACK_PRODUCT_PATH,
+                                   MERCHANT_PATH as BACKPACK_MERCHANT_PATH,
+                                   catalog as backpack_catalog,
+                                   read_remote as read_backpack_remote,
+                                   inspect_cache_remote as inspect_backpack_cache,
+                                   package_items as backpack_package_items,
+                                   initialize_item_price as initialize_backpack_item_price,
+                                   PriceNotRepresentable as BackpackPriceNotRepresentable,
+                                   _price_copper as backpack_price_copper,
+                                   prepare as prepare_backpack_edit,
+                                   reload_remote as reload_backpack_remote)
+from scripts.config_reload import run as run_config_reload
+from scripts.package_queue import PackageQueueBuilder, validate_items as validate_package_queue
 from scripts.weapon_drafts import weapon_catalog, search_traits
 from scripts.weapon_custom import all_item_ids as weapon_item_ids, append_weapon, verify_weapon
 from scripts.unpack import DpkReader
@@ -161,6 +178,7 @@ _fate_package_source_digest = None
 _grant_lock = threading.Lock()
 _client = None
 _shop_mutation_lock = threading.Lock()
+_backpack_shop_lock = threading.RLock()
 _shop_restart_lock = threading.Lock()
 _shop_restart_state = {"running": False, "phase": "", "error": "", "updated_at": 0}
 _skill_limit_server_sessions = {}
@@ -1245,6 +1263,110 @@ def _shop_write(lines):
     return backup
 
 
+def _shop_hot_reload_result():
+    try:
+        packages, _ = _ensure_server_mb_cache({
+            "主包": MB_DPK_FILE_PATH, "动态包": MB_DPK_DYNAMIC_FILE_PATH})
+        with _lock:
+            result = run_config_reload(ssh(), packages["主包"], ["shop"])
+        return {"ok": True, "commands": result.get("commands", {})}
+    except Exception as error:
+        return {"ok": False, "error": str(error)}
+
+
+def get_backpack_shop():
+    packages, signatures = _ensure_server_mb_cache({
+        "主包": MB_DPK_FILE_PATH, "动态包": MB_DPK_DYNAMIC_FILE_PATH})
+    source_hash = signatures["主包"][2]
+    with SERVER_MB_CACHE_LOCK:
+        if hashlib.sha256(packages["主包"].read_bytes()).hexdigest() != source_hash:
+            raise ValueError("服务端物品表已变化，请刷新后重试")
+        items = backpack_package_items(packages["主包"])
+    with _lock:
+        connection = ssh()
+        files = read_backpack_remote(connection)
+        try:
+            runtime = inspect_backpack_cache(connection, files)
+        except Exception as error:
+            runtime = {"state": "unavailable", "error": str(error)}
+    data = backpack_catalog(files, items)
+    data["revision"]["server_mb"] = source_hash
+    data["runtime"] = runtime
+    return data
+
+
+def edit_backpack_shop(body):
+    if not isinstance(body, dict):
+        raise ValueError("背包商店请求无效")
+    action = body.get("action")
+    if action not in ("add", "delete"):
+        raise ValueError("背包商店操作无效")
+    revision = body.get("revision")
+    if not isinstance(revision, dict) or set(revision) != {BACKPACK_PRODUCT_PATH, BACKPACK_MERCHANT_PATH, "server_mb"}:
+        raise ValueError("商店数据版本无效，请刷新后重试")
+    if action == "add":
+        raw_item_id = body.get("item_id")
+        if isinstance(raw_item_id, bool) or not isinstance(raw_item_id, int):
+            raise ValueError("物品 ID 无效")
+    else:
+        raw_item_id = None
+    with _backpack_shop_lock:
+        packages, signatures = _ensure_server_mb_cache({
+            "主包": MB_DPK_FILE_PATH, "动态包": MB_DPK_DYNAMIC_FILE_PATH})
+        source_hash = signatures["主包"][2]
+        with SERVER_MB_CACHE_LOCK:
+            if hashlib.sha256(packages["主包"].read_bytes()).hexdigest() != source_hash:
+                raise ValueError("服务端物品表已变化，请刷新后重试")
+            items = backpack_package_items(packages["主包"])
+        item = items.get(raw_item_id) if action == "add" else None
+        if action == "add" and item is None:
+            raise ValueError("物品 ID 不在服务端物品表中")
+        with _lock:
+            before = read_backpack_remote(ssh())
+        actual_revision = {name: hashlib.sha256(data).hexdigest() for name, data in before.items()}
+        actual_revision["server_mb"] = source_hash
+        if revision != actual_revision:
+            raise ValueError("商店配置已变化，请刷新列表后重试")
+        with tempfile.TemporaryDirectory(prefix="backpack-price-", dir=CACHE_DIR) as work:
+            patched = Path(work) / "server-main.dpk"
+            price_change = None
+            base_price = int(item["price"] or 0) if item else None
+            kwargs = dict(action=action, merchant_ids=body.get("merchants"),
+                ranges=body.get("ranges"), item_id=raw_item_id,
+                product_id=body.get("product_id"), price=body.get("price"), unit=body.get("unit"))
+            needs_price_change = item is not None and base_price == 0
+            if not needs_price_change:
+                try:
+                    after, change = prepare_backpack_edit(before, base_price=base_price, **kwargs)
+                except BackpackPriceNotRepresentable:
+                    needs_price_change = True
+            if needs_price_change:
+                target_price = backpack_price_copper(body.get("price"), body.get("unit"))
+                after, change = prepare_backpack_edit(before, base_price=target_price, **kwargs)
+                with SERVER_MB_CACHE_LOCK:
+                    if hashlib.sha256(packages["主包"].read_bytes()).hexdigest() != source_hash:
+                        raise ValueError("服务端主包已变化，请刷新后重试")
+                    price_change = initialize_backpack_item_price(
+                        packages["主包"], patched, before, raw_item_id,
+                        body.get("price"), body.get("unit"), expected_base_price=base_price)
+                    if price_change["before_sha256"] != source_hash:
+                        raise ValueError("服务端主包已变化，请刷新后重试")
+                    items = backpack_package_items(patched)
+            with _lock:
+                reloaded = reload_backpack_remote(ssh(), before, after,
+                    source_sha256=source_hash, price_change=price_change,
+                    package=patched if price_change else None)
+            if price_change:
+                _update_server_mb_cache({"主包": patched})
+                source_hash = price_change["after_sha256"]
+                change["purchase_price_copper"] = price_change["copper"]
+                change["previous_purchase_price_copper"] = base_price
+            data = backpack_catalog(after, items)
+            data["revision"]["server_mb"] = source_hash
+            return {"change": change, "name": item["name"] if item else "",
+                    "reload": reloaded, "catalog": data}
+
+
 def add_shop_item(item_id, price, count, category_id, subcategory_id):
     item_id = qint(item_id, -1)
     price = qint(price, -1)
@@ -1277,11 +1399,13 @@ def add_shop_item(item_id, price, count, category_id, subcategory_id):
                "", "", "", "", "", f"{category_id}*{subcategory_id}", "", "", ""]
         lines.append("\t".join(row))
         backup = _shop_write(lines)
+        hot_reload = _shop_hot_reload_result()
     return {"name": catalog["name"], "id": str(item_id), "price": price,
             "count": count, "category_id": category_id,
             "category": next(entry["name"] for entry in SHOP_CATEGORIES
                              if entry["id"] == category_id),
             "subcategory_id": subcategory_id, "total": len(_shop_rows(lines, limit=100000)),
+            "hot_reload": hot_reload,
             "backup": backup}
 
 
@@ -1305,8 +1429,10 @@ def delete_shop_item(item_id):
         while len(lines) > 1 and not lines[-1].strip("\r \t"):
             lines.pop()
         backup = _shop_write(lines)
+        hot_reload = _shop_hot_reload_result()
     return {"name": name, "id": item_id,
-            "total": len(_shop_rows(lines, limit=100000)), "backup": backup}
+            "total": len(_shop_rows(lines, limit=100000)), "hot_reload": hot_reload,
+            "backup": backup}
 
 
 def delete_shop_items(item_ids):
@@ -1333,9 +1459,11 @@ def delete_shop_items(item_ids):
         while len(keep) > 1 and not keep[-1].strip("\r \t"):
             keep.pop()
         backup = _shop_write(keep)
+        hot_reload = _shop_hot_reload_result()
     return {"deleted": [{"id": item_id, "name": found[item_id]}
                          for item_id in ids if item_id in found],
-            "total": len(_shop_rows(keep, limit=100000)), "backup": backup}
+            "total": len(_shop_rows(keep, limit=100000)), "hot_reload": hot_reload,
+            "backup": backup}
 
 
 def _server_action_worker(action, source):
@@ -2281,7 +2409,7 @@ def _update_server_mb_cache(packages):
                 temporary.unlink(missing_ok=True)
 
 
-def _apply_custom_weapon(template_id, fields):
+def _apply_custom_weapon(template_id, fields, defer_download=False):
     if not isinstance(fields, list) or len(fields) != 55 or any(not isinstance(value, str) for value in fields):
         raise ValueError("武器草稿数据无效")
     if not fields[1].strip():
@@ -2393,17 +2521,19 @@ def _apply_custom_weapon(template_id, fields):
                     raise RuntimeError(f"服务器{label}回读校验失败；备份：{backups[label]}")
             new_signatures = _dungeon_remote_signatures(paths, connection)
         _update_server_mb_cache(server_out)
-        token = uuid.uuid4().hex
-        final_client = Path(CACHE_DIR) / f"weapon-{weapon_id}-{token[:8]}-client.dpk"
-        shutil.copyfile(client_out, final_client)
         _replace_client_work_package(client_out.read_bytes())
-        with WEAPON_DOWNLOADS_LOCK:
-            WEAPON_DOWNLOADS[token] = {"path": final_client, "filename": f"mb.weapon-{weapon_id}.dpk",
-                                       "last_used": time.time()}
         op_log("新增自定义武器", {"id": weapon_id, "template_id": template_id,
             "reports": reports, "backups": backups, "signatures": new_signatures})
-        return {"id": weapon_id, "reports": reports, "backups": backups,
-                "download_token": token}
+        result = {"id": weapon_id, "reports": reports, "backups": backups}
+        if not defer_download:
+            token = uuid.uuid4().hex
+            final_client = Path(CACHE_DIR) / f"weapon-{weapon_id}-{token[:8]}-client.dpk"
+            shutil.copyfile(client_out, final_client)
+            with WEAPON_DOWNLOADS_LOCK:
+                WEAPON_DOWNLOADS[token] = {"path": final_client,
+                    "filename": f"mb.weapon-{weapon_id}.dpk", "last_used": time.time()}
+            result["download_token"] = token
+        return result
     finally:
         client_out.unlink(missing_ok=True)
         for output in server_out.values():
@@ -2415,44 +2545,128 @@ def _file_sha256(path):
         return hashlib.file_digest(source, "sha256").hexdigest()
 
 
+def _publish_queue_packages(outputs, paths, signatures):
+    """Upload each final server package once, verifying before completing replacement."""
+    with _lock:
+        connection = ssh()
+        if _dungeon_remote_signatures(paths, connection) != signatures:
+            raise ValueError("服务器包在队列生成期间发生变化，请重新应用")
+        if not outputs:
+            return {}
+        uploads = {label: "/tmp/gmtool-queue-" + uuid.uuid4().hex + ".dpk" for label in outputs}
+        stamp = time.strftime("%Y%m%d-%H%M%S") + f"-{time.time_ns() % 1_000_000_000:09d}"
+        backups = {label: paths[label] + ".bak.queue." + stamp for label in outputs}
+        staged_paths = []
+        try:
+            sftp = connection.open_sftp()
+            try:
+                for label, output in outputs.items():
+                    sftp.put(str(output), _sftp_remote_path(uploads[label]))
+            finally:
+                sftp.close()
+            if _dungeon_remote_signatures(paths, connection) != signatures:
+                raise ValueError("服务器包在队列上传期间发生变化，请重新应用")
+            restore = "; ".join("cp -p " + shlex.quote(backups[label]) + " " +
+                                shlex.quote(paths[label]) for label in outputs)
+            commands = ["set -e", "backup_ready=0", "committed=0",
+                "rollback(){ if [ \"$backup_ready\" = 1 ] && [ \"$committed\" = 0 ]; then " +
+                restore + "; fi; }", "trap rollback EXIT"]
+            commands.extend("cp -p " + shlex.quote(paths[label]) + " " + shlex.quote(backups[label])
+                            for label in outputs)
+            commands.append("backup_ready=1")
+            for label in outputs:
+                remote = paths[label]
+                staged = remote + ".gmtool.tmp." + uuid.uuid4().hex
+                staged_paths.append(staged)
+                commands.extend(("cp " + shlex.quote(uploads[label]) + " " + shlex.quote(staged),
+                    "chown --reference=" + shlex.quote(remote) + " " + shlex.quote(staged),
+                    "chmod --reference=" + shlex.quote(remote) + " " + shlex.quote(staged),
+                    "mv -f " + shlex.quote(staged) + " " + shlex.quote(remote)))
+            checks = "\n".join(_file_sha256(output) + "  " + paths[label]
+                                for label, output in outputs.items()) + "\n"
+            commands.append("printf %s " + shlex.quote(checks) + " | sha256sum -c -")
+            commands.extend(("committed=1", "trap - EXIT"))
+            _, stdout, stderr = connection.exec_command(
+                "sudo -n sh -c " + shlex.quote("; ".join(commands)), timeout=240)
+            out = stdout.read().decode("utf-8", "replace").strip()
+            err = stderr.read().decode("utf-8", "replace").strip()
+            if stdout.channel.recv_exit_status() != 0:
+                raise RuntimeError("队列服务端包同步失败：" + (err or out))
+            return backups
+        finally:
+            try:
+                _, stdout, stderr = connection.exec_command("sudo -n rm -f -- " + " ".join(
+                    shlex.quote(path) for path in [*uploads.values(), *staged_paths]), timeout=20)
+                stdout.channel.recv_exit_status()
+            except Exception:
+                pass
+
+
+def apply_package_queue(items):
+    validate_package_queue(items)
+    with SERVER_MB_CACHE_LOCK:
+        client = _ensure_client_work_package()
+        client_hash = _file_sha256(client)
+        paths = {"主包": MB_DPK_FILE_PATH, "动态包": MB_DPK_DYNAMIC_FILE_PATH}
+        local, signatures = _ensure_server_mb_cache(paths)
+        reference = _configured_client_package_path()
+        provenance_key = _skill_limit_provenance_key(reference)
+        with _skill_limit_provenance_lock:
+            provenance = _load_skill_limit_provenance().get(provenance_key, {})
+        catalog = Path(RES_DIR) / "doc" / "召唤物列表.csv"
+        if not catalog.is_file():
+            catalog = Path(APP_DIR) / "doc" / "召唤物列表.csv"
+        with tempfile.TemporaryDirectory(prefix="package-queue-", dir=CACHE_DIR) as directory:
+            builder = PackageQueueBuilder({"客户端": client, **local}, directory,
+                catalog_path=catalog, reference_client=reference, provenance=provenance)
+            outputs = builder.build(items)
+            if _file_sha256(client) != client_hash:
+                raise ValueError("客户端工作包在队列生成期间发生变化，请重新应用")
+            server_outputs = {label: outputs[label] for label in paths
+                              if _file_sha256(outputs[label]) != signatures[label][2]}
+            final_client_hash = _file_sha256(outputs["客户端"])
+            local_updates = {SERVER_MB_CACHE_PATHS[label]: output for label, output in server_outputs.items()}
+            if final_client_hash != client_hash:
+                local_updates[CLIENT_WORK_PACKAGE_PATH] = outputs["客户端"]
+            if any(item["kind"] == "skill-limits" for item in items):
+                with _skill_limit_provenance_lock:
+                    provenance = _load_skill_limit_provenance()
+                    if builder.provenance:
+                        provenance[provenance_key] = builder.provenance
+                    else:
+                        provenance.pop(provenance_key, None)
+                staged = Path(directory) / "skill-provenance.json"
+                staged.write_text(json.dumps(provenance, ensure_ascii=False, sort_keys=True), encoding="utf-8")
+                local_updates[Path(SKILL_LIMIT_PROVENANCE_PATH)] = staged
+            if builder.summon_config is not None:
+                staged = Path(directory) / "summon-config.json"
+                staged.write_text(json.dumps(builder.summon_config, ensure_ascii=False, indent=2), encoding="utf-8")
+                local_updates[Path(SUMMON_CONFIG_PATH)] = staged
+            results = [{key: value for key, value in result.items() if key != "fields"}
+                       for result in builder.results]
+            # All local data is already prepared on the same filesystem. Publish
+            # final server packages once, then atomically rename the local files.
+            backups = _publish_queue_packages(server_outputs, paths, signatures)
+            warnings = []
+            try:
+                for target, output in local_updates.items():
+                    os.replace(output, target)
+            except OSError as error:
+                recovery = Path(CACHE_DIR) / ("package-queue-recovery-" + uuid.uuid4().hex)
+                os.replace(directory, recovery)
+                warnings.append("服务器包已同步，但本地文件更新未完成：" + str(error) +
+                                "；剩余文件保存在 " + str(recovery))
+            client_ready = _file_sha256(client) == final_client_hash
+        op_log("批量应用配置包", {"items": results, "backups": backups, "warnings": warnings})
+        return {"items": results, "backups": backups, "server_packages": list(server_outputs),
+                "client_package_ready": client_ready, "warnings": warnings}
+
+
 def inspect_ride_speeds():
     client_path = _ensure_client_work_package()
     paths = {"主包": MB_DPK_FILE_PATH, "动态包": MB_DPK_DYNAMIC_FILE_PATH}
     local, signatures = _ensure_server_mb_cache(paths)
-    client = inspect_ride_archive(client_path)
-    main = inspect_ride_archive(local["主包"])
-    dynamic = inspect_ride_archive(local["动态包"])
-    rows = {}
-    for ride_id in set(main["pets"]) | set(client["item_rides"]):
-        if ride_id not in main["rides"] or ride_id not in client["rides"]:
-            continue
-        pets = main["pets"].get(ride_id, [])
-        items = client["item_rides"].get(ride_id, [])
-        pet_names = list(dict.fromkeys(pet["name"] for pet in pets if pet["name"]))
-        item_names = list(dict.fromkeys(item["name"] for item in items if item["name"]))
-        if not pet_names and not item_names:
-            continue
-        name = "、".join(pet_names) if pet_names else min(item_names, key=lambda value: (len(value), value))
-        effective = dynamic["rides"].get(ride_id, main["rides"][ride_id])
-        rows[ride_id] = {"id": ride_id, "name": name,
-                         "run": effective["run"], "terrain": effective["terrain"],
-                         "fly": main["rides"][ride_id]["fly"],
-                         "cast": main["rides"][ride_id]["cast"],
-                         "connection_id": main["rides"][ride_id]["connection_id"],
-                         "connection_name": main["rides"][ride_id]["connection_name"],
-                         "kinds": (["pet"] if pets else []) + (["item"] if items else []),
-                         "pet_ids": [pet["id"] for pet in pets],
-                         "item_ids": [item["id"] for item in items]}
-    if not rows:
-        raise RuntimeError("主包中没有找到客户端也包含的骑宠速度记录")
-    groups = {}
-    names = {}
-    for ride_id, row in rows.items():
-        groups.setdefault(row["connection_id"], []).append(ride_id)
-        names.setdefault(row["name"], []).append(ride_id)
-    for ride_id, row in rows.items():
-        row["shared_ids"] = sorted(groups[row["connection_id"]])
-        row["same_name_ids"] = sorted(names[row["name"]])
+    rows = ride_configuration_rows(client_path, local["主包"], local["动态包"])
     session_id = uuid.uuid4().hex
     with RIDE_SPEED_LOCK:
         RIDE_SPEED_SESSIONS[session_id] = {
@@ -2469,57 +2683,7 @@ def apply_ride_speeds(session_id, raw_changes):
         raise ValueError("骑宠速度读取结果已过期，请重新进入页面")
     if not isinstance(raw_changes, list) or not raw_changes:
         raise ValueError("没有待修改的骑宠设置")
-    changes = {}
-    cast_targets = {}
-    speed_targets = {}
-    for item in raw_changes:
-        if not isinstance(item, dict) or isinstance(item.get("id"), bool):
-            raise ValueError("骑宠速度修改格式无效")
-        try:
-            ride_id = int(item["id"])
-        except (KeyError, TypeError, ValueError) as exc:
-            raise ValueError("骑宠 RideID 无效") from exc
-        if ride_id not in session["rows"] or ride_id in changes:
-            raise ValueError(f"骑宠 RideID {ride_id} 无效或重复")
-        run = item.get("run")
-        terrain = item.get("terrain")
-        fly = item.get("fly")
-        cast = item.get("cast")
-        if isinstance(run, bool) or not isinstance(run, int) or not 1 <= run <= 9999:
-            raise ValueError("跑步速度须为 1 至 9999 的整数")
-        if terrain not in ("land", "water", "both"):
-            raise ValueError("使用场景须为仅陆地、仅水中或陆地和水中")
-        if type(fly) is not bool:
-            raise ValueError("允许飞行设置须为允许或不允许")
-        if cast not in ("none", "partial", "all"):
-            raise ValueError("乘骑施法设置无效")
-        values = {"run": run, "terrain": terrain, "fly": fly, "cast": cast}
-        changed = {key: value for key, value in values.items()
-                   if value != session["rows"][ride_id][key]}
-        if not changed:
-            raise ValueError(f"骑宠 RideID {ride_id} 的设置没有变化")
-        changes[ride_id] = changed
-        if "run" in changed:
-            group = tuple(session["rows"][ride_id]["same_name_ids"])
-            if group in speed_targets and speed_targets[group] != run:
-                raise ValueError("同名坐骑不能设置不同的移动速度")
-            speed_targets[group] = run
-        if "cast" in changed:
-            group = tuple(session["rows"][ride_id]["shared_ids"])
-            if group in cast_targets and cast_targets[group] != cast:
-                raise ValueError("共用乘骑连接的骑宠不能设置不同施法权限")
-            cast_targets[group] = cast
-    for group, run in speed_targets.items():
-        for ride_id in group:
-            if session["rows"][ride_id]["run"] != run:
-                changes.setdefault(ride_id, {})["run"] = run
-    for group, cast in cast_targets.items():
-        for ride_id in group:
-            changes.setdefault(ride_id, {})["cast"] = cast
-    connection_changes = {
-        session["rows"][group[0]]["connection_id"]: cast
-        for group, cast in cast_targets.items()
-    }
+    changes, connection_changes = prepare_ride_changes(session["rows"], raw_changes)
     if _dungeon_remote_signatures(session["paths"]) != session["signatures"]:
         raise ValueError("服务器骑宠包已变化，请重新进入页面")
     client_path = _ensure_client_work_package()
@@ -2819,7 +2983,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         path = urlparse(self.path).path
         if path in {"/api/summons/catalog", "/api/dungeon-limits", "/api/ride-speeds",
-                    "/api/skill-limits/inspect", "/api/profession-skills/download"}:
+                    "/api/skill-limits/inspect", "/api/profession-skills/download",
+                    "/api/client-package/download"}:
             with _client_package_lock:
                 return self._do_GET()
         return self._do_GET()
@@ -2914,6 +3079,20 @@ class Handler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(payload)
                 return
+            if p == "/api/client-package/download":
+                if not self._config_request_allowed():
+                    return self._json({"ok": False, "error": "仅允许从本机控制台下载配置"}, 403)
+                if not CLIENT_WORK_PACKAGE_PATH.is_file():
+                    return self._json({"ok": False, "error": "客户端工作包不存在"}, 404)
+                payload = CLIENT_WORK_PACKAGE_PATH.read_bytes()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/octet-stream")
+                self.send_header("Content-Disposition", 'attachment; filename="mb.dpk"')
+                self.send_header("Content-Length", str(len(payload)))
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                self.wfile.write(payload)
+                return
             if p == "/api/weapons/download":
                 if not self._config_request_allowed():
                     return self._json({"ok": False, "error": "仅允许从本机控制台下载配置"}, 403)
@@ -2934,6 +3113,10 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if p == "/api/shop":
                 return self._json({"ok": True, "data": get_shop(qs.get("q", [""])[0])})
+            if p == "/api/backpack-shop":
+                if not self._config_request_allowed():
+                    return self._json({"ok": False, "error": "仅允许从本机控制台读取背包商店"}, 403)
+                return self._json({"ok": True, "data": get_backpack_shop()})
             if p == "/api/shop/restart":
                 return self._json({"ok": True, "data": dict(_shop_restart_state)})
             if p == "/api/server/control":
@@ -3093,19 +3276,21 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path in {"/api/dungeon-limits", "/api/ride-speeds", "/api/skill-limits/inspect",
                     "/api/skill-limits/apply", "/api/profession-skills/inspect",
-                 "/api/profession-skills/apply", "/api/summons/apply", "/api/weapon/apply"}:
+                    "/api/profession-skills/apply", "/api/summons/apply", "/api/weapon/apply", "/api/skills/reload",
+                    "/api/weapons/reload", "/api/config/reload", "/api/package-queue/apply"}:
             with _client_package_lock:
                 return self._do_POST()
         return self._do_POST()
 
     def _do_POST(self):
         p = urlparse(self.path).path
-        if p in ("/api/config", "/api/definitions", "/api/shop/add",
+        if p in ("/api/config", "/api/definitions", "/api/shop/add", "/api/backpack-shop/edit",
                  "/api/shop/delete", "/api/shop/delete-batch", "/api/shop/restart",
                  "/api/server/control", "/api/fate-lock", "/api/dungeon-limits", "/api/ride-speeds", "/api/config/pick-path",
                  "/api/skill-limits/inspect",
                  "/api/skill-limits/apply", "/api/ip-whitelist", "/api/profession-skills/inspect",
-                 "/api/profession-skills/apply", "/api/summons/apply", "/api/weapon/apply"):
+                 "/api/profession-skills/apply", "/api/summons/apply", "/api/weapon/apply", "/api/skills/reload",
+                 "/api/weapons/reload", "/api/config/reload", "/api/package-queue/apply"):
             if not self._config_request_allowed():
                 return self._json({"ok": False, "error": "仅允许从本机控制台修改配置"}, 403)
             if self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/json":
@@ -3117,12 +3302,66 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             body = {}
         try:
+            if p == "/api/backpack-shop/edit":
+                try:
+                    result = edit_backpack_shop(body)
+                except ValueError as error:
+                    return self._json({"ok": False, "error": str(error)}, 400)
+                op_log("背包商店" + ("添加" if result["change"]["action"] == "add" else "删除"),
+                       {"change": result["change"], "reload": result["reload"]})
+                return self._json({"ok": True, "data": result})
+            if p == "/api/package-queue/apply":
+                return self._json({"ok": True, "data": apply_package_queue(body.get("items"))})
+            if p == "/api/config/reload":
+                try:
+                    scopes = body.get("scopes", [])
+                    item_ids = body.get("item_ids", [])
+                    if not isinstance(scopes, list) or not isinstance(item_ids, list):
+                        raise ValueError("热重载项目清单无效")
+                    packages, _ = _ensure_server_mb_cache({
+                        "主包": MB_DPK_FILE_PATH, "动态包": MB_DPK_DYNAMIC_FILE_PATH})
+                    with _lock:
+                        result = run_config_reload(ssh(), packages["主包"], scopes, item_ids=item_ids)
+                    op_log("配置热重载", {key: value for key, value in result.items() if key != "replies"})
+                    return self._json({"ok": True, "data": result})
+                except Exception as error:
+                    op_log("配置热重载", {"error": str(error)}, "error")
+                    raise
+            if p == "/api/weapons/reload":
+                try:
+                    item_ids = body.get("item_ids", [])
+                    if not isinstance(item_ids, list):
+                        raise ValueError("新增武器 ID 清单无效")
+                    packages, _ = _ensure_server_mb_cache({
+                        "主包": MB_DPK_FILE_PATH, "动态包": MB_DPK_DYNAMIC_FILE_PATH})
+                    with _lock:
+                        result = run_item_reload(ssh(), packages["主包"], item_ids=item_ids)
+                    op_log("新增武器热重载", {key: value for key, value in result.items() if key != "replies"})
+                    return self._json({"ok": True, "data": result})
+                except Exception as error:
+                    op_log("新增武器热重载", {"error": str(error)}, "error")
+                    raise
+            if p == "/api/skills/reload":
+                try:
+                    scope = body.get("scope", "all")
+                    if scope not in {"definitions", "cross-career", "skill-learn", "summon", "all", "rides"}:
+                        raise ValueError("未知的技能热重载范围")
+                    packages, _ = _ensure_server_mb_cache({
+                        "主包": MB_DPK_FILE_PATH, "动态包": MB_DPK_DYNAMIC_FILE_PATH})
+                    with _lock:
+                        result = run_skill_reload(ssh(), packages["主包"], scope=scope)
+                    op_log("配置热重载", {key: value for key, value in result.items() if key != "replies"})
+                    return self._json({"ok": True, "data": result})
+                except Exception as error:
+                    op_log("配置热重载", {"error": str(error)}, "error")
+                    raise
             if p == "/api/weapon/apply":
                 try:
                     template_id = int(body.get("template_id"))
                 except (TypeError, ValueError):
                     raise ValueError("武器模板 ID 无效")
-                result = _apply_custom_weapon(template_id, body.get("fields"))
+                result = _apply_custom_weapon(template_id, body.get("fields"),
+                    defer_download=bool(body.get("defer_download")))
                 return self._json({"ok": True, "data": result})
             if p == "/api/ip-whitelist":
                 action = body.get("action")
@@ -3291,6 +3530,8 @@ class Handler(BaseHTTPRequestHandler):
             if p == "/api/ride-speeds":
                 payload, backups = apply_ride_speeds(
                     body.get("session_id"), body.get("changes"))
+                if body.get("defer_download"):
+                    return self._json({"ok": True, "data": {"backups": backups}})
                 self.send_response(200)
                 self.send_header("Content-Type", "application/octet-stream")
                 self.send_header("Content-Disposition", 'attachment; filename="mb.ride-config.dpk"')
@@ -3534,6 +3775,11 @@ class Handler(BaseHTTPRequestHandler):
                         label: str(path) for label, path in SERVER_MB_CACHE_PATHS.items()}
                 for output_path in server_outputs.values():
                     Path(output_path).unlink(missing_ok=True)
+                if body.get("defer_download"):
+                    op_log("同步技能限制配置包", {"target_profession": body.get("target_profession"),
+                        "changes": raw_changes, "server_backups": backups})
+                    return self._json({"ok": True, "data": {"backups": backups,
+                        "target_profession": target_profession}})
                 self.send_response(200)
                 self.send_header("Content-Type", "application/octet-stream")
                 self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
@@ -3655,6 +3901,10 @@ class Handler(BaseHTTPRequestHandler):
                     "role_id": config["role_id"], "form_id": config["form_id"],
                     "skills": config["skills"], "client_sha256": client_report["sha256"],
                     "server_backups": backups})
+                if body.get("defer_download"):
+                    return self._json({"ok": True, "data": {"filename": filename,
+                        "backups": backups, "role_id": config["role_id"],
+                        "form_id": config["form_id"]}})
                 self.send_response(200)
                 self.send_header("Content-Type", "application/octet-stream")
                 self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
@@ -3719,16 +3969,19 @@ class Handler(BaseHTTPRequestHandler):
                 op_log("商城上架", {"id": result["id"], "name": result["name"],
                                    "price": result["price"], "count": result["count"],
                                    "category": result["category"],
+                                   "hot_reload": result["hot_reload"],
                                    "backup": result["backup"]})
                 return self._json({"ok": True, "data": result})
             if p == "/api/shop/delete":
                 result = delete_shop_item(body.get("id"))
                 op_log("商城下架", {"id": result["id"], "name": result["name"],
+                                   "hot_reload": result["hot_reload"],
                                    "backup": result["backup"]})
                 return self._json({"ok": True, "data": result})
             if p == "/api/shop/delete-batch":
                 result = delete_shop_items(body.get("ids"))
                 op_log("商城批量下架", {"items": result["deleted"],
+                                       "hot_reload": result["hot_reload"],
                                        "backup": result["backup"]})
                 return self._json({"ok": True, "data": result})
             if p == "/api/shop/restart":

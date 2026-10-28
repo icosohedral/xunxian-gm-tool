@@ -110,6 +110,101 @@ def inspect_archive(archive: Path) -> dict:
                 for row_id, fields in connections.items() if len(fields) > SKILL_PERMISSION_COLUMN}}
 
 
+def configuration_rows(client_path: Path, main_path: Path, dynamic_path: Path) -> dict:
+    client = inspect_archive(client_path)
+    main = inspect_archive(main_path)
+    dynamic = inspect_archive(dynamic_path)
+    rows = {}
+    for ride_id in set(main["pets"]) | set(client["item_rides"]):
+        if ride_id not in main["rides"] or ride_id not in client["rides"]:
+            continue
+        pets = main["pets"].get(ride_id, [])
+        items = client["item_rides"].get(ride_id, [])
+        pet_names = list(dict.fromkeys(pet["name"] for pet in pets if pet["name"]))
+        item_names = list(dict.fromkeys(item["name"] for item in items if item["name"]))
+        if not pet_names and not item_names:
+            continue
+        name = "、".join(pet_names) if pet_names else min(item_names, key=lambda value: (len(value), value))
+        effective = dynamic["rides"].get(ride_id, main["rides"][ride_id])
+        rows[ride_id] = {"id": ride_id, "name": name,
+                         "run": effective["run"], "terrain": effective["terrain"],
+                         "fly": main["rides"][ride_id]["fly"],
+                         "cast": main["rides"][ride_id]["cast"],
+                         "connection_id": main["rides"][ride_id]["connection_id"],
+                         "connection_name": main["rides"][ride_id]["connection_name"],
+                         "kinds": (["pet"] if pets else []) + (["item"] if items else []),
+                         "pet_ids": [pet["id"] for pet in pets],
+                         "item_ids": [item["id"] for item in items]}
+    if not rows:
+        raise RuntimeError("主包中没有找到客户端也包含的骑宠速度记录")
+    groups = {}
+    names = {}
+    for ride_id, row in rows.items():
+        groups.setdefault(row["connection_id"], []).append(ride_id)
+        names.setdefault(row["name"], []).append(ride_id)
+    for ride_id, row in rows.items():
+        row["shared_ids"] = sorted(groups[row["connection_id"]])
+        row["same_name_ids"] = sorted(names[row["name"]])
+    return rows
+
+
+def prepare_changes(rows: dict, raw_changes: list) -> tuple[dict, dict]:
+    if not isinstance(raw_changes, list) or not raw_changes:
+        raise ValueError("没有待修改的骑宠设置")
+    changes = {}
+    cast_targets = {}
+    speed_targets = {}
+    for item in raw_changes:
+        if not isinstance(item, dict) or isinstance(item.get("id"), bool):
+            raise ValueError("骑宠速度修改格式无效")
+        try:
+            ride_id = int(item["id"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("骑宠 RideID 无效") from exc
+        if ride_id not in rows or ride_id in changes:
+            raise ValueError(f"骑宠 RideID {ride_id} 无效或重复")
+        run = item.get("run")
+        terrain = item.get("terrain")
+        fly = item.get("fly")
+        cast = item.get("cast")
+        if isinstance(run, bool) or not isinstance(run, int) or not 1 <= run <= 9999:
+            raise ValueError("跑步速度须为 1 至 9999 的整数")
+        if terrain not in ("land", "water", "both"):
+            raise ValueError("使用场景须为仅陆地、仅水中或陆地和水中")
+        if type(fly) is not bool:
+            raise ValueError("允许飞行设置须为允许或不允许")
+        if cast not in ("none", "partial", "all"):
+            raise ValueError("乘骑施法设置无效")
+        values = {"run": run, "terrain": terrain, "fly": fly, "cast": cast}
+        changed = {key: value for key, value in values.items()
+                   if value != rows[ride_id][key]}
+        if not changed:
+            raise ValueError(f"骑宠 RideID {ride_id} 的设置没有变化")
+        changes[ride_id] = changed
+        if "run" in changed:
+            group = tuple(rows[ride_id]["same_name_ids"])
+            if group in speed_targets and speed_targets[group] != run:
+                raise ValueError("同名坐骑不能设置不同的移动速度")
+            speed_targets[group] = run
+        if "cast" in changed:
+            group = tuple(rows[ride_id]["shared_ids"])
+            if group in cast_targets and cast_targets[group] != cast:
+                raise ValueError("共用乘骑连接的骑宠不能设置不同施法权限")
+            cast_targets[group] = cast
+    for group, run in speed_targets.items():
+        for ride_id in group:
+            if rows[ride_id]["run"] != run:
+                changes.setdefault(ride_id, {})["run"] = run
+    for group, cast in cast_targets.items():
+        for ride_id in group:
+            changes.setdefault(ride_id, {})["cast"] = cast
+    connection_changes = {
+        rows[group[0]]["connection_id"]: cast
+        for group, cast in cast_targets.items()
+    }
+    return changes, connection_changes
+
+
 def _replace(source: Path, output: Path, resource: str, data: bytes) -> None:
     replace_resource(source, resource, None, output,
         line_edit=None, line_edits=None, replacement_data=data,

@@ -48,6 +48,18 @@ body.has-modal{overflow:hidden}
 .brand-mark img{display:block;width:100%;height:100%;object-fit:contain;background:transparent}
 .brand-text h1{font:700 18px/1.2 var(--font-display);margin:0;letter-spacing:-.02em;white-space:nowrap}
 .topbar-actions{display:flex;align-items:center;gap:8px}
+.dpk-queue-button{position:relative;width:38px;height:38px;display:grid;place-items:center;border:0;border-radius:11px;
+  background:var(--jade);color:#fff;cursor:pointer;box-shadow:0 6px 16px rgba(0,155,128,.2);transition:transform .15s,background .15s}
+.dpk-queue-button:hover{background:#008b73;transform:translateY(-1px)}
+.dpk-queue-button svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.dpk-queue-count{position:absolute;right:-7px;top:-7px;min-width:19px;height:19px;padding:0 5px;display:grid;place-items:center;
+  border:2px solid #fff;border-radius:99px;background:#d84b42;color:#fff;font-size:10px;font-weight:800;line-height:1}
+.dpk-queue-shell{width:min(620px,100%)}
+.dpk-queue-list{display:grid;gap:8px;max-height:min(56vh,520px);overflow:auto;padding:2px}
+.dpk-queue-item{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--line);border-radius:11px;background:#fbfdfc}
+.dpk-queue-item strong{display:block;color:var(--ink);font-size:12px}.dpk-queue-item small{display:block;margin-top:3px;color:var(--ink-faint);font-size:10.5px}
+.dpk-queue-actions{display:flex;align-items:center;gap:6px}.dpk-queue-actions .btn{height:30px;padding:0 9px;font-size:11px}
+.dpk-queue-empty{padding:28px 8px;text-align:center;color:var(--ink-faint)}
 
 .pill{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 11px;border-radius:99px;
   border:1px solid var(--line);background:#f6faf8;color:var(--pine);font-size:11px;font-weight:700;white-space:nowrap}
@@ -185,6 +197,15 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .segmented button{min-height:27px;padding:0 13px;border:0;border-radius:7px;background:transparent;
   color:var(--ink-soft);font-size:11.5px;font-weight:750}
 .segmented button.is-active{background:#fff;color:var(--pine);box-shadow:0 3px 10px rgba(20,61,56,.09)}
+.reload-scope-tags{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.reload-scope-tag{width:100%;min-height:34px;padding:0 11px;display:flex;align-items:center;justify-content:space-between;gap:12px;
+  border:1px solid var(--line);border-radius:999px;background:#f8fbfa;color:var(--ink-soft);font-size:11px;font-weight:750;
+  text-align:left;cursor:pointer;transition:background .14s,border-color .14s,color .14s,transform .14s}
+.reload-scope-check{width:16px;height:16px;flex:0 0 16px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;opacity:0;transition:opacity .14s}
+.reload-scope-tag:hover{border-color:var(--jade);color:var(--pine);transform:translateY(-1px)}
+.reload-scope-tag:focus-visible{outline:2px solid rgba(0,155,128,.35);outline-offset:2px}
+.reload-scope-tag[aria-pressed="true"]{border-color:#a8d8b5;background:#e5f5e9;color:#216b45}
+.reload-scope-tag[aria-pressed="true"] .reload-scope-check{opacity:1}
 
 /* 问号提示：hover / focus 时用 CSS 气泡显示 data-tip，无需 JS */
 .help-dot{position:relative;width:22px;height:22px;flex:0 0 22px;display:grid;place-items:center;
@@ -644,7 +665,20 @@ tbody tr.is-static:hover{background:transparent}
 .shop-status:empty{display:none}
 .shop-status.is-error{color:var(--danger)}
 .shop-status.is-success{color:var(--pine)}
+.shop-status.is-warning{color:#855a1c}
 .shop-grid{display:grid;grid-template-areas:"catalog add";grid-template-columns:minmax(0,1fr) minmax(290px,360px);gap:7px;align-items:start}
+.backpack-merchants{display:flex;flex-wrap:wrap;gap:6px}
+.backpack-merchants label{display:inline-flex;align-items:center;gap:6px;padding:7px 9px;border:1px solid var(--line-strong);border-radius:8px;background:#f8fbfa;font-size:11px;cursor:pointer}
+.backpack-merchants label:has(input:checked){border-color:var(--jade);background:#eef9f5;color:var(--pine)}
+.backpack-merchants input{accent-color:var(--jade)}
+.backpack-price-fields{display:grid;grid-template-columns:minmax(0,1fr) 96px;gap:8px;margin:12px 0 4px}
+.backpack-table-wrap{max-height:calc(100vh - 310px);min-height:260px}
+.backpack-product-name{font-weight:650}
+.backpack-product-meta{font-size:11px;color:var(--ink-faint)}
+.backpack-range{display:flex;flex-wrap:wrap;gap:4px}
+.backpack-range span{padding:3px 6px;border-radius:6px;background:#eef4f1;color:var(--pine);font-size:10px;white-space:nowrap}
+.backpack-runtime{padding:0 0 8px;font-size:11px;line-height:1.5;color:var(--ink-soft)}
+.backpack-runtime.is-warning{color:#855a1c}
 .shop-catalog-card{grid-area:catalog}
 .shop-add-card{grid-area:add}
 .shop-batch-tools{display:flex;align-items:center;gap:8px;min-width:0}
@@ -732,9 +766,11 @@ tbody tr.is-static:hover{background:transparent}
 /* ============================================================
    18. 响应式
    ============================================================ */
+.server-control-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
 @media (max-width:1180px){
   .cols-main{grid-template-columns:minmax(0,1fr)}
   .shop-grid{grid-template-areas:"catalog" "add";grid-template-columns:minmax(0,1fr)}
+  #item-panel-backpack .shop-grid{grid-template-areas:"add" "catalog"}
   .stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .config-form{grid-template-columns:minmax(0,1fr)}
 }
@@ -750,7 +786,7 @@ tbody tr.is-static:hover{background:transparent}
 @media (max-width:700px){
   .topbar{height:auto;padding:11px 13px;flex-wrap:wrap;gap:9px}
   .brand-text h1{font-size:15px}
-  .topbar-actions{display:none}
+  .topbar-actions{display:flex;margin-left:auto}
   .workspace{display:block;padding:7px}
   .rail{flex-direction:row;overflow-x:auto;
     border-radius:14px;padding:7px;margin-bottom:7px}
@@ -768,6 +804,7 @@ tbody tr.is-static:hover{background:transparent}
   .rate-actions{grid-column:1}
   .definition-toolbar .tag{margin-left:0}
 }
+@media (max-width:760px){.server-control-grid{grid-template-columns:minmax(0,1fr)}}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}
 }
@@ -791,6 +828,10 @@ tbody tr.is-static:hover{background:transparent}
       <span class="pill is-quiet" id="pill-conn">
         <span class="dot"></span><span id="pill-conn-text">正在检测…</span>
       </span>
+      <button class="dpk-queue-button" type="button" id="dpk-queue-open" aria-label="打开包修改队列" title="包修改队列">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0 0 4-4m-4 4-4-4"/><path d="M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg>
+        <span class="dpk-queue-count" id="dpk-queue-count" hidden>0</span>
+      </button>
     </div>
   </header>
 
@@ -1008,6 +1049,7 @@ tbody tr.is-static:hover{background:transparent}
             <button type="button" class="is-active" data-im="item">发放物品</button>
             <button type="button" data-im="weapon">装备新增</button>
             <button type="button" data-im="shop">商城上架</button>
+            <button type="button" data-im="backpack">背包商店</button>
             <button type="button" data-im="point">仙玉充值</button>
             <button type="button" data-im="mail">发送邮件</button>
           </div>
@@ -1070,7 +1112,7 @@ tbody tr.is-static:hover{background:transparent}
                     <h4>属性词条</h4>
                     <div class="weapon-trait-list" id="weapon-trait-list"></div>
                   </section>
-                  <button type="button" class="btn btn-primary btn-block" id="weapon-apply" style="margin-top:14px;height:38px">生成并同步</button>
+                  <button type="button" class="btn btn-primary btn-block" id="weapon-apply" style="margin-top:14px;height:38px">加入修改队列</button>
                 </div>
                 <div class="definition-status" id="weapon-status" role="status" aria-live="polite"></div>
               </div>
@@ -1129,8 +1171,43 @@ tbody tr.is-static:hover{background:transparent}
               </div>
               <div class="card-foot">
                 <div class="shop-batch-tools"><span>已选 <b id="shop-selected-count">0</b> 件</span><button class="btn btn-sm btn-danger" id="shop-batch-delete" disabled>批量下架</button></div>
-                <button class="btn btn-sm btn-danger" id="shop-restart">重启服务端</button>
               </div>
+            </article>
+          </div>
+        </div>
+
+        <div id="item-panel-backpack" class="is-hidden">
+          <div class="shop-grid">
+            <article class="card shop-add-card">
+              <div class="card-head"><h3>添加背包商品</h3></div>
+              <div class="card-body">
+                <label class="field" for="backpack-item-q"><span>搜索已有物品</span>
+                  <input id="backpack-item-q" type="search" placeholder="输入名称或物品 ID" autocomplete="off">
+                </label>
+                <div class="shop-suggestions is-hidden" id="backpack-suggestions"></div>
+                <div class="shop-selected" id="backpack-selected">请选择一个物品</div>
+                <input id="backpack-item-id" type="hidden">
+                <div class="field" style="margin-top:16px"><span>售卖范围</span>
+                  <div class="backpack-merchants" id="backpack-merchants"></div>
+                </div>
+                <div class="backpack-price-fields">
+                  <label class="field" for="backpack-price"><span>出售价格</span><input id="backpack-price" type="number" min="0.0001" step="any" placeholder="输入金额"></label>
+                  <label class="field" for="backpack-price-unit"><span>单位</span><select id="backpack-price-unit"><option value="金">金</option><option value="砖">砖</option></select></label>
+                </div>
+                <button type="button" class="btn btn-primary btn-block" id="backpack-add">添加并热重载</button>
+                <div class="shop-status" id="backpack-status" role="status" aria-live="polite"></div>
+              </div>
+            </article>
+            <article class="card shop-catalog-card">
+              <div class="card-head"><h3>已保存商品</h3><button type="button" class="btn btn-sm" id="backpack-refresh">刷新</button></div>
+              <div class="card-body" style="padding-bottom:10px">
+                <div id="backpack-runtime" class="backpack-runtime" role="status">正在检查游戏内商人列表…</div>
+                <div class="toolbar"><div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+                  <input id="backpack-filter" type="search" placeholder="筛选物品名称或 ID" aria-label="筛选背包商品"></div>
+                  <span class="muted" id="backpack-count">—</span></div>
+              </div>
+              <div class="table-wrap backpack-table-wrap"><table><thead><tr><th>物品</th><th>商品 ID</th><th>售价</th><th>售卖范围</th><th></th></tr></thead>
+                <tbody id="backpack-rows"><tr class="is-static"><td colspan="5" class="muted">切换标签后读取</td></tr></tbody></table></div>
             </article>
           </div>
         </div>
@@ -1325,7 +1402,7 @@ tbody tr.is-static:hover{background:transparent}
                 <label class="field"><span>施法设置</span><select id="ride-config-cast" disabled><option value="none">不允许</option><option value="partial">部分允许</option><option value="all">允许</option></select></label>
                 <span class="ride-config-shared" id="ride-config-shared" hidden></span>
               </div>
-              <div class="ride-config-actions"><button class="btn btn-primary" type="button" id="ride-speed-apply" disabled>应用修改</button><span class="dungeon-toolbar-note">修改后重启服务端生效；下载的客户端包需替换游戏目录中的 mb.dpk</span></div>
+              <div class="ride-config-actions"><button class="btn" type="button" id="ride-speed-reset" disabled>复原</button><button class="btn btn-primary" type="button" id="ride-speed-apply" disabled>加入修改队列</button></div>
               <div class="dungeon-status" id="ride-speed-status" role="status" aria-live="polite"></div>
             </div>
           </article>
@@ -1348,7 +1425,7 @@ tbody tr.is-static:hover{background:transparent}
               <div class="skill-limits-toolbar">
                 <label class="field"><select id="skill-limits-target" aria-label="允许学习的职业" disabled></select></label>
                 <input id="skill-limits-search" type="search" placeholder="搜索技能名称或 ID" aria-label="搜索技能名称或 ID" disabled>
-                <button class="btn btn-primary" id="skill-limits-build" type="button" disabled>应用修改</button>
+                <button class="btn btn-primary" id="skill-limits-build" type="button" disabled>加入修改队列</button>
               </div>
               <div class="skill-limits-profession-filter" id="skill-limits-profession-filter" role="group" aria-label="按技能职业筛选"></div>
               <div class="skill-limits-hint" id="skill-limits-hint"></div>
@@ -1380,7 +1457,7 @@ tbody tr.is-static:hover{background:transparent}
                     <div class="card-head"><div class="profession-skill-pending-title"><h3>待应用修改</h3><span class="tag plain" id="profession-skill-pending-count">0 项</span></div><button class="profession-skill-pending-clear" id="profession-skill-pending-clear" type="button" disabled>清空</button></div>
                     <div class="card-body">
                       <div class="profession-skill-pending-list" id="profession-skill-pending-list"><div class="cart-empty">清单为空，从左侧选择技能并加入</div></div>
-                      <button class="btn btn-primary profession-skill-pending-apply" id="profession-skill-apply" type="button" disabled>应用修改</button>
+                      <button class="btn btn-primary profession-skill-pending-apply" id="profession-skill-apply" type="button" disabled>加入修改队列</button>
                     </div>
                   </section>
                 </div>
@@ -1410,7 +1487,7 @@ tbody tr.is-static:hover{background:transparent}
                   <ol class="summon-order-list" id="summon-skill-order-list" aria-label="召唤物技能栏顺序" aria-live="polite"><li class="summon-order-empty">勾选技能后可调整顺序</li></ol>
                 </section>
               </div>
-              <div class="summon-config-footer"><button class="btn btn-primary" id="summon-apply" type="button" disabled>应用召唤配置</button></div>
+              <div class="summon-config-footer"><button class="btn btn-primary" id="summon-apply" type="button" disabled>加入修改队列</button></div>
               <div class="definition-status" id="summon-status" role="status" aria-live="polite"></div>
             </div>
           </article>
@@ -1428,8 +1505,26 @@ tbody tr.is-static:hover{background:transparent}
           </div>
         </div>
 
-        <div id="logs-panel-server">
+        <div id="logs-panel-server" class="server-control-grid">
           <article class="card">
+            <div class="card-head"><h3>热重载</h3></div>
+            <div class="card-body">
+              <div class="reload-scope-tags" id="server-reload-scopes" role="group" aria-label="选择一个或多个热重载项目">
+                <button class="reload-scope-tag" type="button" data-reload-scope="definitions" aria-pressed="false">职业技能配置<svg class="reload-scope-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4.5 4.5L19 7"/></svg></button>
+                <button class="reload-scope-tag" type="button" data-reload-scope="skill-learn" aria-pressed="false">跨职业技能<svg class="reload-scope-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4.5 4.5L19 7"/></svg></button>
+                <button class="reload-scope-tag" type="button" data-reload-scope="all" aria-pressed="false">召唤物<svg class="reload-scope-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4.5 4.5L19 7"/></svg></button>
+                <button class="reload-scope-tag" type="button" data-reload-scope="rides" aria-pressed="false">骑宠设置<svg class="reload-scope-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4.5 4.5L19 7"/></svg></button>
+                <button class="reload-scope-tag" type="button" data-reload-scope="shop" aria-pressed="false">商城<svg class="reload-scope-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4.5 4.5L19 7"/></svg></button>
+                <button class="reload-scope-tag" type="button" data-reload-scope="weapon" aria-pressed="false">新增武器<svg class="reload-scope-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4.5 4.5L19 7"/></svg></button>
+              </div>
+              <div class="toolbar" style="gap:9px;flex-wrap:wrap;margin-top:12px">
+                <button class="btn btn-primary" id="server-skill-hot-reload" type="button" disabled>重新载入</button>
+              </div>
+              <div class="shop-status" id="server-skill-hot-reload-message" role="status" aria-live="polite"></div>
+            </div>
+          </article>
+          <article class="card">
+            <div class="card-head"><h3>服务控制</h3></div>
             <div class="card-body">
               <div class="toolbar" style="gap:9px;flex-wrap:wrap">
                 <button class="btn btn-primary" id="server-restart">重启服务端</button>
@@ -1595,6 +1690,174 @@ function toast(msg, isBad){
   setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 240); }, 3600);
 }
 
+/* ---------- DPK 修改队列 ---------- */
+const dpkQueue = [];
+let dpkQueueEditingId = null;
+let dpkQueueRunning = false;
+function updateDpkQueueCount(){
+  const count = $('#dpk-queue-count');
+  count.textContent = String(dpkQueue.length);
+  count.hidden = dpkQueue.length === 0;
+}
+function queueDpkChange(item){
+  if (dpkQueueRunning) return;
+  const entry = {...item, id:item.id || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random())};
+  const family = String(item.key).split(':')[0];
+  if (dpkQueueEditingId){
+    const index = dpkQueue.findIndex(row => row.id === dpkQueueEditingId);
+    if (index >= 0 && String(dpkQueue[index].key).split(':')[0] === family){
+      if (dpkQueue[index].signature === item.signature){
+        dpkQueueEditingId = null; toast('相同修改已在队列中'); return;
+      }
+      if (dpkQueue.some(row => row.id !== dpkQueueEditingId && row.signature === item.signature)){
+        dpkQueueEditingId = null; toast('相同修改已在队列中'); return;
+      }
+      entry.id = dpkQueueEditingId; dpkQueue[index] = entry;
+      dpkQueueEditingId = null; toast('队列项目已更新');
+      updateDpkQueueCount(); return;
+    }else dpkQueueEditingId=null;
+  }
+  if(family!=='weapon'){
+    const index=dpkQueue.findIndex(row=>String(row.key).split(':')[0]===family);
+    if(index>=0){
+      if(dpkQueue[index].signature===item.signature){toast('相同修改已在队列中');return;}
+      entry.id=dpkQueue[index].id;dpkQueue[index]=entry;toast('已覆盖队列中的修改');
+      updateDpkQueueCount();return;
+    }
+  }else if(dpkQueue.some(row=>row.signature===item.signature)){
+    toast('相同修改已在队列中');return;
+  }
+  if(dpkQueue.some(row=>row.signature===item.signature)){
+    toast('相同修改已在队列中');return;
+  }
+  dpkQueue.push(entry);
+  toast('已加入执行队列');
+  updateDpkQueueCount();
+}
+function closeDpkQueue(){
+  $('#modal-root').innerHTML = '';
+  document.body.classList.remove('has-modal');
+}
+function openDpkQueue(){
+  const root = $('#modal-root');
+  const itemActionsDisabled=dpkQueueRunning?' disabled':'';
+  const rows = dpkQueue.map((item,index) => '<div class="dpk-queue-item" data-queue-id="'+esc(item.id)+'">'+
+    '<div><strong>'+esc(item.label)+'</strong><small>第 '+(index+1)+' 项 · '+esc(item.summary || '客户端与服务器配置')+'</small></div>'+
+    '<div class="dpk-queue-actions"><button class="btn" data-queue-edit="'+esc(item.id)+'" type="button"'+itemActionsDisabled+'>编辑</button>'+
+    '<button class="btn" data-queue-delete="'+esc(item.id)+'" type="button"'+itemActionsDisabled+'>删除</button></div></div>').join('');
+  root.innerHTML = '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="dpk-queue-title"><div class="modal-shell dpk-queue-shell">'+
+    '<div class="modal-head"><h3 id="dpk-queue-title">执行队列 <span id="dpk-queue-total">'+dpkQueue.length+'</span></h3></div>'+
+    '<div class="modal-body"><div class="dpk-queue-list" id="dpk-queue-list">'+(rows || '<div class="dpk-queue-empty">队列为空</div>')+'</div><div id="dpk-queue-status" class="status" role="status" aria-live="polite"></div></div>'+
+    '<div class="modal-foot"><button class="btn" data-queue-close type="button">关闭</button><button class="btn btn-primary" data-queue-apply type="button" '+(!dpkQueue.length?'disabled':'')+'>应用修改</button></div></div></div>';
+  document.body.classList.add('has-modal');
+}
+async function downloadFinalClientPackage(){
+  const response = await fetch('/api/client-package/download');
+  if (!response.ok){ const error = await response.json().catch(() => ({})); throw new Error(error.error || '最终客户端包下载失败'); }
+  const blob = await response.blob(), url = URL.createObjectURL(blob), link = document.createElement('a');
+  link.href = url; link.download = 'mb.dpk'; document.body.appendChild(link); link.click(); link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+$('#dpk-queue-open').addEventListener('click', openDpkQueue);
+$('#modal-root').addEventListener('click', async event => {
+  const edit = event.target.closest('[data-queue-edit]');
+  if (edit && !dpkQueueRunning){
+    const item = dpkQueue.find(row => row.id === edit.dataset.queueEdit); if (!item) return;
+    dpkQueueEditingId = item.id; closeDpkQueue(); item.jump?.(); return;
+  }
+  const remove = event.target.closest('[data-queue-delete]');
+  if (remove && !dpkQueueRunning){
+    const index = dpkQueue.findIndex(row => row.id === remove.dataset.queueDelete);
+    if (index >= 0) dpkQueue.splice(index,1);
+    updateDpkQueueCount(); openDpkQueue(); return;
+  }
+  if (event.target.closest('[data-queue-close]')){ if (!dpkQueueRunning) closeDpkQueue(); return; }
+  if (event.target.closest('[data-queue-apply]') && !dpkQueueRunning){
+    if (!dpkQueue.length) return;
+    const applied = [], issues = [], submitted = [...dpkQueue];
+    dpkQueueRunning = true;
+    const applyButton = $('[data-queue-apply]', $('#modal-root'));
+    const closeButton = $('[data-queue-close]', $('#modal-root'));
+    applyButton.disabled = closeButton.disabled = true;
+    $$('#modal-root [data-queue-edit], #modal-root [data-queue-delete]').forEach(button=>button.disabled=true);
+    applyButton.innerHTML = '<span class="spinner" aria-hidden="true"></span> 正在应用';
+    let phase='正在合并 '+submitted.length+' 项修改并同步配置包', downloaded=false;
+    const startedAt=performance.now();
+    const updateProgress=()=>{
+      const status=$('#dpk-queue-status');
+      if(status)status.textContent=phase+'… 已用时 '+Math.floor((performance.now()-startedAt)/1000)+' 秒';
+    };
+    updateProgress();
+    const timer=setInterval(updateProgress,1000);
+    try{
+      const response=await postJSON('/api/package-queue/apply',{
+        items:submitted.map(item=>({id:item.id,...item.operation}))});
+      applied.push(...submitted);
+      dpkQueue.splice(0,submitted.length);
+      dpkQueueEditingId=null;
+      updateDpkQueueCount();
+      const resultById=new Map(response.data.items.map(item=>[item.id,item]));
+      for(const item of submitted){
+        if(item.operation.kind==='weapon'){
+          const id=resultById.get(item.id).weapon_id;
+          if(!state.weaponReloadItemIds.includes(id))state.weaponReloadItemIds.push(id);
+          $('#weapon-proposed-id').textContent='已分配 ID '+id;
+        }
+        if(item.operation.kind==='profession-skills')state.professionSkillPending.clear();
+        if(item.operation.kind==='summon')state.summonConfig=item.operation.payload;
+      }
+      state.weaponReloadItemIds=state.weaponReloadItemIds.slice(-32);
+      if(submitted.some(item=>['profession-skills','skill-limits','summon'].includes(item.operation.kind))){
+        state.professionSkillData=null;state.professionSkillSession=null;
+        state.skillLimits=null;state.skillLimitsPath=null;state.skillLimitSelection=new Set();
+        state.summonCatalog=null;state.summonFriends=null;state.summonCatchers=null;
+      }
+      if(submitted.some(item=>item.operation.kind==='ride-speed'))state.rideSpeeds=null;
+      issues.push(...(response.data.warnings||[]));
+      phase='正在下载最终客户端包';updateProgress();
+      if(response.data.client_package_ready!==false){
+        try{await downloadFinalClientPackage();downloaded=true;}
+        catch(error){issues.push('客户端包下载失败：'+(error.message||'未知错误'));}
+      }
+    }catch(error){
+      issues.push(error.message||'队列执行失败');
+    }finally{
+      clearInterval(timer);
+      dpkQueueRunning=false;
+      closeDpkQueue();
+    }
+    const reloadScopes=[...new Set(applied.filter(item=>item.reloadable).map(item=>item.reloadScope).filter(Boolean))];
+    const restart = applied.some(item => item.requiresRestart);
+    const reloadNames={definitions:'职业技能配置', 'skill-learn':'跨职业技能', summon:'召唤物', 'cross-career':'跨职业技能', all:'召唤物', rides:'骑宠设置', weapon:'新增武器'};
+    const details = [downloaded ? '<p>最终客户端 <b>mb.dpk</b> 已下载。</p>' : '',
+      !restart && reloadScopes.length ? '<p>本次可热重载：'+reloadScopes.map(scope=>esc(reloadNames[scope]||scope)).join('、')+'。请在“运维管理 → 服务控制”执行热重载。</p>' : '',
+      restart ? '<p>本次还包含不能热重载的配置，需手动重启服务端后生效。</p>' : '',
+      issues.length ? '<p class="is-bad">'+issues.map(esc).join('<br>')+'</p>' : '<p>队列修改已全部应用。</p>'].filter(Boolean).join('');
+    const canGoReload=applied.length===submitted.length&&!issues.length&&
+      applied.every(item=>item.reloadable&&item.reloadScope&&!item.requiresRestart);
+    const canGoRestart=applied.length===submitted.length&&!issues.length&&restart;
+    const canGoControl=canGoReload||canGoRestart;
+    const goControl=await confirmDialog({title:issues.length?'队列执行未完成':'队列执行完成',
+      html:details,infoOnly:true,showCancel:canGoControl,cancelText:'关闭',
+      okText:canGoRestart?'转到服务控制':canGoReload?'转到热重载':'关闭',danger:false});
+    if(canGoControl&&goControl){
+      setLogsMode('server',true);
+      showView('logs');
+      if(canGoReload)setServerReloadScopes(reloadScopes);
+      requestAnimationFrame(()=>{
+        const target=canGoRestart?$('#server-restart'):$('#server-skill-hot-reload');
+        (canGoRestart?target.closest('.card'):$('#server-reload-scopes'))
+          .scrollIntoView({behavior:'smooth',block:'center'});
+        target.focus({preventScroll:true});
+      });
+    }
+    if(applied.length){
+      if(state.view==='skill-config')setSkillConfigMode(state.skillConfigMode);
+      if(state.view==='pet-config'&&!state.rideSpeeds)loadRideSpeeds();
+    }
+  }
+});
+
 /* ---------- 确认弹层（替代原生 confirm） ---------- */
 function confirmDialog(opts){
   return new Promise(resolve => {
@@ -1618,7 +1881,7 @@ function confirmDialog(opts){
     const cancelButton = $('[data-act="cancel"]', root);
     cancelButton.textContent = opts.cancelText || '取消';
     if (opts.infoOnly){
-      cancelButton.style.display = 'none';
+      if(!opts.showCancel)cancelButton.style.display = 'none';
       $('.modal-head i', root).style.display = 'none';
     }
     okButton.textContent = opts.okText || '确认';
@@ -1770,7 +2033,8 @@ function readDefinitionFavorites(){
 }
 const state = { view:'home', cart:[], scenes:null, acctId:null, charId:null, logs:[], logFilter:'all',
                 acctMode:'account', itemMode:'item', logsMode:'server', ratesLoaded:false,
-                weaponTemplate:null, weaponDraft:[], weaponProposedId:null, weaponTraitNames:new Map(), weaponIconModels:{}, weaponIconChoices:[],
+                backpackShop:null, backpackLoading:false, backpackSelectedRanges:null,
+                weaponTemplate:null, weaponDraft:[], weaponProposedId:null, weaponTraitNames:new Map(), weaponIconModels:{}, weaponIconChoices:[], weaponReloadItemIds:[],
                 gameConfigMode:'rates', definitions:{base:null,dynamic:null}, fateLocks:null,
                 dungeonLimits:null, dungeonDraft:new Map(), dungeonTouched:new Set(), dungeonLoading:false, dungeonApplying:false, dungeonEmptyLabel:'',
                 rideSpeeds:null, rideDraft:new Map(), rideSelectedId:null, rideLoading:false, rideApplying:false, rideEmptyLabel:'',
@@ -1787,7 +2051,7 @@ const VIEWS = ['home','acct','item','rates','skill-config','pet-config','logs'];
 function syncHash(){
   let h = state.view;
   if (state.view === 'logs') h = state.logsMode === 'config' ? 'config' : state.logsMode === 'log' ? 'logs' : state.logsMode === 'whitelist' ? 'ip-whitelist' : 'ops';
-  if (state.view === 'item') h = state.itemMode === 'point' ? 'point' : state.itemMode === 'mail' ? 'mail' : state.itemMode === 'weapon' ? 'weapon' : 'item';
+  if (state.view === 'item') h = state.itemMode === 'point' ? 'point' : state.itemMode === 'mail' ? 'mail' : state.itemMode === 'weapon' ? 'weapon' : state.itemMode === 'backpack' ? 'backpack' : 'item';
   if (location.hash.slice(1) !== h) history.replaceState(null, '', '#' + h);
 }
 
@@ -1832,17 +2096,19 @@ function ensureAcctList(){
 
 /* 发放物品页：发放物品 / 商城上架 / 仙玉充值 / 发送邮件 */
 function setItemMode(mode, skipLoad){
-  state.itemMode = ['shop','point','mail','weapon'].includes(mode) ? mode : 'item';
+  state.itemMode = ['shop','backpack','point','mail','weapon'].includes(mode) ? mode : 'item';
   $$('#item-mode button').forEach(b => b.classList.toggle('is-active', b.dataset.im === state.itemMode));
   $('#item-panel-item').classList.toggle('is-hidden', state.itemMode !== 'item');
   $('#item-panel-weapon').classList.toggle('is-hidden', state.itemMode !== 'weapon');
   $('#item-panel-shop').classList.toggle('is-hidden', state.itemMode !== 'shop');
+  $('#item-panel-backpack').classList.toggle('is-hidden', state.itemMode !== 'backpack');
   $('#item-panel-point').classList.toggle('is-hidden', state.itemMode !== 'point');
   $('#item-panel-mail').classList.toggle('is-hidden', state.itemMode !== 'mail');
   if (!skipLoad){
     if (state.itemMode === 'item') ensureItemList();
     if (state.itemMode === 'weapon'){ loadWeaponTemplates(); searchWeaponTraits(); }
     if (state.itemMode === 'shop') loadShop();
+    if (state.itemMode === 'backpack') loadBackpackShop();
   }
   if (state.view === 'item') syncHash();
 }
@@ -1995,6 +2261,23 @@ async function selectWeaponTemplate(id){
     $$('#weapon-rows [data-weapon-id]').forEach(row => row.classList.toggle('is-active', Number(row.dataset.weaponId) === id));
   }catch(err){ $('#weapon-status').textContent = err.message; }
 }
+async function restoreQueuedWeaponDraft(templateId, fields){
+  await selectWeaponTemplate(templateId);
+  if (Number(state.weaponTemplate?.id) !== Number(templateId)){
+    throw new Error('武器模板载入失败，队列中的草稿仍保留');
+  }
+  state.weaponDraft=[...fields];
+  const traitIds=state.weaponDraft.slice(25,30).filter(value=>/^\d+$/.test(value));
+  if(traitIds.length){
+    const traits=await api('/api/weapon_traits?ids='+encodeURIComponent(traitIds.join(',')));
+    for(const item of traits.data.rows)state.weaponTraitNames.set(item.id,item.name);
+  }
+  $$('#weapon-fields [data-weapon-field]').forEach(input=>{
+    input.value=state.weaponDraft[Number(input.dataset.weaponField)]||'';
+  });
+  updateWeaponIconPreview();
+  renderWeaponTraitSlots();
+}
 $('#weapon-profession').addEventListener('change', loadWeaponTemplates);
 $('#weapon-search').addEventListener('input', () => {
   clearTimeout(weaponSearchTimer);
@@ -2061,27 +2344,11 @@ $('#weapon-trait-results').addEventListener('keydown', e => {
 });
 $('#weapon-apply').addEventListener('click', async () => {
   if (!state.weaponTemplate || !state.weaponDraft.length){ toast('请先选择武器模板', true); return; }
-  const accepted = await confirmDialog({title:'确认生成并同步武器？',
-    html:'<p>将重新检查客户端和服务器物品 ID，写入客户端工作包及服务器主包、动态包。</p><p>服务器包会备份并回读校验。不会自动重启服务端；客户端包会下载到本机，请替换游戏目录中的 mb.dpk。重启服务端后加载新武器。</p>',
-    okText:'确认应用',danger:false});
-  if (!accepted) return;
-  const button = $('#weapon-apply');
-  let applied = false;
-  busy(button,true,'正在写入…');
-  try{
-    const response = await postJSON('/api/weapon/apply',{
-      template_id:state.weaponTemplate.id,fields:state.weaponDraft
-    });
-    const result = response.data;
-    $('#weapon-proposed-id').textContent = '已分配 ID ' + result.id;
-    const a = document.createElement('a');
-    a.href = '/api/weapons/download?token=' + encodeURIComponent(result.download_token);
-    a.download = 'mb.weapon-' + result.id + '.dpk';
-    document.body.appendChild(a); a.click(); a.remove();
-    toast('武器 #' + result.id + ' 已写入服务器，客户端包已开始下载；需手动重启服务端后加载');
-    applied = true;
-  }catch(err){ toast(err.message || '武器写入失败',true); }
-  finally{ busy(button,false); if (applied){ button.disabled = true; button.textContent = '已应用'; } }
+  const templateId=state.weaponTemplate.id,fields=[...state.weaponDraft];
+  queueDpkChange({key:'weapon:'+templateId+':'+fields[1],signature:JSON.stringify({templateId,fields}),label:'装备新增：'+(fields[1]||'自定义武器'),summary:'重新校验并分配物品 ID',reloadable:true,reloadScope:'weapon',
+    operation:{kind:'weapon',payload:{template_id:templateId,fields}},
+    jump:async()=>{showView('item');setItemMode('weapon');try{await restoreQueuedWeaponDraft(templateId,fields);setTimeout(()=>$('#weapon-editor')?.scrollIntoView({behavior:'smooth',block:'center'}),80);}catch(error){toast(error.message,true);}},
+  });
 });
 
 /* 运维管理页 */
@@ -2121,6 +2388,7 @@ function goto(target){
   if (target === 'char'){ setAcctMode('char', true); showView('acct'); return; }
   if (target === 'point'){ setItemMode('point', true); showView('item'); return; }
   if (target === 'mail'){ setItemMode('mail', true); showView('item'); return; }
+  if (target === 'backpack'){ setItemMode('backpack', true); showView('item'); loadBackpackShop(); return; }
   if (target === 'acct'){ setAcctMode('account', true); showView('acct'); return; }
   if (target === 'item'){ setItemMode('item', true); showView('item'); return; }
   if (target === 'logs'){ setLogsMode('server', true); showView('logs'); return; }
@@ -2769,8 +3037,11 @@ async function addShopItem(){
       subcategory_id: $('#shop-subcategory').value
     });
     const item = j.data;
-    setShopStatus(item.name + '（ID ' + item.id + '）已加入商城，价格 ' + fmt(item.price) +
-      ' 仙玉，数量 ' + item.count + '。配置已备份；重启游戏服务端后生效。', 'success');
+    const reload = item.hot_reload || {};
+    setShopStatus(item.name + '（ID ' + item.id + '）已加入商城。' + (reload.ok
+        ? '商城物品已经重新载入。'
+        : '配置已保存，但商城热重载失败：' + (reload.error || '未知错误')),
+      reload.ok ? 'success' : 'error');
     $('#shop-item-id').value = '';
     $('#shop-item-q').value = '';
     $('#shop-item-selected').textContent = '请选择一个物品';
@@ -2782,14 +3053,18 @@ async function addShopItem(){
 async function deleteShopItem(id, name){
   const ok = await confirmDialog({
     title:'确认下架商品',
-    html:'<p>确定从商城中下架 <b>' + esc(name) + '</b>（ID ' + esc(id) + '）吗？</p><p class="muted">配置会先备份，重启游戏服务端后生效。</p>',
+    html:'<p>确定从商城中下架 <b>' + esc(name) + '</b>（ID ' + esc(id) + '）吗？</p><p class="muted">配置会备份并自动尝试热重载；失败时不自动回滚或重启服务端。</p>',
     okText:'确认下架'
   });
   if (!ok) return;
   try{
     const j = await postJSON('/api/shop/delete', {id});
     shopSelectedIds.delete(String(id));
-    setShopStatus('已下架 ' + j.data.name + '（ID ' + id + '）。配置已备份；重启游戏服务端后生效。', 'success');
+    const reload = j.data.hot_reload || {};
+    setShopStatus('已下架 ' + j.data.name + '（ID ' + id + '）。' + (reload.ok
+      ? '商城物品已经重新载入。'
+      : '配置已保存，但商城热重载失败：' + (reload.error || '未知错误')),
+      reload.ok ? 'success' : 'error');
     await loadShop();
   }catch(e){ setShopStatus('下架失败：' + e.message, 'error'); }
 }
@@ -2798,7 +3073,7 @@ async function deleteSelectedShopItems(){
   if (!ids.length) return;
   const ok = await confirmDialog({
     title:'批量下架商品',
-    html:'<p>确定从商城下架选中的 <b>' + ids.length + '</b> 件商品吗？</p><p class="muted">配置会先备份，重启游戏服务端后生效。</p>',
+    html:'<p>确定从商城下架选中的 <b>' + ids.length + '</b> 件商品吗？</p><p class="muted">配置会备份并自动尝试热重载；失败时不自动回滚或重启服务端。</p>',
     okText:'确认下架'
   });
   if (!ok) return;
@@ -2807,35 +3082,13 @@ async function deleteSelectedShopItems(){
   try{
     const j = await postJSON('/api/shop/delete-batch', {ids});
     ids.forEach(id => shopSelectedIds.delete(String(id)));
-    setShopStatus('已批量下架 ' + j.data.deleted.length + ' 件商品。配置已备份；重启游戏服务端后生效。', 'success');
+    const reload = j.data.hot_reload || {};
+    setShopStatus('已批量下架 ' + j.data.deleted.length + ' 件商品。' + (reload.ok
+      ? '商城物品已经重新载入。'
+      : '配置已保存，但商城热重载失败：' + (reload.error || '未知错误')),
+      reload.ok ? 'success' : 'error');
     await loadShop();
   }catch(e){ setShopStatus('批量下架失败：' + e.message, 'error'); }
-  finally{ busy(button, false); }
-}
-async function restartForShop(){
-  const ok = await confirmDialog({
-    title:'重启游戏服务端？',
-    html:'<p>重启后商城配置才会生效。</p><p class="muted">重启期间在线玩家会掉线，通常需要 1–2 分钟。</p>',
-    okText:'确认重启'
-  });
-  if (!ok) return;
-  const button = $('#shop-restart');
-  busy(button, true, '正在重启');
-  setShopStatus('正在提交重启请求…');
-  try{
-    await postJSON('/api/shop/restart', {});
-    while (true){
-      const j = await api('/api/shop/restart');
-      const status = j.data;
-      if (!status.running){
-        if (status.error) throw new Error(status.error);
-        setShopStatus('游戏服务端已重启，商城配置已生效。', 'success');
-        break;
-      }
-      setShopStatus(status.phase || '正在重启游戏服务端…');
-      await new Promise(resolve => setTimeout(resolve, 2000));
-    }
-  }catch(e){ setShopStatus('重启失败：' + e.message, 'error'); }
   finally{ busy(button, false); }
 }
 $('#shop-item-q').addEventListener('input', () => {
@@ -2851,7 +3104,6 @@ $('#shop-item-suggestions').addEventListener('click', e => {
 });
 $('#shop-add').addEventListener('click', addShopItem);
 $('#shop-refresh').addEventListener('click', loadShop);
-$('#shop-restart').addEventListener('click', restartForShop);
 $('#shop-filter').addEventListener('input', () => {
   clearTimeout(shopSearchTimer);
   shopSearchTimer = setTimeout(loadShop, 180);
@@ -2876,6 +3128,168 @@ $('#shop-select-all').addEventListener('change', e => {
   updateShopSelection();
 });
 $('#shop-batch-delete').addEventListener('click', deleteSelectedShopItems);
+
+let backpackSearchTimer = null;
+function setBackpackStatus(message, kind=''){
+  const node = $('#backpack-status');
+  node.textContent = message;
+  node.className = 'shop-status' + (kind ? ' is-' + kind : '');
+}
+function renderBackpackRuntime(runtime){
+  const node = $('#backpack-runtime');
+  const state = runtime?.state;
+  node.classList.toggle('is-warning', state === 'different' || state === 'unavailable');
+  node.textContent = state === 'matched' ? '已保存配置与游戏内商人商品列表一致。' :
+    state === 'different' ? '部分配置商品未出现在游戏内商人列表中；请检查上架结果或物品配置。' :
+    state === 'unavailable' ? '无法读取游戏内商人列表，请确认服务端状态。' : '正在检查游戏内商人列表…';
+}
+function renderBackpackMerchants(){
+  const data = state.backpackShop;
+  if (!data) return;
+  if (state.backpackSelectedRanges === null){
+    state.backpackSelectedRanges = new Set(data.ranges);
+  }
+  $('#backpack-merchants').innerHTML = data.ranges.map(name =>
+    '<label><input type="checkbox" value="' + esc(name) + '" ' +
+    (state.backpackSelectedRanges.has(name) ? 'checked' : '') + '><span>' + esc(name) + '</span></label>'
+  ).join('');
+}
+function renderBackpackRows(){
+  const data = state.backpackShop;
+  if (!data) return;
+  const query = $('#backpack-filter').value.trim().toLocaleLowerCase();
+  const rows = data.rows.filter(row => !query ||
+    (row.name + ' ' + row.item_id + ' ' + row.product_id).toLocaleLowerCase().includes(query));
+  $('#backpack-count').textContent = rows.length + ' / ' + data.rows.length + ' 件';
+  $('#backpack-rows').innerHTML = rows.length ? rows.map(row =>
+    '<tr><td><div class="backpack-product-name">' + esc(row.name) + '</div>' +
+    '<div class="backpack-product-meta">物品 #' + esc(row.item_id) + '</div></td>' +
+    '<td class="num">' + esc(row.product_id) + '</td>' +
+    '<td>' + esc(row.price) + '</td>' +
+    '<td><div class="backpack-range">' + row.ranges.map(name => '<span>' + esc(name) + '</span>').join('') + '</div></td>' +
+    '<td style="text-align:right"><button type="button" class="btn btn-sm btn-danger" data-backpack-delete="' + esc(row.product_id) + '">删除</button></td></tr>'
+  ).join('') : emptyRow(5, query ? '没有匹配的商品' : '商店暂无商品', query ? '试试物品名称或 ID' : '添加已有物品');
+}
+async function loadBackpackShop(){
+  if (state.backpackLoading) return;
+  state.backpackLoading = true;
+  $('#backpack-rows').innerHTML = skeleton(5);
+  renderBackpackRuntime(null);
+  try{
+    const response = await api('/api/backpack-shop');
+    state.backpackShop = response.data;
+    renderBackpackMerchants();
+    renderBackpackRows();
+    renderBackpackRuntime(response.data.runtime);
+  }catch(error){
+    $('#backpack-rows').innerHTML = emptyRow(5, '商店配置读取失败', error.message);
+    renderBackpackRuntime({state:'unavailable'});
+    setBackpackStatus(error.message, 'error');
+  }finally{ state.backpackLoading = false; }
+}
+async function searchBackpackItems(query){
+  const box = $('#backpack-suggestions');
+  query = query.trim();
+  if (!query){ box.innerHTML = ''; box.classList.add('is-hidden'); return; }
+  try{
+    const result = await api('/api/items?q=' + encodeURIComponent(query) + '&limit=20');
+    if ($('#backpack-item-q').value.trim() !== query) return;
+    box.innerHTML = result.rows.length ? result.rows.map(row =>
+      '<button type="button" class="shop-suggestion" data-backpack-item="' + esc(row.id) + '" data-backpack-name="' + esc(row.name) + '">' +
+      '<span>' + esc(row.name) + '</span><small>#' + esc(row.id) + '</small></button>'
+    ).join('') : '<div class="shop-suggestion muted">没有匹配物品</div>';
+    box.classList.remove('is-hidden');
+  }catch(error){
+    box.innerHTML = '<div class="shop-suggestion muted">搜索失败：' + esc(error.message) + '</div>';
+    box.classList.remove('is-hidden');
+  }
+}
+async function addBackpackItem(){
+  if (!state.backpackShop){ setBackpackStatus('请先刷新商店列表', 'error'); return; }
+  const itemId = Number($('#backpack-item-id').value);
+  const ranges = [...state.backpackSelectedRanges];
+  const price = $('#backpack-price').value.trim();
+  const unit = $('#backpack-price-unit').value;
+  if (!itemId){ setBackpackStatus('请先搜索并选择物品', 'error'); return; }
+  if (!ranges.length){ setBackpackStatus('请至少选择一个售卖范围', 'error'); return; }
+  if (!price || !Number.isFinite(Number(price)) || Number(price) <= 0){ setBackpackStatus('请输入大于 0 的出售价格', 'error'); return; }
+  const button = $('#backpack-add');
+  busy(button, true, '正在保存…');
+  try{
+    const response = await postJSON('/api/backpack-shop/edit', {
+      action:'add', item_id:itemId, ranges, price, unit, revision:state.backpackShop.revision
+    });
+    state.backpackShop = response.data.catalog;
+    renderBackpackRows();
+    $('#backpack-item-id').value = '';
+    $('#backpack-item-q').value = '';
+    $('#backpack-price').value = '';
+    $('#backpack-selected').textContent = '请选择一个物品';
+    $('#backpack-selected').classList.remove('is-set');
+    const cache = response.data.reload.merchant_cache?.state;
+    const prefix = (response.data.reload.purchase_price_initialized ? '已设置服务端购买价并保存 ' : '已保存 ') + response.data.name;
+    setBackpackStatus(cache === 'applied' ? prefix + '，两条线路的商人列表已热重载。' :
+      cache === 'unverified' ? prefix + '，两条线路的商品列表已刷新；游戏内售价尚未核验。' :
+      prefix + '，热重载未通过验证：' + (response.data.reload.merchant_cache?.error || '请检查商品是否已在游戏内生效。'),
+      cache === 'applied' ? 'success' : 'warning');
+    await loadBackpackShop();
+  }catch(error){ setBackpackStatus(error.message, 'error'); }
+  finally{ busy(button, false); }
+}
+async function deleteBackpackItem(productId){
+  const row = state.backpackShop?.rows.find(item => item.product_id === productId);
+  if (!row) return;
+  const ok = await confirmDialog({title:'删除背包商品',
+    html:'<p>从 <b>' + row.ranges.map(esc).join('、') + '</b> 删除 <b>' + esc(row.name) + '</b> 吗？</p><p class="muted">保存后会热重载两条线路并检查商人列表。</p>',
+    okText:'确认删除'});
+  if (!ok) return;
+  setBackpackStatus('正在保存删除操作…');
+  try{
+    const response = await postJSON('/api/backpack-shop/edit', {
+      action:'delete', product_id:productId, merchants:row.merchant_ids,
+      revision:state.backpackShop.revision
+    });
+    state.backpackShop = response.data.catalog;
+    renderBackpackRows();
+    const cache = response.data.reload.merchant_cache?.state;
+    setBackpackStatus(cache === 'applied' ? '已删除 ' + row.name + '，两条线路的商人列表已热重载。' :
+      '已从配置中删除 ' + row.name + '，热重载未通过验证：' +
+      (response.data.reload.merchant_cache?.error || '请检查商品是否仍在游戏内。'),
+      cache === 'applied' ? 'success' : 'warning');
+    await loadBackpackShop();
+  }catch(error){ setBackpackStatus(error.message, 'error'); }
+}
+$('#backpack-item-q').addEventListener('input', () => {
+  $('#backpack-item-id').value = '';
+  $('#backpack-selected').textContent = '请选择一个物品';
+  $('#backpack-selected').classList.remove('is-set');
+  clearTimeout(backpackSearchTimer);
+  backpackSearchTimer = setTimeout(() => searchBackpackItems($('#backpack-item-q').value), 180);
+});
+$('#backpack-suggestions').addEventListener('click', event => {
+  const option = event.target.closest('[data-backpack-item]');
+  if (!option) return;
+  $('#backpack-item-id').value = option.dataset.backpackItem;
+  $('#backpack-item-q').value = option.dataset.backpackName;
+  $('#backpack-selected').textContent = option.dataset.backpackName + '  #' + option.dataset.backpackItem;
+  $('#backpack-selected').classList.add('is-set');
+  $('#backpack-suggestions').classList.add('is-hidden');
+  setBackpackStatus('');
+});
+$('#backpack-merchants').addEventListener('change', event => {
+  const box = event.target.closest('input[type=checkbox]');
+  if (!box) return;
+  const name = box.value;
+  if (box.checked) state.backpackSelectedRanges.add(name);
+  else state.backpackSelectedRanges.delete(name);
+});
+$('#backpack-add').addEventListener('click', addBackpackItem);
+$('#backpack-refresh').addEventListener('click', loadBackpackShop);
+$('#backpack-filter').addEventListener('input', renderBackpackRows);
+$('#backpack-rows').addEventListener('click', event => {
+  const button = event.target.closest('[data-backpack-delete]');
+  if (button) deleteBackpackItem(Number(button.dataset.backpackDelete));
+});
 
 function addCart(id, name, type){
   const hit = state.cart.find(x => String(x.excel_id) === String(id));
@@ -3093,6 +3507,92 @@ $('#game-config-mode').addEventListener('click', e => {
   if (button) setGameConfigMode(button.dataset.gcm);
 });
 
+async function confirmSkillHotReload(button, scopes, status=null){
+  if (button.disabled || !scopes.length) return;
+  const notes = {
+    'skill-learn':'重载导师技能列表（表 210）和学习条件（表 211）。替换客户端包并重新登录，再打开导师窗口；取消学习资格不会删除已学会的技能。',
+    'definitions':'重载职业技能定义。正在运行的技能效果会被清理；替换客户端包并重新登录。',
+    'summon':'重载技能定义和召唤物配置。正在运行的技能效果会被清理；替换客户端包、重新登录并重新召唤。',
+    'all':'重载跨职业技能、职业技能和召唤物配置。正在运行的技能效果会被清理；替换客户端包并重新登录，召唤物修改后重新召唤。',
+    'rides':'重载骑宠列表（表 85）和乘骑连接（表 84），应用服务端当前主包中的骑宠设置。两条线路会依次处理；已经骑乘的角色建议先下坐骑再重新骑乘。',
+    'shop':'重新载入商城商品文件，并通过 reloadxyshopitem 刷新商城配置和在线商城数据。',
+    'weapon':'重载物品列表表 41（三个 item_list 文件），让新武器定义供服务端后续发放。失败时不回滚运行中的旧表，也不自动重启；如果状态异常，可由你决定是否手动重启。客户端仍需替换 mb.dpk 并重新登录。'
+  };
+  const names={definitions:'职业技能配置','skill-learn':'跨职业技能',all:'召唤物',rides:'骑宠设置',shop:'商城',weapon:'新增武器'};
+  const hasWeapon=scopes.includes('weapon');
+  const title=scopes.length===1&&scopes[0]==='rides'?'确认热重载骑宠设置':
+    scopes.length===1&&scopes[0]==='shop'?'确认热重载商城':
+    scopes.length===1&&hasWeapon?'确认热重载新增武器':
+    scopes.length===1?'确认热重载技能':'确认热重载 '+scopes.length+' 项配置';
+  const detail=[
+    '<p>本次选择：'+scopes.map(scope=>esc(names[scope]||scope)).join('、')+'。</p>',
+    scopes.map(scope=>'<p>'+notes[scope]+'</p>').join(''),
+    '<p>相同表会合并，每张表在每条线路只重载一次；若包含职业技能定义，只执行一次 reloadskill。</p>',
+    '<p>失败时清理本次临时散文件；不恢复运行中的旧表，也不自动重启服务端。</p>',
+    scopes.includes('rides')&&!hasWeapon?'<p>已有骑乘的角色建议先下坐骑，再重新骑乘。</p>':'',
+    scopes.includes('weapon')?'<p>客户端包仍需替换游戏目录中的 mb.dpk 并重新登录。</p>':'',
+    '<p class="server-action-timer" hidden>已用时 <span>00:00</span></p>'
+  ].join('');
+  await confirmDialog({title, danger:false, okText:'热重载', loadingText:'热重载中…',
+    html:detail,
+    onConfirm:async()=>{
+      busy(button, true, '热重载中…');
+      const timer = $('.server-action-timer', $('#modal-root'));
+      const startedAt = performance.now();
+      const updateTimer = () => {
+        const seconds = Math.floor((performance.now() - startedAt) / 1000);
+        $('span', timer).textContent = String(Math.floor(seconds / 60)).padStart(2, '0') + ':' +
+          String(seconds % 60).padStart(2, '0');
+      };
+      timer.hidden = false;
+      const timerInterval = setInterval(updateTimer, 1000);
+      if (status){
+        status.textContent = '';
+        status.classList.remove('is-error','is-success');
+      }
+      try{
+        const response = await postJSON('/api/config/reload',
+          {scopes,item_ids:hasWeapon?state.weaponReloadItemIds:[]});
+        const commandCount=Object.values(response.data.commands||{}).reduce((count,commands)=>count+commands.length,0);
+        const message = scopes.length===1&&scopes[0]==='shop'
+          ? '商城热重载完成，普通线和交易线共执行 '+commandCount+' 条命令。'
+          : '热重载完成，已校验两条线路的 '+response.data.tables+' 张配置表，共执行 '+commandCount+' 条线路命令。';
+        if (status){
+          status.textContent = message;
+          status.classList.add('is-success');
+        }else toast(message);
+      }catch(error){
+        if (status){
+          status.textContent = error.message;
+          status.classList.add('is-error');
+        }
+        throw error;
+      }finally{
+        clearInterval(timerInterval);
+        updateTimer();
+        busy(button, false);
+      }
+    }});
+}
+function setServerReloadScopes(scopes){
+  const aliases={'cross-career':'skill-learn',summon:'all'};
+  const selected=new Set(scopes.map(scope=>aliases[scope]||scope));
+  const buttons=$$('#server-reload-scopes [data-reload-scope]');
+  buttons.forEach(button=>button.setAttribute('aria-pressed',
+    selected.has(button.dataset.reloadScope)?'true':'false'));
+  $('#server-skill-hot-reload').disabled=!buttons.some(button=>button.getAttribute('aria-pressed')==='true');
+}
+$('#server-reload-scopes').addEventListener('click',event=>{
+  const button=event.target.closest('[data-reload-scope]');
+  if(!button)return;
+  const selected=button.getAttribute('aria-pressed')!=='true';
+  button.setAttribute('aria-pressed',selected?'true':'false');
+  $('#server-skill-hot-reload').disabled=!$$('#server-reload-scopes [aria-pressed="true"]').length;
+});
+$('#server-skill-hot-reload').addEventListener('click',async event=>{
+  const scopes=$$('#server-reload-scopes [aria-pressed="true"]').map(button=>button.dataset.reloadScope);
+  await confirmSkillHotReload(event.currentTarget,scopes,$('#server-skill-hot-reload-message'));
+});
 function setSkillConfigMode(mode){
   state.skillConfigMode = ['profession','summon'].includes(mode) ? mode : 'cross-career';
   $$('#skill-config-mode button').forEach(button => {
@@ -3271,48 +3771,12 @@ $('#profession-skill-distance').addEventListener('input', updateProfessionSkillA
 $('#profession-skill-apply').addEventListener('click', async event => {
   const pending = [...state.professionSkillPending.values()];
   if (!pending.length || event.currentTarget.disabled) return;
-  const button = event.currentTarget;
-  state.professionSkillApplying = true;
-  busy(button, true, '应用中');
-  renderProfessionSkillRows();
-  try{
-    await postJSON('/api/profession-skills/apply', {
-      session_id:state.professionSkillSession, profession_id:pending[0].profession_id,
-      changes:pending.map(item => ({skill_ids:item.skill_ids, cooldown:item.cooldown, distance:item.distance}))
-    });
-    const downloadResponse = await fetch('/api/profession-skills/download?session_id=' +
-      encodeURIComponent(state.professionSkillSession));
-    if (!downloadResponse.ok){
-      const error = await downloadResponse.json().catch(() => ({}));
-      throw new Error(error.error || '客户端下载包生成失败');
-    }
-    const blob = await downloadResponse.blob(), url = URL.createObjectURL(blob), anchor = document.createElement('a');
-    anchor.href = url; anchor.download = 'mb.profession-skills.dpk';
-    document.body.appendChild(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url);
-    for (const change of pending){
-      for (const skill of state.professionSkillData.skills.filter(item =>
-        item.profession_id === change.profession_id && change.skill_ids.includes(item.id))){
-        skill.cooldown = String(change.cooldown);
-        if (change.has_range){
-          skill.range = String(change.distance);
-          skill.range_values = [String(change.distance)];
-        }
-      }
-    }
-    state.professionSkillPending.clear();
-    state.skillLimits = null; state.skillLimitsPath = null; state.skillLimitSelection = new Set();
-    $('#profession-skills-status').textContent = pending.length + ' 项技能修改已写入服务器包；客户端修改包已下载。重启服务端并替换客户端 mb.dpk 后生效。';
-    $('#profession-skills-status').classList.remove('is-bad');
-    toast(pending.length + ' 项技能修改已应用');
-    renderProfessionSkillRows();
-  }catch(error){
-    $('#profession-skills-status').textContent = error.message;
-    $('#profession-skills-status').classList.add('is-bad');
-  }finally{
-    state.professionSkillApplying = false;
-    busy(button, false);
-    renderProfessionSkillRows();
-  }
+  const changes = pending.map(item => ({skill_ids:[...item.skill_ids], cooldown:item.cooldown,
+    distance:item.distance, has_range:item.has_range, profession_id:item.profession_id}));
+  queueDpkChange({key:'profession-skills',signature:JSON.stringify({profession_id:changes[0].profession_id,changes:[...changes].sort((a,b)=>a.skill_ids[0]-b.skill_ids[0])}),label:'职业技能配置',summary:changes.length+' 项技能修改',reloadable:true,reloadScope:'definitions',
+    operation:{kind:'profession-skills',payload:{profession_id:changes[0].profession_id,changes:changes.map(({skill_ids,cooldown,distance})=>({skill_ids,cooldown,distance}))}},
+    jump:()=>{ showView('skill-config'); setSkillConfigMode('profession'); setTimeout(()=>{state.professionSkillSelectedId=changes[0].skill_ids[0];renderProfessionSkillRows();$('#profession-skills-rows [data-profession-skill="'+changes[0].skill_ids[0]+'"]')?.scrollIntoView({behavior:'smooth',block:'center'});},100); },
+  });
 });
 
 const skillSourceProfessions = skill => skill.source_professions || [skill.profession_id];
@@ -3699,29 +4163,9 @@ $('#summon-apply').addEventListener('click', async e => {
     sharedFormUsers.map(item => '“' + esc(item.name) + '”').join('、') + ' 共用，技能列表会同步影响这些角色。');
   if (sharedSkills.length) scopeNotes.push('技能 ' + sharedSkills.map(item => '“' + esc(item.name) + '”')
     .join('、') + ' 也被其他召唤物使用，冷却设置会同步生效。');
-  await confirmDialog({
-    title:'确认应用召唤配置',
-    html:'<p>将使用“' + esc(creature.name) + '”作为召唤物，并修改客户端与服务器的召唤技能配置。</p>' +
-      scopeNotes.map(note => '<p class="muted">' + note + '</p>').join(''),
-    okText:'应用修改', cancelText:'取消', danger:false, loadingText:'正在生成并同步…',
-    onConfirm:async () => {
-      state.summonApplying = true; busy(button, true, '应用中'); updateSummonControls();
-      try{
-        const response = await fetch('/api/summons/apply', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
-        if (!response.ok){ const error = await response.json().catch(() => ({})); throw new Error(error.error || '应用召唤配置失败'); }
-        const blob = await response.blob(), disposition = response.headers.get('Content-Disposition') || '';
-        const filename = (disposition.match(/filename="([^"]+)"/) || [])[1] || 'mb.summon.dpk';
-        const url = URL.createObjectURL(blob), a = document.createElement('a');
-        a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-        state.summonConfig = payload;
-        state.skillLimits = null; state.skillLimitsPath = null; state.skillLimitSelection = new Set();
-        state.professionSkillData = null; state.professionSkillSession = null;
-        $('#summon-status').textContent = '服务器主包和动态包已备份并写入；客户端包 ' + filename + ' 已下载。请将下载包替换到游戏目录的 mb.dpk，重启服务器和客户端后验证。';
-        $('#summon-status').classList.remove('is-bad');
-      }finally{
-        state.summonApplying = false; busy(button, false); updateSummonControls();
-      }
-    }
+  queueDpkChange({key:'summon',signature:JSON.stringify(payload),label:'召唤物：'+creature.name,summary:payload.skills.length+' 个技能配置',reloadable:true,reloadScope:'all',
+    operation:{kind:'summon',payload},
+    jump:()=>{showView('skill-config');setSkillConfigMode('summon');setTimeout(()=>{const type=$('#summon-type');type.value=summonType;type.dispatchEvent(new Event('change'));setTimeout(()=>{const select=$('#summon-creature');select.value=creature.key;select.dispatchEvent(new Event('change'));state.summonSelectedSkills=new Map(payload.skills.map(skill=>[skill.id,skill.cooldown]));state.summonSkillOrder=payload.skills.map(skill=>skill.id);renderSummonSkillRows();renderSummonSkillOrder();updateSummonControls();$('#summon-skill-rows').scrollIntoView({behavior:'smooth',block:'center'});},80);},80);},
   });
 });
 
@@ -3768,41 +4212,10 @@ $('#skill-limits-build').addEventListener('click', async e => {
   const changes = skillLimitPendingChanges(targetProfession);
   if (!changes.length) return;
   status.textContent = ''; status.classList.remove('is-bad');
-  const hasRemoval = changes.some(change => !change.assigned);
-  const hasAddition = changes.some(change => change.assigned);
-  const groupedChanges = groupSkillChanges(changes);
-  const title = hasRemoval && hasAddition ? '将要修改的技能' :
-    hasRemoval ? '将要取消赋予的技能' : '将要添加的技能';
-  await confirmDialog({
-    title,
-    html:'<ul class="skill-confirm-list">' + groupedChanges.map(change =>
-      '<li>' + esc(change.name) + '（' + skillGroupIdLabel(change.ids) + '）' +
-        (hasRemoval ? ' · ' + (change.assigned ? '赋予' : '取消赋予') : '') + '</li>').join('') + '</ul>',
-    danger:false,
-    okText:'确认修改',
-    loadingText:'正在应用…',
-    onConfirm:async () => {
-      const response = await fetch('/api/skill-limits/apply', {method:'POST', headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({session_id:state.skillLimits.session_id,target_profession:targetProfession,
-          changes:changes.map(({skill,assigned}) => ({id:skill.id,assigned}))})});
-      if (!response.ok){ const j = await response.json().catch(() => ({})); throw new Error(j.error || '生成失败'); }
-      const blob = await response.blob();
-      const disposition = response.headers.get('Content-Disposition') || '';
-      const filename = (disposition.match(/filename="([^"]+)"/) || [])[1] || 'mb.skill-limits.dpk';
-      const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = filename;
-      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-      const backupMain = response.headers.get('X-Server-Backup-Main') || '服务器主包备份已生成';
-      const backupDynamic = response.headers.get('X-Server-Backup-Dynamic') || '服务器动态包备份已生成';
-      status.textContent = '三份包已修改并写入：客户端包 ' + filename + ' 已下载。服务器备份：' + backupMain + '；' + backupDynamic + '。请先备份游戏目录原 mb.dpk，再将下载文件改名为 mb.dpk 并替换；重启服务器和客户端后验证导师列表、学习结果及技能施放。';
-      for (const {skill,assigned} of changes) {
-        skill.assigned_to = (skill.assigned_to || []).filter(id => id !== targetProfession);
-        if (assigned) skill.assigned_to.push(targetProfession);
-        if (assigned) state.skillLimitSelection.add(skill.id);
-        else state.skillLimitSelection.delete(skill.id);
-      }
-      state.professionSkillData = null; state.professionSkillSession = null;
-      renderSkillLimitRows();
-    }
+  const payloadChanges=changes.map(({skill,assigned})=>({id:skill.id,assigned,name:skill.name}));
+  queueDpkChange({key:'skill-limits',signature:JSON.stringify({targetProfession,changes:payloadChanges.map(({id,assigned})=>({id,assigned})).sort((a,b)=>a.id-b.id)}),label:'跨职业技能',summary:payloadChanges.length+' 项技能调整',reloadable:true,reloadScope:'skill-learn',
+    operation:{kind:'skill-limits',payload:{target_profession:targetProfession,changes:payloadChanges.map(({id,assigned})=>({id,assigned}))}},
+    jump:()=>{showView('skill-config');setSkillConfigMode('cross-career');setTimeout(()=>{const target=$('#skill-limits-target');target.value=String(targetProfession);target.dispatchEvent(new Event('change'));state.skillLimitSelection=new Set((state.skillLimits?.skills||[]).filter(skill=>(skill.assigned_to||[]).includes(targetProfession)).map(skill=>skill.id));for(const item of payloadChanges){if(item.assigned)state.skillLimitSelection.add(item.id);else state.skillLimitSelection.delete(item.id);}$('#skill-limits-search').value=payloadChanges[0].name;renderSkillLimitRows();$('#skill-limits-rows').scrollIntoView({behavior:'smooth',block:'center'});},100);},
   });
 });
 
@@ -3973,6 +4386,8 @@ function renderRideSpeeds(){
   $('#ride-config-shared').innerHTML=shared.length>1
     ? '将同步修改<button class="ride-config-shared-link" type="button" data-ride-shared>同乘骑配置 ('+shared.length+')</button> 的施法设置' : '';
   $('#ride-speed-apply').disabled=!data||state.rideLoading||state.rideApplying||!rideSpeedChanges().length;
+  $('#ride-speed-reset').disabled=!data||state.rideLoading||state.rideApplying||
+    (!rideSpeedChanges().length&&!dpkQueue.some(item=>String(item.key).split(':')[0]==='ride-speed'));
 }
 async function loadRideSpeeds(){
   if(state.rideLoading||state.rideApplying)return;
@@ -4032,32 +4447,30 @@ $('#ride-config-cast').addEventListener('change',e=>{
   for(const rideId of selected.shared_ids)state.rideDraft.get(rideId).cast=e.target.value;
   renderRideSpeeds();
 });
+$('#ride-speed-reset').addEventListener('click',()=>{
+  if(!state.rideSpeeds)return;
+  state.rideDraft=new Map(state.rideSpeeds.rows.map(row=>[row.id,
+    {run:row.run,terrain:row.terrain,fly:row.fly,cast:row.cast}]));
+  const queuedIndex=dpkQueue.findIndex(item=>String(item.key).split(':')[0]==='ride-speed');
+  if(queuedIndex>=0){
+    const [removed]=dpkQueue.splice(queuedIndex,1);
+    if(dpkQueueEditingId===removed.id)dpkQueueEditingId=null;
+    updateDpkQueueCount();
+  }
+  setRideSpeedStatus('');
+  renderRideSpeeds();
+});
 $('#ride-speed-apply').addEventListener('click',async()=>{
   const changes=rideSpeedChanges();if(!changes.length||state.rideApplying)return;
   if(changes.some(row=>!Number.isInteger(row.run)||row.run<1||row.run>9999)){
     setRideSpeedStatus('跑步速度须为 1 至 9999 的整数',true);return;
   }
-  await confirmDialog({title:'确认修改骑宠设置',danger:false,okText:'应用修改',loadingText:'正在修改包…',
-    html:'<div style="max-height:280px;overflow:auto">'+changes.map(row=>
-      '<div>'+esc(row.name)+' #'+esc(row.id)+'：'+
-      [row.run!==row.oldRun?'速度 '+esc(row.oldRun)+' → '+esc(row.run):'',
-       row.terrain!==row.oldTerrain?'场景 '+esc(rideTerrainLabel[row.oldTerrain])+' → '+esc(rideTerrainLabel[row.terrain]):'',
-       row.fly!==row.oldFly?'飞行设置 '+(row.oldFly?'允许':'不允许')+' → '+(row.fly?'允许':'不允许'):'',
-       row.cast!==row.oldCast?'施法设置 '+esc(rideCastLabel[row.oldCast])+' → '+esc(rideCastLabel[row.cast]):''].filter(Boolean).join('，')+'</div>').join('')+'</div>',
-    onConfirm:async()=>{
-      state.rideApplying=true;renderRideSpeeds();
-      try{
-        const response=await fetch('/api/ride-speeds',{method:'POST',headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({session_id:state.rideSpeeds.session_id,
-            changes:changes.map(({id,run,terrain,fly,cast})=>({id,run,terrain,fly,cast}))})});
-        if(!response.ok){const error=await response.json().catch(()=>({}));throw new Error(error.error||'修改失败');}
-        const blob=await response.blob(),url=URL.createObjectURL(blob),link=document.createElement('a');
-        link.href=url;link.download='mb.ride-config.dpk';document.body.appendChild(link);link.click();link.remove();
-        setTimeout(()=>URL.revokeObjectURL(url),60000);
-        state.rideApplying=false;
-        await loadRideSpeeds();
-      }finally{state.rideApplying=false;renderRideSpeeds();}
-    }});
+  const payload=changes.map(({id,run,terrain,fly,cast,name})=>({id,run,terrain,fly,cast,name}));
+  setRideSpeedStatus('');
+  queueDpkChange({key:'ride-speed',signature:JSON.stringify([...payload].sort((a,b)=>a.id-b.id)),label:'骑宠设置',summary:payload.length+' 个骑宠配置',reloadable:true,reloadScope:'rides',
+    operation:{kind:'ride-speed',payload:{changes:payload.map(({id,run,terrain,fly,cast})=>({id,run,terrain,fly,cast}))}},
+    jump:()=>{showView('pet-config');setTimeout(()=>{state.rideSelectedId=payload[0].id;renderRideSpeeds();$('#ride-speed-rows [data-ride-select="'+payload[0].id+'"]')?.scrollIntoView({behavior:'smooth',block:'center'});},100);},
+  });
 });
 function setDungeonStatus(message,bad){
   const el=$('#dungeon-status'); el.textContent=message||''; el.classList.toggle('is-bad',!!bad);
@@ -4541,6 +4954,7 @@ function routeFromHash(){
   if (v === 'char'){ goto('char'); return; }
   if (v === 'point'){ goto('point'); return; }
   if (v === 'mail'){ goto('mail'); return; }
+  if (v === 'backpack'){ goto('backpack'); return; }
   if (v === 'config'){ goto('config'); return; }
   if (v === 'ip-whitelist'){ setLogsMode('whitelist', true); showView('logs'); return; }
   if (v === 'ops'){ setLogsMode('server', true); showView('logs'); return; }
