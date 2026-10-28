@@ -41,6 +41,39 @@ def _format_price(copper: Decimal) -> str:
     return f"{text} {unit}"
 
 
+def _special_price(fields: list[str], items: dict[int, dict], item: dict) -> str:
+    """Show configured exchange costs without guessing how combined costs are applied."""
+    parts = []
+    labels = {9: "兑换属性", 10: "兑换物品", 11: "兑换物品", 12: "兑换物品3（不可使用）",
+              13: "兑换物品4（不可使用）", 21: "仙玉", 22: "功勋值", 24: "形神印",
+              25: "修为值", 26: "经验值", 27: "天魔印记", 28: "虫虫币"}
+    for index, label in labels.items():
+        value = fields[index].strip() if index < len(fields) else ""
+        if not value:
+            continue
+        if index in (10, 11, 12, 13):
+            pair = value.split("*")
+            if len(pair) == 2 and all(part.isdigit() for part in pair):
+                item_id, quantity = map(int, pair)
+                name = (items.get(item_id) or {}).get("name") or f"物品 #{item_id}"
+                value = f"{name} × {quantity}"
+        if index in (10, 11) and len(value.split(" × ")) == 2:
+            parts.append(value)
+        else:
+            parts.append(f"{label}：{value}")
+    discount = fields[23].strip() if len(fields) > 23 else ""
+    if discount:
+        base = str(item.get("price") or "").strip()
+        if discount == "-1":
+            parts.append("0 铜")
+        elif discount.isdigit() and base.isdigit():
+            rate = int(discount) or 100
+            parts.append(_format_price(Decimal(base) * rate / 100))
+        else:
+            parts.append(f"金币折扣配置：{discount}（基础购买价未知）")
+    return " + ".join(parts)
+
+
 def _decode(data: bytes) -> str:
     return data.decode("gb18030")
 
@@ -171,7 +204,7 @@ def catalog(files: dict[str, bytes], items: dict[int, dict]) -> dict:
         discount = fields[23].strip() if len(fields) > 23 else ""
         if any(fields[index].strip() for index in (9, 10, 11, 12, 13, 21, 22, 24, 25, 26, 27, 28)
                if index < len(fields)):
-            price_label = "按原商品配置"
+            price_label = _special_price(fields, items, item)
         elif discount == "-1":
             price_label = "免费"
         elif base_price and (not discount or discount.isdigit()):
@@ -297,6 +330,44 @@ def prepare(files: dict[str, bytes], *, action: str, merchant_ids=None, ranges=N
                      "unit": unit if action == "add" else None}
 
 
+def is_gold_product(fields) -> bool:
+    """True when the product is bought with 金钱 and priced by the item's base price."""
+    if any(index < len(fields) and fields[index].strip()
+           for index in (9, 10, 11, 12, 13, 21, 22, 24, 25, 26, 27, 28)):
+        return False
+    discount = fields[23].strip() if len(fields) > 23 else ""
+    return discount != "-1"
+
+
+def product_entries(files: dict[str, bytes], product_ids=None, items=None) -> list[dict]:
+    """Describe products so the client package can resolve and price them."""
+    products = _table_rows(files[PRODUCT_PATH], PRODUCT_PATH)
+    entries = []
+    for product_id in sorted(products):
+        if product_ids is not None and product_id not in product_ids:
+            continue
+        fields = products[product_id][1]
+        item_id = int(fields[1]) if len(fields) > 1 and fields[1].isdigit() else 0
+        name = fields[5].strip() if len(fields) > 5 else ""
+        if not name and items and item_id in items:
+            name = str(items[item_id].get("name") or "")
+        entries.append({"product_id": product_id, "item_id": item_id, "name": name,
+                        "discount": fields[23].strip() if len(fields) > 23 else "",
+                        "gold": is_gold_product(fields)})
+    return entries
+
+
+def shop_product_ids(files: dict[str, bytes]) -> list[int]:
+    """Every product referenced by the five backpack merchants."""
+    merchants = _table_rows(files[MERCHANT_PATH], MERCHANT_PATH)
+    ids = set()
+    for merchant_id in MERCHANTS:
+        if merchant_id not in merchants:
+            continue
+        ids.update(int(value) for value in filter(None, merchants[merchant_id][1][2].split("*")))
+    return sorted(ids)
+
+
 def _merchant_specs(files):
     products = _table_rows(files[PRODUCT_PATH], PRODUCT_PATH)
     merchants = _table_rows(files[MERCHANT_PATH], MERCHANT_PATH)
@@ -366,15 +437,22 @@ except Exception as error:
 
 
 def reload_remote(connection, before: dict[str, bytes], after: dict[str, bytes], *,
-                  source_sha256=None, price_change=None, package=None) -> dict:
+                  source_sha256=None, price_change=None, package=None,
+                  extra_tables=None, price_changed=False, reload_saved=False, save_only=False) -> dict:
     """Commit merchant changes and an optional server-only base price as one transaction."""
+    if reload_saved and (before != after or price_change or package or extra_tables or price_changed):
+        raise ValueError("重新载入已保存商店配置的参数无效")
+    if save_only and (reload_saved or price_change or package or extra_tables or price_changed):
+        raise ValueError("保存背包商店配置的参数无效")
     agent = Path(__file__).with_name("skill_reload_agent.py").read_text(encoding="utf-8")
     agent = agent.replace("if __name__ == '__main__':\n    main()", "")
     code = agent + "\n" + _MERCHANT_CACHE_READER + "\n" + _REMOTE_APPLY
     payload = {"before": {key: _sha(value) for key, value in before.items()},
                "after": {key: base64.b64encode(value).decode("ascii") for key, value in after.items()},
                "before_specs": _merchant_specs(before), "after_specs": _merchant_specs(after),
-               "source_sha256": source_sha256, "merchant_changes": _merchant_delta(before, after)}
+               "source_sha256": source_sha256, "merchant_changes": _merchant_delta(before, after),
+               "extra_tables": [int(number) for number in (extra_tables or [])],
+               "reload_saved": reload_saved, "save_only": save_only}
     uploaded = None
     try:
         if price_change is not None:
@@ -405,8 +483,11 @@ def reload_remote(connection, before: dict[str, bytes], after: dict[str, bytes],
         if status or not result.get("ok"):
             raise RuntimeError(result.get("error") or error or "背包商店热重载失败")
         data = result["data"]
+        if save_only:
+            return data
         try:
-            native = refresh_cache_remote(connection, payload["merchant_changes"], bool(price_change))
+            native = refresh_cache_remote(connection, payload["merchant_changes"],
+                                          bool(price_change) or bool(price_changed))
             data["merchant_cache"] = native["cache"]
             data["native_refresh"] = native["calls"]
         except Exception as exc:
@@ -561,8 +642,14 @@ try:
     before_hashes = request["before"]
     after = {key: base64.b64decode(request["after"][key], validate=True) for key in paths}
     before_specs, after_specs = request["before_specs"], request["after_specs"]
-    numbers = [41, 50, 95] if package else [50, 95]
-    if [spec["id"] for spec in before_specs] != numbers or [spec["id"] for spec in after_specs] != numbers:
+    base_numbers = [41, 50, 95] if package else [50, 95]
+    numbers = list(base_numbers)
+    for raw in request.get("extra_tables") or []:
+        number = int(raw)
+        if number not in numbers:
+            numbers.append(number)
+    if ([spec["id"] for spec in before_specs] != base_numbers
+            or [spec["id"] for spec in after_specs] != base_numbers):
         raise ValueError("背包商店事务表清单无效")
     source_hash = request.get("source_sha256")
     package_path = BASE / "mb.dpk"
@@ -578,9 +665,12 @@ try:
                     or package["before_sha256"] != source_hash):
                 raise ValueError("服务端购买价补丁包无效")
         owner = package_path.stat()
-        runtime = RuntimeInspector()
-        before = runtime.snapshot(before_specs)
-        check_snapshot(before, before_specs, "运行中的配置与当前文件不一致")
+        save_only = bool(request.get("save_only"))
+        runtime = None if save_only else RuntimeInspector()
+        if runtime:
+            before = runtime.snapshot(before_specs)
+            if not request.get("reload_saved"):
+                check_snapshot(before, before_specs, "运行中的配置与当前文件不一致")
         originals = {}
         for key, path in paths.items():
             if path.is_symlink() or path.resolve() != path or (path.exists() and not path.is_file()):
@@ -590,10 +680,11 @@ try:
             originals[key] = path.read_bytes() if path.exists() else None
             if originals[key] is not None and hashlib.sha256(originals[key]).hexdigest() != before_hashes[key]:
                 raise ValueError("配置已被其他操作修改或存在其他来源的物品覆盖文件：" + key)
-        with NativeGMClient() as client:
-            for line in (1, 9):
-                if not client.command(line, "help reloadexcel").startswith("reloadexcel "):
-                    raise RuntimeError("线路不支持 reloadexcel：" + str(line))
+        if not save_only:
+            with NativeGMClient() as client:
+                for line in (1, 9):
+                    if not client.command(line, "help reloadexcel").startswith("reloadexcel "):
+                        raise RuntimeError("线路不支持 reloadexcel：" + str(line))
         changed = []
         package_changed = command_attempted = False
         stamp = str(int(time.time())) + "-" + secrets.token_hex(4)
@@ -625,10 +716,12 @@ try:
                 write_atomic(path, after[key], owner)
                 if path.read_bytes() != after[key]:
                     raise RuntimeError("配置文件回读失败：" + key)
-            command_attempted = True
-            reload_tables(numbers)
-            verified = runtime.snapshot(after_specs)
-            check_snapshot(verified, after_specs, "热重载回读校验失败")
+            verified, cache = {}, {}
+            if not save_only:
+                command_attempted = True
+                reload_tables(numbers)
+                verified = runtime.snapshot(after_specs)
+                check_snapshot(verified, after_specs, "热重载回读校验失败")
             # Missing originals were only temporary loading files; the new server package persists the price.
             for key in item_paths:
                 if originals[key] is None:
@@ -636,11 +729,12 @@ try:
             expected_hash = package["after_sha256"] if package else source_hash
             if expected_hash and sha256(package_path) != expected_hash:
                 raise RuntimeError("热重载期间服务端主包发生变化")
-            try:
-                cache = merchant_cache_effect(merchant_cache_snapshot(runtime),
-                                              request.get("merchant_changes", {}), bool(package))
-            except Exception as cache_error:
-                cache = {"state": "unverified", "error": str(cache_error)}
+            if not save_only:
+                try:
+                    cache = merchant_cache_effect(merchant_cache_snapshot(runtime),
+                                                  request.get("merchant_changes", {}), bool(package))
+                except Exception as cache_error:
+                    cache = {"state": "unverified", "error": str(cache_error)}
         except Exception as exc:
             recovery = []
             if package_changed:
@@ -667,7 +761,7 @@ try:
             message = str(exc)
             if recovery: message += "；恢复失败：" + "；".join(recovery)
             raise RuntimeError(message) from exc
-    print(json.dumps({"ok": True, "data": {"lines": [1, 9], "tables": numbers,
+    print(json.dumps({"ok": True, "data": {"lines": [] if save_only else [1, 9], "tables": [] if save_only else numbers,
         "rows": {str(spec["id"]): spec["rows"] for spec in after_specs}, "backups": backups,
         "purchase_price_initialized": bool(package),
         "merchant_cache": cache,

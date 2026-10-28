@@ -36,7 +36,8 @@ class BackpackShopTest(unittest.TestCase):
     def test_add_to_vip_group_with_exact_gold_price(self):
         original = fixture()
         changed, operation = prepare(original, action="add", item_id=102,
-                                     ranges=["VIP"], price="5", unit="金", base_price=100000)
+                                     ranges=["VIP"], price="5", unit="金", base_price=100000,
+                                     item_name="丙")
         self.assertEqual(operation["product_id"], 12)
         rows = catalog(changed, ITEMS)["rows"]
         added = next(row for row in rows if row["product_id"] == 12)
@@ -47,7 +48,8 @@ class BackpackShopTest(unittest.TestCase):
 
     def test_gold_brick_converts_to_100_gold(self):
         changed, _ = prepare(fixture(), action="add", item_id=102,
-                             ranges=["SVIP"], price="1", unit="砖", base_price=1_000_000)
+                             ranges=["SVIP"], price="1", unit="砖", base_price=1_000_000,
+                             item_name="丙")
         self.assertEqual(changed[PRODUCT_PATH].decode("gb18030").splitlines()[-1].split("\t")[23], "100")
         added = next(row for row in catalog(changed, {**ITEMS, 102: {"name": "丙", "price": "1000000"}})["rows"]
                      if row["product_id"] == 12)
@@ -66,12 +68,12 @@ class BackpackShopTest(unittest.TestCase):
     def test_reject_unrepresentable_price(self):
         with self.assertRaisesRegex(ValueError, "无法.*精确"):
             prepare(fixture(), action="add", item_id=102, ranges=["VIP"],
-                    price="1", unit="金", base_price=170000)
+                    price="1", unit="金", base_price=170000, item_name="丙")
 
     def test_reject_duplicate_in_selected_merchant(self):
         with self.assertRaisesRegex(ValueError, "已有该物品"):
             prepare(fixture(), action="add", item_id=100, ranges=["VIP"],
-                    price="1", unit="金", base_price=100000)
+                    price="1", unit="金", base_price=100000, item_name="甲")
 
     def test_currency_price_is_precise_to_copper(self):
         self.assertEqual(_price_copper("0.02", "金"), 200)
@@ -84,7 +86,7 @@ class BackpackShopTest(unittest.TestCase):
     def test_runtime_cache_requires_added_goods_and_removed_goods_to_match(self):
         before = fixture()
         after, change = prepare(before, action="add", item_id=102, ranges=["VIP"],
-                                price="5", unit="金", base_price=100000)
+                                price="5", unit="金", base_price=100000, item_name="丙")
         delta = _merchant_delta(before, after)
         scope = {}
         exec(_MERCHANT_CACHE_READER, scope)
@@ -101,6 +103,41 @@ class BackpackShopTest(unittest.TestCase):
 
 
 class BackpackPriceTransactionTest(unittest.TestCase):
+    def test_save_only_writes_files_without_touching_running_services(self):
+        with tempfile.TemporaryDirectory() as work:
+            root = Path(work).resolve()
+            base = root / "runtime"
+            (root / "state").mkdir()
+            (base / "mb").mkdir(parents=True)
+            (base / "mb.dpk").write_bytes(b"package")
+            before = fixture()
+            after = {name: data + b"changed" for name, data in before.items()}
+            for name, data in before.items():
+                path = base / "mb" / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(data)
+            digest = lambda data: hashlib.sha256(data).hexdigest()
+            specs = [{"id": number, "rows": 1, "checks": []} for number in (50, 95)]
+            request = {"before": {key: digest(data) for key, data in before.items()},
+                       "after": {key: base64.b64encode(data).decode() for key, data in after.items()},
+                       "before_specs": specs, "after_specs": specs,
+                       "source_sha256": digest(b"package"), "save_only": True}
+            def unexpected(*args, **kwargs):
+                raise AssertionError("save-only must not access running services")
+            def write_atomic(path, data, owner):
+                path.write_bytes(data)
+            namespace = {"BASE": base, "ROOT": root, "RuntimeInspector": unexpected,
+                         "NativeGMClient": unexpected, "write_atomic": write_atomic,
+                         "sha256": lambda path: digest(Path(path).read_bytes()),
+                         **{module.__name__: module for module in
+                            (os, secrets, shutil, sys, tempfile, time, base64, hashlib, json)}}
+            output = io.StringIO()
+            with patch.object(sys, "stdin", io.StringIO(json.dumps(request))), contextlib.redirect_stdout(output):
+                exec(_REMOTE_APPLY, namespace)
+            self.assertTrue(json.loads(output.getvalue())["ok"])
+            for name, data in after.items():
+                self.assertEqual((base / "mb" / name).read_bytes(), data)
+
     def run_transaction(self, fail_reload=False, existing_item_file=False):
         with tempfile.TemporaryDirectory() as work:
             root = Path(work).resolve()

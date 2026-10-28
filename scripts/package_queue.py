@@ -3,6 +3,11 @@
 from pathlib import Path
 import shutil
 
+from .backpack_client import apply as apply_client_shop, verify as verify_client_shop
+from .backpack_shop import (PriceNotRepresentable, _price_copper as backpack_price_copper,
+                            initialize_item_price, package_items as backpack_items,
+                            prepare as prepare_backpack,
+                            product_entries as backpack_product_entries)
 from .profession_skills import inspect_archive as inspect_profession, has_skill, patch_archive_batch
 from .ride_speed import configuration_rows, prepare_changes, patch_archive as patch_rides
 from .skill_limits import CAREER_GROUP, inspect_dpk_skills, patch_dpk_changes
@@ -12,7 +17,9 @@ from .weapon_drafts import search_traits, weapon_catalog
 from .repack import batch_repacking
 
 
-KINDS = {'weapon', 'profession-skills', 'skill-limits', 'summon', 'ride-speed'}
+KINDS = {'weapon', 'profession-skills', 'skill-limits', 'summon', 'ride-speed', 'backpack'}
+# 每项都作用于不同物品，允许在同一队列里重复出现。
+REPEATABLE_KINDS = {'weapon', 'backpack'}
 
 
 def validate_items(items):
@@ -25,13 +32,14 @@ def validate_items(items):
                 or item['id'] in ids or not isinstance(item.get('payload'), dict)):
             raise ValueError('修改队列项目格式无效或重复')
         ids.add(item['id'])
-        if item['kind'] != 'weapon' and item['kind'] in kinds:
+        if item['kind'] not in REPEATABLE_KINDS and item['kind'] in kinds:
             raise ValueError('同类配置只能在队列中出现一次')
         kinds.add(item['kind'])
 
 
 class PackageQueueBuilder:
-    def __init__(self, sources, directory, *, catalog_path, reference_client, provenance):
+    def __init__(self, sources, directory, *, catalog_path, reference_client, provenance,
+                 backpack=None):
         self.directory = Path(directory)
         self.packages = {label: self.directory / (label + '.dpk') for label in sources}
         for label, source in sources.items():
@@ -41,6 +49,14 @@ class PackageQueueBuilder:
         self.provenance = dict(provenance)
         self.summon_config = None
         self.results = []
+        # 背包商店只改散文件与客户端商品表，远端散文件按需读取一次。
+        self.backpack = backpack
+        self.backpack_before = None
+        self.backpack_files = None
+        self.backpack_changes = []
+        self.backpack_prices = {}
+        self.backpack_price_change = None
+        self._backpack_catalog = None
 
     def build(self, items):
         with batch_repacking():
@@ -197,3 +213,72 @@ class PackageQueueBuilder:
             if label != '动态包' and found != set(changes):
                 raise ValueError(f'{label}缺少骑宠 RideID：' + ', '.join(map(str, sorted(set(changes) - found))))
         return {}
+
+    def _backpack_state(self):
+        """Read the merchant scattered files once and then accumulate the edits."""
+        if self.backpack_files is None:
+            self.backpack_before = self.backpack['files']()
+            self.backpack_files = dict(self.backpack_before)
+        return self.backpack_files
+
+    def _backpack_items(self):
+        if self._backpack_catalog is None:
+            self._backpack_catalog = backpack_items(self.packages['主包'])
+        return self._backpack_catalog
+
+    def _patch_backpack(self, payload, outputs):
+        """Sell an existing item in the backpack shop without touching the server package.
+
+        The merchant tables are scattered runtime files, so they are only prepared here
+        and committed by the caller after the packages are published. The client package
+        still needs the product row and the item base price, otherwise the game cannot
+        resolve the price locally.
+        """
+        if self.backpack is None:
+            raise ValueError('未配置客户端包或商店读取通道，无法上架背包商品')
+        if payload.get('action', 'add') != 'add':
+            raise ValueError('修改队列只支持上架背包商品')
+        item_id = payload.get('item_id')
+        if isinstance(item_id, bool) or not isinstance(item_id, int) or item_id < 1:
+            raise ValueError('物品 ID 无效')
+        catalog = self._backpack_items()
+        item = catalog.get(item_id)
+        if item is None:
+            raise ValueError('物品 ID 不在服务端物品表中')
+        files = self._backpack_state()
+        raw_price = str(item.get('price') or '').strip()
+        base_price = int(raw_price) if raw_price.isdigit() else 0
+        price, unit = payload.get('price'), payload.get('unit')
+        options = dict(action='add', ranges=payload.get('ranges'), item_id=item_id,
+                       price=price, unit=unit, item_name=item['name'])
+        after = change = None
+        if base_price > 0:
+            try:
+                after, change = prepare_backpack(files, base_price=base_price, **options)
+            except PriceNotRepresentable:
+                pass
+        copper = 0
+        if after is None:
+            copper = backpack_price_copper(price, unit)
+            after, change = prepare_backpack(files, base_price=copper, **options)
+            report = initialize_item_price(self.packages['主包'], outputs['主包'], files,
+                                           item_id, price, unit, expected_base_price=base_price)
+            change['purchase_price_copper'] = report['copper']
+            change['previous_purchase_price_copper'] = base_price
+            self.backpack_price_change = report
+            self.backpack_prices[item_id] = copper
+            catalog[item_id] = {**item, 'price': str(copper)}
+        entries = backpack_product_entries(after, {change['product_id']}, catalog)
+        prices = {}
+        if entries and entries[0]['gold']:
+            effective = copper or base_price
+            if effective > 0:
+                prices[item_id] = effective
+        client = apply_client_shop(self.packages['客户端'], outputs['客户端'], entries, prices)
+        if client['changed']:
+            verify_client_shop(outputs['客户端'], client['added'], prices)
+        self.backpack_files = after
+        self.backpack_changes.append(change)
+        return {'product_id': change['product_id'], 'item_id': item_id, 'name': item['name'],
+                'merchants': change['merchants'],
+                'price': f'{price} {unit}' if price not in (None, '') else ''}

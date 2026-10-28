@@ -19,7 +19,7 @@ ITEM_PATHS = (
     'item/item_list2.txt',
     'item/item_list3.txt',
 )
-ITEM_CHECK_COLUMNS = (0, 1, 2, 4, 5, 7, 9, 11, 18, 19, 20, 21, 22, 23, 24,
+ITEM_CHECK_COLUMNS = (0, 1, 2, 4, 5, 7, 9, 11, 16, 18, 19, 20, 21, 22, 23, 24,
                       25, 26, 27, 28, 29)
 
 

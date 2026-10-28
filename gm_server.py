@@ -62,7 +62,11 @@ from scripts.backpack_shop import (PRODUCT_PATH as BACKPACK_PRODUCT_PATH,
                                    PriceNotRepresentable as BackpackPriceNotRepresentable,
                                    _price_copper as backpack_price_copper,
                                    prepare as prepare_backpack_edit,
+                                   product_entries as backpack_product_entries,
+                                   shop_product_ids as backpack_shop_product_ids,
                                    reload_remote as reload_backpack_remote)
+from scripts.backpack_client import (apply as apply_client_shop,
+                                     verify as verify_client_shop)
 from scripts.config_reload import run as run_config_reload
 from scripts.package_queue import PackageQueueBuilder, validate_items as validate_package_queue
 from scripts.weapon_drafts import weapon_catalog, search_traits
@@ -1387,11 +1391,48 @@ def delete_custom_item(body):
             return result
 
 
+def _backpack_client_ready():
+    return bool(str(CFG.get("client_mb_dpk") or "").strip())
+
+
+def _sync_backpack_client(files, product_ids, *, items=None, prices=None):
+    """Mirror products and base prices into the shared client package."""
+    entries = backpack_product_entries(files, set(product_ids), items)
+    if not entries:
+        raise ValueError("没有可同步的背包商品")
+    client = _ensure_client_work_package()
+    with _client_package_lock:
+        with tempfile.TemporaryDirectory(prefix="backpack-client-", dir=CACHE_DIR) as work:
+            output = Path(work) / "client-mb.dpk"
+            report = apply_client_shop(client, output, entries, prices or {})
+            if report["changed"]:
+                verify_client_shop(output, report["added"], prices or {})
+                _replace_client_work_package(output.read_bytes())
+    return {"updated": report["changed"], "products": len(entries),
+            "added": report["added"], "prices": report["prices"],
+            "missing_items": report["missing_items"],
+            "download": "/api/client-package/download" if report["changed"] else ""}
+
+
+def _sync_backpack_shop_client(files, items):
+    """Sync every product the five backpack merchants sell."""
+    product_ids = backpack_shop_product_ids(files)
+    entries = backpack_product_entries(files, set(product_ids), items)
+    prices = {}
+    for entry in entries:
+        price = str((items.get(entry["item_id"]) or {}).get("price") or "")
+        if entry["gold"] and price.isdigit() and int(price) > 0:
+            prices[entry["item_id"]] = int(price)
+    result = _sync_backpack_client(files, product_ids, items=items, prices=prices)
+    op_log("同步背包商店客户端商品", result)
+    return {"change": {"action": "sync"}, "name": "", "client": result}
+
+
 def edit_backpack_shop(body):
     if not isinstance(body, dict):
         raise ValueError("背包商店请求无效")
     action = body.get("action")
-    if action not in ("add", "delete"):
+    if action not in ("add", "delete", "sync"):
         raise ValueError("背包商店操作无效")
     revision = body.get("revision")
     if not isinstance(revision, dict) or set(revision) != {BACKPACK_PRODUCT_PATH, BACKPACK_MERCHANT_PATH, "server_mb"}:
@@ -1419,6 +1460,8 @@ def edit_backpack_shop(body):
         actual_revision["server_mb"] = source_hash
         if revision != actual_revision:
             raise ValueError("商店配置已变化，请刷新列表后重试")
+        if action == "sync":
+            return _sync_backpack_shop_client(before, items)
         with tempfile.TemporaryDirectory(prefix="backpack-price-", dir=CACHE_DIR) as work:
             patched = Path(work) / "server-main.dpk"
             price_change = None
@@ -1456,8 +1499,16 @@ def edit_backpack_shop(body):
                 change["previous_purchase_price_copper"] = base_price
             data = backpack_catalog(after, items)
             data["revision"]["server_mb"] = source_hash
+            client = None
+            if action == "add" and _backpack_client_ready():
+                try:
+                    client = _sync_backpack_client(
+                        after, {change["product_id"]}, items=items,
+                        prices={raw_item_id: price_change["copper"]} if price_change else {})
+                except Exception as error:
+                    client = {"updated": False, "error": str(error)}
             return {"change": change, "name": item["name"] if item else "",
-                    "reload": reloaded, "catalog": data}
+                    "reload": reloaded, "catalog": data, "client": client}
 
 
 def add_shop_item(item_id, price, count, category_id, subcategory_id):
@@ -2372,6 +2423,10 @@ def send_mail(char_id, title, body, sender, items, kind="system"):
 
 def set_point(account, mode, value):
     acct = resolve_account_name(account)
+    account_rows = sql(f"SELECT account_id FROM {DB_CHAR}.common_accounts WHERE name={qstr(acct)} LIMIT 1;")
+    if not account_rows:
+        raise ValueError("账号不存在：请核对账号名或 ID")
+    account_id = str(account_rows[0][0])
     t, cur, frozen = account_point(acct)
     if mode not in ("add", "sub", "set"):
         raise ValueError("未知点券操作")
@@ -2407,7 +2462,8 @@ def set_point(account, mode, value):
                f"WHERE account={qstr(acct)} LIMIT 1;")
     if not rows or qint(rows[0][0]) != new or qint(rows[0][1]) != frozen:
         raise RuntimeError("点券写入后校验失败：数据库中的数值未更新")
-    return {"table": table, "before": cur, "after": new,
+    return {"account_name": acct, "account_id": account_id,
+            "table": table, "before": cur, "after": new,
             "initialized": t is None}
 
 
@@ -2709,9 +2765,20 @@ def apply_package_queue(items):
         catalog = Path(RES_DIR) / "doc" / "召唤物列表.csv"
         if not catalog.is_file():
             catalog = Path(APP_DIR) / "doc" / "召唤物列表.csv"
+        backpack = None
+        if any(item["kind"] == "backpack" for item in items):
+            if not _backpack_client_ready():
+                raise ValueError("未配置客户端 mb.dpk，无法上架背包商品")
+
+            def _shop_files():
+                with _lock:
+                    return read_backpack_remote(ssh())
+
+            backpack = {"files": _shop_files}
         with tempfile.TemporaryDirectory(prefix="package-queue-", dir=CACHE_DIR) as directory:
             builder = PackageQueueBuilder({"客户端": client, **local}, directory,
-                catalog_path=catalog, reference_client=reference, provenance=provenance)
+                catalog_path=catalog, reference_client=reference, provenance=provenance,
+                backpack=backpack)
             outputs = builder.build(items)
             if _file_sha256(client) != client_hash:
                 raise ValueError("客户端工作包在队列生成期间发生变化，请重新应用")
@@ -2741,6 +2808,19 @@ def apply_package_queue(items):
             # final server packages once, then atomically rename the local files.
             backups = _publish_queue_packages(server_outputs, paths, signatures)
             warnings = []
+            backpack_result = None
+            if builder.backpack_changes:
+                # The merchant tables live outside the packages, so they are committed
+                # after the new server package is in place, in a single transaction.
+                try:
+                    with _lock:
+                        saved = reload_backpack_remote(
+                            ssh(), builder.backpack_before, builder.backpack_files,
+                            source_sha256=_file_sha256(outputs["主包"]), save_only=True)
+                    backpack_result = {"changes": builder.backpack_changes,
+                                       "prices": builder.backpack_prices, "saved": saved}
+                except Exception as error:
+                    warnings.append("服务器包已同步，但背包商店散文件未写入：" + str(error))
             try:
                 for target, output in local_updates.items():
                     os.replace(output, target)
@@ -2750,9 +2830,11 @@ def apply_package_queue(items):
                 warnings.append("服务器包已同步，但本地文件更新未完成：" + str(error) +
                                 "；剩余文件保存在 " + str(recovery))
             client_ready = _file_sha256(client) == final_client_hash
-        op_log("批量应用配置包", {"items": results, "backups": backups, "warnings": warnings})
+        op_log("批量应用配置包", {"items": results, "backups": backups, "warnings": warnings,
+                              "backpack": backpack_result}, "error" if warnings else "ok")
         return {"items": results, "backups": backups, "server_packages": list(server_outputs),
-                "client_package_ready": client_ready, "warnings": warnings}
+                "client_package_ready": client_ready, "warnings": warnings,
+                "backpack": backpack_result}
 
 
 def inspect_ride_speeds():
@@ -3105,6 +3187,17 @@ class Handler(BaseHTTPRequestHandler):
                 if not os.path.isfile(image):
                     image = os.path.join(APP_DIR, "logos", "icons", "wq", filename)
                 return self._file(image, "image/png")
+            if re.fullmatch(r"/logos/icons/money/money[0-3]\.png", p):
+                filename = p.rsplit("/", 1)[-1]
+                image = os.path.join(RES_DIR, "logos", "icons", "money", filename)
+                if not os.path.isfile(image):
+                    image = os.path.join(APP_DIR, "logos", "icons", "money", filename)
+                return self._file(image, "image/png")
+            if p == "/logos/icons/items/vip.png":
+                image = os.path.join(RES_DIR, "logos", "icons", "items", "vip.png")
+                if not os.path.isfile(image):
+                    image = os.path.join(APP_DIR, "logos", "icons", "items", "vip.png")
+                return self._file(image, "image/png")
             if p == "/api/summons/catalog":
                 catalog_path = Path(RES_DIR) / "doc" / "召唤物列表.csv"
                 if not catalog_path.is_file():
@@ -3412,8 +3505,9 @@ class Handler(BaseHTTPRequestHandler):
                     result = edit_backpack_shop(body)
                 except ValueError as error:
                     return self._json({"ok": False, "error": str(error)}, 400)
-                op_log("背包商店" + ("添加" if result["change"]["action"] == "add" else "删除"),
-                       {"change": result["change"], "reload": result["reload"]})
+                if result["change"]["action"] != "sync":
+                    op_log("背包商店" + ("添加" if result["change"]["action"] == "add" else "删除"),
+                           {"change": result["change"], "reload": result["reload"]})
                 return self._json({"ok": True, "data": result})
             if p == "/api/package-queue/apply":
                 return self._json({"ok": True, "data": apply_package_queue(body.get("items"))})
@@ -3423,10 +3517,33 @@ class Handler(BaseHTTPRequestHandler):
                     item_ids = body.get("item_ids", [])
                     if not isinstance(scopes, list) or not isinstance(item_ids, list):
                         raise ValueError("热重载项目清单无效")
-                    packages, _ = _ensure_server_mb_cache({
+                    if not scopes or any(scope not in {"definitions", "skill-learn", "all", "rides", "weapon", "shop", "backpack"} for scope in scopes):
+                        raise ValueError("请选择有效的热重载项目")
+                    packages, signatures = _ensure_server_mb_cache({
                         "主包": MB_DPK_FILE_PATH, "动态包": MB_DPK_DYNAMIC_FILE_PATH})
-                    with _lock:
-                        result = run_config_reload(ssh(), packages["主包"], scopes, item_ids=item_ids)
+                    other_scopes = [scope for scope in scopes if scope != "backpack"]
+                    result = {"tables": 0, "commands": {}}
+                    if other_scopes:
+                        with _lock:
+                            result = run_config_reload(ssh(), packages["主包"], other_scopes, item_ids=item_ids)
+                    if "backpack" in scopes:
+                        try:
+                            with _backpack_shop_lock, _lock:
+                                connection = ssh()
+                                files = read_backpack_remote(connection)
+                                if "weapon" not in other_scopes:
+                                    run_item_reload(connection, packages["主包"])
+                                reloaded = reload_backpack_remote(connection, files, files,
+                                    source_sha256=signatures["主包"][2], reload_saved=True)
+                                if reloaded.get("merchant_cache", {}).get("state") == "pending":
+                                    raise RuntimeError(reloaded["merchant_cache"].get("error") or "商人缓存刷新失败")
+                                verified = inspect_backpack_cache(connection, files)
+                                if verified["state"] != "matched":
+                                    raise RuntimeError("游戏内商人列表与已保存配置不一致")
+                            result["backpack"] = {"reload": reloaded, "verification": verified}
+                        except Exception as error:
+                            prefix = "其他所选项目已完成；" if other_scopes else ""
+                            raise RuntimeError(prefix + "背包商店热重载失败：" + str(error)) from error
                     op_log("配置热重载", {key: value for key, value in result.items() if key != "replies"})
                     return self._json({"ok": True, "data": result})
                 except Exception as error:

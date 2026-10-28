@@ -355,7 +355,7 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .profession-skill-editor .field>span{font-size:11px;font-weight:750;color:var(--ink)}
 .profession-skill-editor input{height:38px;background:#fbfdfc;font-variant-numeric:tabular-nums}
 .profession-skill-editor input:disabled{background:#f3f6f4;color:var(--ink-faint)}
-.profession-skill-stage{width:100%}
+.profession-skill-stage{height:38px}
 .profession-skill-pending{min-width:0}
 .profession-skill-pending .card-head{min-height:48px;padding:0 14px}
 .profession-skill-pending .card-body{padding:12px 14px 14px}
@@ -667,18 +667,27 @@ tbody tr.is-static:hover{background:transparent}
 .shop-status.is-success{color:var(--pine)}
 .shop-status.is-warning{color:#855a1c}
 .shop-grid{display:grid;grid-template-areas:"catalog add";grid-template-columns:minmax(0,1fr) minmax(290px,360px);gap:7px;align-items:start}
-.backpack-merchants{display:flex;flex-wrap:wrap;gap:6px}
-.backpack-merchants label{display:inline-flex;align-items:center;gap:6px;padding:7px 9px;border:1px solid var(--line-strong);border-radius:8px;background:#f8fbfa;font-size:11px;cursor:pointer}
-.backpack-merchants label:has(input:checked){border-color:var(--jade);background:#eef9f5;color:var(--pine)}
-.backpack-merchants input{accent-color:var(--jade)}
 .backpack-price-fields{display:grid;grid-template-columns:minmax(0,1fr) 96px;gap:8px;margin:12px 0 4px}
 .backpack-table-wrap{max-height:calc(100vh - 310px);min-height:260px}
 .backpack-product-name{font-weight:650}
 .backpack-product-meta{font-size:11px;color:var(--ink-faint)}
+.backpack-money-icon{width:16px;height:16px;object-fit:contain;vertical-align:middle;margin-left:3px}
 .backpack-range{display:flex;flex-wrap:wrap;gap:4px}
 .backpack-range span{padding:3px 6px;border-radius:6px;background:#eef4f1;color:var(--pine);font-size:10px;white-space:nowrap}
 .backpack-runtime{padding:0 0 8px;font-size:11px;line-height:1.5;color:var(--ink-soft)}
+.backpack-head-actions{display:flex;gap:6px}
 .backpack-runtime.is-warning{color:#855a1c}
+#item-panel-backpack .shop-grid{align-items:stretch}
+.backpack-add-column{display:flex;flex-direction:column;gap:7px}
+#item-panel-backpack .shop-catalog-card{display:flex;flex-direction:column}
+#item-panel-backpack .backpack-table-wrap{flex:1}
+.backpack-draft{overflow:hidden;display:flex;flex-direction:column;flex:1}
+.backpack-draft[hidden]{display:none}
+.backpack-draft .card-body{display:flex;flex-direction:column;flex:1;min-height:0}
+.backpack-draft-rows{height:210px;flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:var(--line-strong) transparent}
+.backpack-draft-row{grid-template-columns:minmax(0,1fr) 30px}
+.backpack-draft-row .meta{margin-top:4px;color:var(--ink-faint);font-size:11px}
+.backpack-draft-queue{margin-top:12px;height:38px}
 .shop-catalog-card{grid-area:catalog}
 .shop-add-card{grid-area:add}
 .shop-batch-tools{display:flex;align-items:center;gap:8px;min-width:0}
@@ -771,6 +780,7 @@ tbody tr.is-static:hover{background:transparent}
   .cols-main{grid-template-columns:minmax(0,1fr)}
   .shop-grid{grid-template-areas:"catalog" "add";grid-template-columns:minmax(0,1fr)}
   #item-panel-backpack .shop-grid{grid-template-areas:"add" "catalog"}
+  #item-panel-backpack .backpack-draft-rows{flex:none}
   .stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .config-form{grid-template-columns:minmax(0,1fr)}
 }
@@ -964,6 +974,8 @@ tbody tr.is-static:hover{background:transparent}
           <div class="segmented" id="acct-mode" role="group" aria-label="切换查看对象">
             <button type="button" class="is-active" data-am="account">账号</button>
             <button type="button" data-am="char">角色</button>
+            <button type="button" data-am="point">仙玉充值</button>
+            <button type="button" data-am="mail">发送邮件</button>
           </div>
         </div>
 
@@ -1040,6 +1052,73 @@ tbody tr.is-static:hover{background:transparent}
             </article>
           </div>
         </div>
+        <div id="acct-panel-point" class="is-hidden">
+        <div class="cols-2">
+          <article class="card">
+            <div class="card-head"><h3>充值操作</h3></div>
+            <div class="card-body">
+              <label class="field" for="pt-acct"><span>账号（账号名或账号 ID）</span>
+                <input id="pt-acct" type="text" placeholder="例如 1 或 test01" autocomplete="off">
+              </label>
+
+              <div class="field">
+                <span>操作类型</span>
+                <div class="segmented" id="pt-mode" role="group" aria-label="操作类型">
+                  <button type="button" class="is-active" data-mode="add">增加</button>
+                  <button type="button" data-mode="sub">扣除</button>
+                  <button type="button" data-mode="set">设为</button>
+                </div>
+              </div>
+
+              <label class="field" for="pt-val"><span>数量</span>
+                <input id="pt-val" type="number" value="10000" min="0">
+              </label>
+              <div class="chip-row" style="margin:-6px 0 14px">
+                <button class="chip" data-pt-quick="1000">+1,000</button>
+                <button class="chip" data-pt-quick="10000">+10,000</button>
+                <button class="chip" data-pt-quick="100000">+100,000</button>
+                <button class="chip" data-pt-quick="1000000">+1,000,000</button>
+              </div>
+
+              <button class="btn btn-primary btn-block" id="pt-submit" style="height:38px">执行充值</button>
+              <p class="hint-text">可输入账号名或账号 ID。若游戏客户端未刷新余额，重新登录后查看。</p>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card-head"><h3>执行结果</h3><span class="tag plain" id="pt-tag">待执行</span></div>
+            <div class="card-body" id="pt-result">
+              <div class="empty">
+                <i><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6.5" rx="7" ry="3"/><path d="M5 6.5v11c0 1.7 3.1 3 7 3s7-1.3 7-3v-11"/></svg></i>
+                <b>尚未执行</b>填写左侧表单后点击「执行充值」
+              </div>
+            </div>
+          </article>
+        </div>
+        </div>
+
+        <div id="acct-panel-mail" class="is-hidden">
+          <div class="cols-2">
+            <article class="card">
+              <div class="card-head"><h3>邮件内容</h3></div>
+              <div class="card-body">
+                <label class="field" for="ml-char"><span>收件角色（角色名或角色 ID）</span>
+                  <input id="ml-char" type="text" placeholder="例如 哪吒" autocomplete="off">
+                </label>
+                <label class="field" for="ml-sender"><span>发件人</span>
+                  <input id="ml-sender" type="text" value="系统">
+                </label>
+                <label class="field" for="ml-title"><span>标题</span>
+                  <input id="ml-title" type="text" value="GM 邮件">
+                </label>
+                <label class="field" for="ml-body"><span>正文</span>
+                  <textarea id="ml-body" rows="6" placeholder="邮件内容"></textarea>
+                </label>
+                <button class="btn btn-primary btn-block" id="ml-submit" style="height:38px">发送邮件</button>
+              </div>
+            </article>
+          </div>
+        </div>
       </section>
 
       <!-- ============ 发放物品 ============ -->
@@ -1047,12 +1126,10 @@ tbody tr.is-static:hover{background:transparent}
         <div class="view-actions">
           <div class="segmented" id="item-mode" role="group" aria-label="切换功能">
             <button type="button" class="is-active" data-im="item">发放物品</button>
-            <button type="button" data-im="weapon">装备新增</button>
-            <button type="button" data-im="custom">自定义道具</button>
             <button type="button" data-im="shop">商城上架</button>
             <button type="button" data-im="backpack">背包商店</button>
-            <button type="button" data-im="point">仙玉充值</button>
-            <button type="button" data-im="mail">发送邮件</button>
+            <button type="button" data-im="weapon">新建武器</button>
+            <button type="button" data-im="custom">道具管理</button>
           </div>
         </div>
 
@@ -1131,7 +1208,7 @@ tbody tr.is-static:hover{background:transparent}
         <div id="item-panel-custom" class="is-hidden">
           <article class="card">
             <div class="card-head">
-              <h3>自定义道具</h3>
+              <h3>道具管理</h3>
               <div class="toolbar"><span class="muted" id="custom-item-count">—</span><button type="button" class="btn btn-sm" id="custom-item-refresh">刷新</button><button type="button" class="btn btn-sm btn-danger" id="custom-item-delete" disabled>删除选中</button></div>
             </div>
             <div class="card-body">
@@ -1195,8 +1272,9 @@ tbody tr.is-static:hover{background:transparent}
 
         <div id="item-panel-backpack" class="is-hidden">
           <div class="shop-grid">
-            <article class="card shop-add-card">
-              <div class="card-head"><h3>添加背包商品</h3></div>
+            <div class="shop-add-card backpack-add-column">
+            <article class="card">
+              <div class="card-head"><h3>添加商品</h3></div>
               <div class="card-body">
                 <label class="field" for="backpack-item-q"><span>搜索已有物品</span>
                   <input id="backpack-item-q" type="search" placeholder="输入名称或物品 ID" autocomplete="off">
@@ -1204,19 +1282,25 @@ tbody tr.is-static:hover{background:transparent}
                 <div class="shop-suggestions is-hidden" id="backpack-suggestions"></div>
                 <div class="shop-selected" id="backpack-selected">请选择一个物品</div>
                 <input id="backpack-item-id" type="hidden">
-                <div class="field" style="margin-top:16px"><span>售卖范围</span>
-                  <div class="backpack-merchants" id="backpack-merchants"></div>
-                </div>
                 <div class="backpack-price-fields">
                   <label class="field" for="backpack-price"><span>出售价格</span><input id="backpack-price" type="number" min="0.0001" step="any" placeholder="输入金额"></label>
                   <label class="field" for="backpack-price-unit"><span>单位</span><select id="backpack-price-unit"><option value="金">金</option><option value="砖">砖</option></select></label>
                 </div>
-                <button type="button" class="btn btn-primary btn-block" id="backpack-add">添加并热重载</button>
+                <button type="button" class="btn btn-primary btn-block" id="backpack-add">加入清单</button>
                 <div class="shop-status" id="backpack-status" role="status" aria-live="polite"></div>
               </div>
             </article>
+                <article class="card backpack-draft" id="backpack-draft" hidden>
+                  <div class="card-head"><h3>待上架清单</h3></div>
+                  <div class="card-body">
+                    <div class="backpack-draft-rows" id="backpack-draft-rows"></div>
+                    <button type="button" class="btn btn-primary btn-block backpack-draft-queue" id="backpack-draft-queue">加入队列</button>
+                  </div>
+                </article>
+            </div>
             <article class="card shop-catalog-card">
-              <div class="card-head"><h3>已保存商品</h3><button type="button" class="btn btn-sm" id="backpack-refresh">刷新</button></div>
+              <div class="card-head"><h3>商店物品</h3><div class="backpack-head-actions">
+                <button type="button" class="btn btn-sm" id="backpack-refresh">刷新</button></div></div>
               <div class="card-body" style="padding-bottom:10px">
                 <div id="backpack-runtime" class="backpack-runtime" role="status"></div>
                 <div class="toolbar"><div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
@@ -1229,87 +1313,6 @@ tbody tr.is-static:hover{background:transparent}
           </div>
         </div>
 
-        <div id="item-panel-point" class="is-hidden">
-        <div class="cols-2">
-          <article class="card">
-            <div class="card-head"><h3>充值操作</h3></div>
-            <div class="card-body">
-              <label class="field" for="pt-acct"><span>账号（账号名或账号 ID）</span>
-                <input id="pt-acct" type="text" placeholder="例如 1 或 test01" autocomplete="off">
-              </label>
-
-              <div class="field">
-                <span>操作类型</span>
-                <div class="segmented" id="pt-mode" role="group" aria-label="操作类型">
-                  <button type="button" class="is-active" data-mode="add">增加</button>
-                  <button type="button" data-mode="sub">扣除</button>
-                  <button type="button" data-mode="set">设为</button>
-                </div>
-              </div>
-
-              <label class="field" for="pt-val"><span>数量</span>
-                <input id="pt-val" type="number" value="10000" min="0">
-              </label>
-              <div class="chip-row" style="margin:-6px 0 14px">
-                <button class="chip" data-pt-quick="1000">+1,000</button>
-                <button class="chip" data-pt-quick="10000">+10,000</button>
-                <button class="chip" data-pt-quick="100000">+100,000</button>
-                <button class="chip" data-pt-quick="1000000">+1,000,000</button>
-              </div>
-
-              <button class="btn btn-primary btn-block" id="pt-submit" style="height:38px">执行充值</button>
-              <p class="hint-text">可输入账号名或账号 ID。若游戏客户端未刷新余额，重新登录后查看。</p>
-            </div>
-          </article>
-
-          <article class="card">
-            <div class="card-head"><h3>执行结果</h3><span class="tag plain" id="pt-tag">待执行</span></div>
-            <div class="card-body" id="pt-result">
-              <div class="empty">
-                <i><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6.5" rx="7" ry="3"/><path d="M5 6.5v11c0 1.7 3.1 3 7 3s7-1.3 7-3v-11"/></svg></i>
-                <b>尚未执行</b>填写左侧表单后点击「执行充值」
-              </div>
-            </div>
-          </article>
-        </div>
-        </div>
-
-        <div id="item-panel-mail" class="is-hidden">
-          <div class="cols-2">
-            <article class="card">
-              <div class="card-head"><h3>邮件内容</h3></div>
-              <div class="card-body">
-                <label class="field" for="ml-char"><span>收件角色（角色名或角色 ID）</span>
-                  <input id="ml-char" type="text" placeholder="例如 哪吒" autocomplete="off">
-                </label>
-                <label class="field" for="ml-sender"><span>发件人</span>
-                  <input id="ml-sender" type="text" value="系统">
-                </label>
-                <label class="field" for="ml-title"><span>标题</span>
-                  <input id="ml-title" type="text" value="GM 邮件">
-                </label>
-                <label class="field" for="ml-body"><span>正文</span>
-                  <textarea id="ml-body" rows="6" placeholder="邮件内容"></textarea>
-                </label>
-              </div>
-            </article>
-
-            <article class="card">
-              <div class="card-head"><h3>附件与发送</h3><span class="tag plain" id="mail-cart-count">0 项</span></div>
-              <div class="card-body">
-                <div id="mail-cart"></div>
-                <label class="field" for="ml-kind"><span>邮件类型</span>
-                  <select id="ml-kind">
-                    <option value="system" selected>系统邮件 · 手动领取附件</option>
-                    <option value="player">玩家邮件 · 纯文本</option>
-                  </select>
-                </label>
-                <div class="hint-text" id="ml-kind-hint">附件会保留在邮件中，由角色手动领取。</div>
-                <button class="btn btn-primary btn-block" id="ml-submit" style="height:38px">发送邮件</button>
-              </div>
-            </article>
-          </div>
-        </div>
       </section>
 
       <!-- ============ 游戏配置 ============ -->
@@ -1468,10 +1471,10 @@ tbody tr.is-static:hover{background:transparent}
                       <label class="field" for="profession-skill-cooldown"><span>冷却时间（秒）</span><input id="profession-skill-cooldown" type="number" min="0" max="86400" disabled></label>
                       <label class="field" for="profession-skill-distance"><span>施放距离（步）</span><input id="profession-skill-distance" type="number" min="1" max="100000" disabled></label>
                     </div>
-                    <button class="btn profession-skill-stage" id="profession-skill-stage" type="button" disabled>加入待应用</button>
+                    <button class="btn btn-primary btn-block profession-skill-stage" id="profession-skill-stage" type="button" disabled>加入修改清单</button>
                   </section>
-                  <section class="card profession-skill-pending" aria-label="待应用修改">
-                    <div class="card-head"><div class="profession-skill-pending-title"><h3>待应用修改</h3><span class="tag plain" id="profession-skill-pending-count">0 项</span></div><button class="profession-skill-pending-clear" id="profession-skill-pending-clear" type="button" disabled>清空</button></div>
+                  <section class="card profession-skill-pending" aria-label="修改清单">
+                    <div class="card-head"><div class="profession-skill-pending-title"><h3>修改清单</h3><span class="tag plain" id="profession-skill-pending-count">0 项</span></div><button class="profession-skill-pending-clear" id="profession-skill-pending-clear" type="button" disabled>清空</button></div>
                     <div class="card-body">
                       <div class="profession-skill-pending-list" id="profession-skill-pending-list"><div class="cart-empty">清单为空，从左侧选择技能并加入</div></div>
                       <button class="btn btn-primary profession-skill-pending-apply" id="profession-skill-apply" type="button" disabled>加入修改队列</button>
@@ -1532,6 +1535,7 @@ tbody tr.is-static:hover{background:transparent}
                 <button class="reload-scope-tag" type="button" data-reload-scope="all" aria-pressed="false">召唤物<svg class="reload-scope-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4.5 4.5L19 7"/></svg></button>
                 <button class="reload-scope-tag" type="button" data-reload-scope="rides" aria-pressed="false">骑宠设置<svg class="reload-scope-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4.5 4.5L19 7"/></svg></button>
                 <button class="reload-scope-tag" type="button" data-reload-scope="shop" aria-pressed="false">商城<svg class="reload-scope-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4.5 4.5L19 7"/></svg></button>
+                <button class="reload-scope-tag" type="button" data-reload-scope="backpack" aria-pressed="false">背包商店<svg class="reload-scope-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4.5 4.5L19 7"/></svg></button>
                 <button class="reload-scope-tag" type="button" data-reload-scope="weapon" aria-pressed="false">新增武器<svg class="reload-scope-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4.5 4.5L19 7"/></svg></button>
               </div>
               <div class="toolbar" style="gap:9px;flex-wrap:wrap;margin-top:12px">
@@ -1711,45 +1715,46 @@ function toast(msg, isBad){
 const dpkQueue = [];
 let dpkQueueEditingId = null;
 let dpkQueueRunning = false;
+let dpkQueueSilent = false;
 function updateDpkQueueCount(){
   const count = $('#dpk-queue-count');
   count.textContent = String(dpkQueue.length);
   count.hidden = dpkQueue.length === 0;
 }
 function queueDpkChange(item){
-  if (dpkQueueRunning) return;
+  if (dpkQueueRunning) return false;
+  const notify = message => { if (!dpkQueueSilent) toast(message); };
   const entry = {...item, id:item.id || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random())};
   const family = String(item.key).split(':')[0];
   if (dpkQueueEditingId){
     const index = dpkQueue.findIndex(row => row.id === dpkQueueEditingId);
     if (index >= 0 && String(dpkQueue[index].key).split(':')[0] === family){
       if (dpkQueue[index].signature === item.signature){
-        dpkQueueEditingId = null; toast('相同修改已在队列中'); return;
+        dpkQueueEditingId = null; notify('相同修改已在队列中'); return false;
       }
       if (dpkQueue.some(row => row.id !== dpkQueueEditingId && row.signature === item.signature)){
-        dpkQueueEditingId = null; toast('相同修改已在队列中'); return;
+        dpkQueueEditingId = null; notify('相同修改已在队列中'); return false;
       }
       entry.id = dpkQueueEditingId; dpkQueue[index] = entry;
-      dpkQueueEditingId = null; toast('队列项目已更新');
-      updateDpkQueueCount(); return;
+      dpkQueueEditingId = null; notify('队列项目已更新');
+      updateDpkQueueCount(); return true;
     }else dpkQueueEditingId=null;
   }
-  if(family!=='weapon'){
+  if(family!=='weapon' && family!=='backpack'){
     const index=dpkQueue.findIndex(row=>String(row.key).split(':')[0]===family);
     if(index>=0){
-      if(dpkQueue[index].signature===item.signature){toast('相同修改已在队列中');return;}
-      entry.id=dpkQueue[index].id;dpkQueue[index]=entry;toast('已覆盖队列中的修改');
-      updateDpkQueueCount();return;
+      if(dpkQueue[index].signature===item.signature){notify('相同修改已在队列中');return false;}
+      entry.id=dpkQueue[index].id;dpkQueue[index]=entry;notify('已覆盖队列中的修改');
+      updateDpkQueueCount();return true;
     }
-  }else if(dpkQueue.some(row=>row.signature===item.signature)){
-    toast('相同修改已在队列中');return;
   }
   if(dpkQueue.some(row=>row.signature===item.signature)){
-    toast('相同修改已在队列中');return;
+    notify('相同修改已在队列中');return false;
   }
   dpkQueue.push(entry);
-  toast('已加入执行队列');
+  notify('已加入执行队列');
   updateDpkQueueCount();
+  return true;
 }
 function closeDpkQueue(){
   $('#modal-root').innerHTML = '';
@@ -1798,7 +1803,7 @@ $('#modal-root').addEventListener('click', async event => {
     applyButton.disabled = closeButton.disabled = true;
     $$('#modal-root [data-queue-edit], #modal-root [data-queue-delete]').forEach(button=>button.disabled=true);
     applyButton.innerHTML = '<span class="spinner" aria-hidden="true"></span> 正在应用';
-    let phase='正在合并 '+submitted.length+' 项修改并同步配置包', downloaded=false;
+    let phase='正在合并 '+submitted.length+' 项修改并同步配置包', downloaded=false, queueResult=null;
     const startedAt=performance.now();
     const updateProgress=()=>{
       const status=$('#dpk-queue-status');
@@ -1809,6 +1814,7 @@ $('#modal-root').addEventListener('click', async event => {
     try{
       const response=await postJSON('/api/package-queue/apply',{
         items:submitted.map(item=>({id:item.id,...item.operation}))});
+      queueResult=response.data;
       applied.push(...submitted);
       dpkQueue.splice(0,submitted.length);
       dpkQueueEditingId=null;
@@ -1845,8 +1851,13 @@ $('#modal-root').addEventListener('click', async event => {
     }
     const reloadScopes=[...new Set(applied.filter(item=>item.reloadable).map(item=>item.reloadScope).filter(Boolean))];
     const restart = applied.some(item => item.requiresRestart);
-    const reloadNames={definitions:'职业技能配置', 'skill-learn':'跨职业技能', summon:'召唤物', 'cross-career':'跨职业技能', all:'召唤物', rides:'骑宠设置', weapon:'新增武器'};
+    const reloadNames={definitions:'职业技能配置', 'skill-learn':'跨职业技能', summon:'召唤物', 'cross-career':'跨职业技能', all:'召唤物', rides:'骑宠设置', weapon:'新增武器', backpack:'背包商店'};
+    const shop=queueResult?.backpack;
+    const shopNote = !submitted.some(item=>item.operation.kind==='backpack') ? '' :
+      shop ? '<p>背包商店已保存 '+esc(String((shop.changes||[]).length))+' 件商品，热重载后生效。</p>'
+           : '<p class="is-bad">背包商店散文件未写入，商品不会在游戏内出现。</p>';
     const details = [downloaded ? '<p>最终客户端 <b>mb.dpk</b> 已下载。</p>' : '',
+      shopNote,
       !restart && reloadScopes.length ? '<p>本次可热重载：'+reloadScopes.map(scope=>esc(reloadNames[scope]||scope)).join('、')+'。请在“运维管理 → 服务控制”执行热重载。</p>' : '',
       restart ? '<p>本次还包含不能热重载的配置，需手动重启服务端后生效。</p>' : '',
       issues.length ? '<p class="is-bad">'+issues.map(esc).join('<br>')+'</p>' : '<p>队列修改已全部应用。</p>'].filter(Boolean).join('');
@@ -1860,7 +1871,7 @@ $('#modal-root').addEventListener('click', async event => {
     if(canGoControl&&goControl){
       setLogsMode('server',true);
       showView('logs');
-      if(canGoReload)setServerReloadScopes(reloadScopes);
+      if(reloadScopes.length)setServerReloadScopes(reloadScopes);
       requestAnimationFrame(()=>{
         const target=canGoRestart?$('#server-restart'):$('#server-skill-hot-reload');
         (canGoRestart?target.closest('.card'):$('#server-reload-scopes'))
@@ -1871,6 +1882,7 @@ $('#modal-root').addEventListener('click', async event => {
     if(applied.length){
       if(state.view==='skill-config')setSkillConfigMode(state.skillConfigMode);
       if(state.view==='pet-config'&&!state.rideSpeeds)loadRideSpeeds();
+      if(applied.some(item=>item.operation.kind==='backpack')&&state.itemMode==='backpack')loadBackpackShop();
     }
   }
 });
@@ -2051,7 +2063,8 @@ function readDefinitionFavorites(){
 const state = { view:'home', cart:[], scenes:null, acctId:null, charId:null, logs:[], logFilter:'all',
                 acctMode:'account', itemMode:'item', logsMode:'server', ratesLoaded:false,
                 customItems:null, customItemRevision:null, customItemLoading:false, customItemDeleting:false, customItemSelectedIds:new Set(),
-                backpackShop:null, backpackLoading:false, backpackSelectedRanges:null,
+                backpackShop:null, backpackLoading:false,
+                backpackSelectedName:'', backpackDraft:[],
                 weaponTemplate:null, weaponDraft:[], weaponProposedId:null, weaponTraitNames:new Map(), weaponIconModels:{}, weaponIconChoices:[], weaponReloadItemIds:[],
                 gameConfigMode:'rates', definitions:{base:null,dynamic:null}, fateLocks:null,
                 dungeonLimits:null, dungeonDraft:new Map(), dungeonTouched:new Set(), dungeonLoading:false, dungeonApplying:false, dungeonEmptyLabel:'',
@@ -2069,12 +2082,13 @@ const VIEWS = ['home','acct','item','rates','skill-config','pet-config','logs'];
 function syncHash(){
   let h = state.view;
   if (state.view === 'logs') h = state.logsMode === 'config' ? 'config' : state.logsMode === 'log' ? 'logs' : state.logsMode === 'whitelist' ? 'ip-whitelist' : 'ops';
-  if (state.view === 'item') h = state.itemMode === 'point' ? 'point' : state.itemMode === 'mail' ? 'mail' : state.itemMode === 'weapon' ? 'weapon' : state.itemMode === 'backpack' ? 'backpack' : state.itemMode === 'custom' ? 'custom' : 'item';
+  if (state.view === 'acct' && ['mail','point'].includes(state.acctMode)) h = state.acctMode;
+  if (state.view === 'item') h = state.itemMode === 'weapon' ? 'weapon' : state.itemMode === 'backpack' ? 'backpack' : state.itemMode === 'custom' ? 'custom' : 'item';
   if (location.hash.slice(1) !== h) history.replaceState(null, '', '#' + h);
 }
 
 function showView(v){
-  if (v === 'mail') { setItemMode('mail', true); v = 'item'; }
+  if (v === 'mail' || v === 'point') { setAcctMode(v, true); v = 'acct'; }
   if (VIEWS.indexOf(v) < 0) v = 'home';
   state.view = v;
   $$('.rail-item').forEach(b => b.classList.toggle('is-active', b.dataset.view === v));
@@ -2098,31 +2112,32 @@ function showView(v){
 
 /* 账号页：账号 / 角色 两个子视图 */
 function setAcctMode(mode, skipLoad){
-  state.acctMode = mode === 'char' ? 'char' : 'account';
+  state.acctMode = ['char','mail','point'].includes(mode) ? mode : 'account';
   $$('#acct-mode button').forEach(b => b.classList.toggle('is-active', b.dataset.am === state.acctMode));
   $('#acct-panel-account').classList.toggle('is-hidden', state.acctMode !== 'account');
   $('#acct-panel-char').classList.toggle('is-hidden', state.acctMode !== 'char');
+  $('#acct-panel-mail').classList.toggle('is-hidden', state.acctMode !== 'mail');
+  $('#acct-panel-point').classList.toggle('is-hidden', state.acctMode !== 'point');
   if (!skipLoad) ensureAcctList();
+  if (state.view === 'acct') syncHash();
 }
 function ensureAcctList(){
   if (state.acctMode === 'account'){
     if (!$('#acct-rows').children.length) searchAcct();
-  } else if (!$('#char-rows').children.length){
+  } else if (state.acctMode === 'char' && !$('#char-rows').children.length){
     searchChar();
   }
 }
 
-/* 发放物品页：发放物品 / 商城上架 / 仙玉充值 / 发送邮件 */
+/* 物品管理子视图 */
 function setItemMode(mode, skipLoad){
-  state.itemMode = ['shop','backpack','point','mail','weapon','custom'].includes(mode) ? mode : 'item';
+  state.itemMode = ['shop','backpack','weapon','custom'].includes(mode) ? mode : 'item';
   $$('#item-mode button').forEach(b => b.classList.toggle('is-active', b.dataset.im === state.itemMode));
   $('#item-panel-item').classList.toggle('is-hidden', state.itemMode !== 'item');
   $('#item-panel-weapon').classList.toggle('is-hidden', state.itemMode !== 'weapon');
   $('#item-panel-custom').classList.toggle('is-hidden', state.itemMode !== 'custom');
   $('#item-panel-shop').classList.toggle('is-hidden', state.itemMode !== 'shop');
   $('#item-panel-backpack').classList.toggle('is-hidden', state.itemMode !== 'backpack');
-  $('#item-panel-point').classList.toggle('is-hidden', state.itemMode !== 'point');
-  $('#item-panel-mail').classList.toggle('is-hidden', state.itemMode !== 'mail');
   if (!skipLoad){
     if (state.itemMode === 'item') ensureItemList();
     if (state.itemMode === 'weapon'){ loadWeaponTemplates(); searchWeaponTraits(); }
@@ -2477,7 +2492,7 @@ $('#weapon-trait-results').addEventListener('keydown', e => {
 $('#weapon-apply').addEventListener('click', async () => {
   if (!state.weaponTemplate || !state.weaponDraft.length){ toast('请先选择武器模板', true); return; }
   const templateId=state.weaponTemplate.id,fields=[...state.weaponDraft];
-  queueDpkChange({key:'weapon:'+templateId+':'+fields[1],signature:JSON.stringify({templateId,fields}),label:'装备新增：'+(fields[1]||'自定义武器'),summary:'重新校验并分配物品 ID',reloadable:true,reloadScope:'weapon',
+  queueDpkChange({key:'weapon:'+templateId+':'+fields[1],signature:JSON.stringify({templateId,fields}),label:'新建武器：'+(fields[1]||'自定义武器'),summary:'重新校验并分配物品 ID',reloadable:true,reloadScope:'weapon',
     operation:{kind:'weapon',payload:{template_id:templateId,fields}},
     jump:async()=>{showView('item');setItemMode('weapon');try{await restoreQueuedWeaponDraft(templateId,fields);setTimeout(()=>$('#weapon-editor')?.scrollIntoView({behavior:'smooth',block:'center'}),80);}catch(error){toast(error.message,true);}},
   });
@@ -2518,8 +2533,8 @@ $('#item-mode').addEventListener('click', e => {
 /* data-goto：进入合并页时回到默认子视图，兼容旧的 char / point 目标 */
 function goto(target){
   if (target === 'char'){ setAcctMode('char', true); showView('acct'); return; }
-  if (target === 'point'){ setItemMode('point', true); showView('item'); return; }
-  if (target === 'mail'){ setItemMode('mail', true); showView('item'); return; }
+  if (target === 'point'){ setAcctMode('point', true); showView('acct'); return; }
+  if (target === 'mail'){ setAcctMode('mail', true); showView('acct'); return; }
   if (target === 'custom'){ setItemMode('custom', true); showView('item'); return; }
   if (target === 'backpack'){ setItemMode('backpack', true); showView('item'); loadBackpackShop(); return; }
   if (target === 'acct'){ setAcctMode('account', true); showView('acct'); return; }
@@ -2540,7 +2555,8 @@ const rowMenu = $('#row-context-menu');
 let rowMenuTarget = null;
 const rowMenuIcons = {
   point: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v10m3-7.5c-.6-1-1.6-1.5-3-1.5-1.7 0-2.7.8-2.7 2s.9 1.8 2.7 2c1.8.2 2.7.8 2.7 2s-1 2-2.7 2c-1.4 0-2.5-.5-3.1-1.5"/></svg>',
-  item: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Z"/><path d="m4.5 7.8 7.5 4.3 7.5-4.3M12 12v8.5"/></svg>'
+  item: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Z"/><path d="m4.5 7.8 7.5 4.3 7.5-4.3M12 12v8.5"/></svg>',
+  mail: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/></svg>'
 };
 function hideRowMenu(){ rowMenu.hidden = true; rowMenuTarget = null; }
 function showRowMenu(e, kind, target){
@@ -2548,7 +2564,7 @@ function showRowMenu(e, kind, target){
   rowMenuTarget = target;
   const actions = kind === 'account'
     ? [['point','仙玉充值']]
-    : [['item','发放物品'],['point','仙玉充值']];
+    : [['item','发放物品'],['point','仙玉充值'],['mail','发送邮件']];
   rowMenu.innerHTML = actions.map(([action,label]) =>
     '<button type="button" role="menuitem" data-row-action="' + action + '">' +
       rowMenuIcons[action] + '<span>' + label + '</span></button>'
@@ -2574,10 +2590,15 @@ rowMenu.addEventListener('click', e => {
   hideRowMenu();
   if (action === 'point'){
     const accountId = target.accountId;
-    setItemMode('point', true);
     goto('point');
     $('#pt-acct').value = accountId || '';
     $('#pt-acct').focus();
+    return;
+  }
+  if (action === 'mail' && target.charId){
+    goto('mail');
+    $('#ml-char').value = target.charId;
+    $('#ml-char').focus();
     return;
   }
   if (action === 'item' && target.charId){
@@ -3028,7 +3049,7 @@ $('#pt-submit').addEventListener('click', async e => {
         $('#pt-tag').textContent = '已完成';
         $('#pt-tag').className = 'tag ok';
         $('#pt-result').innerHTML =
-          '<div class="muted">账号 ' + esc(account) + '</div>' +
+          '<div class="muted">账号 ' + esc(r.account_name) + ' (ID ' + esc(r.account_id) + ')</div>' +
           '<div class="result-big">' + fmt(r.after) + '</div>' +
           '<div class="delta ' + (delta >= 0 ? 'up' : 'down') + '">' +
             (delta >= 0 ? '▲' : '▼') + ' ' + fmt(Math.abs(delta)) + ' 点券' +
@@ -3276,16 +3297,11 @@ function renderBackpackRuntime(runtime){
     state === 'different' ? '' :
     state === 'unavailable' ? '无法读取游戏内商人列表，请确认服务端状态。' : '';
 }
-function renderBackpackMerchants(){
-  const data = state.backpackShop;
-  if (!data) return;
-  if (state.backpackSelectedRanges === null){
-    state.backpackSelectedRanges = new Set(data.ranges);
-  }
-  $('#backpack-merchants').innerHTML = data.ranges.map(name =>
-    '<label><input type="checkbox" value="' + esc(name) + '" ' +
-    (state.backpackSelectedRanges.has(name) ? 'checked' : '') + '><span>' + esc(name) + '</span></label>'
-  ).join('');
+function renderBackpackPrice(price){
+  const icons = {'铜':0, '银':1, '金':2, '砖':3};
+  return esc(price).replace(/(\d+(?:\.\d+)?)\s+(铜|银|金|砖)(?=$|\s|[；+])/g,
+    (_, amount, unit) => amount + '<img class="backpack-money-icon" src="/logos/icons/money/money' + icons[unit] + '.png" alt="' + unit + '" title="' + unit + '">')
+    .replace(/VIP凭证(?= × \d+)/g, '<img class="backpack-money-icon" src="/logos/icons/items/vip.png" alt="" title="VIP凭证"> VIP凭证');
 }
 function renderBackpackRows(){
   const data = state.backpackShop;
@@ -3298,7 +3314,7 @@ function renderBackpackRows(){
     '<tr><td><div class="backpack-product-name">' + esc(row.name) + '</div>' +
     '<div class="backpack-product-meta">物品 #' + esc(row.item_id) + '</div></td>' +
     '<td class="num">' + esc(row.product_id) + '</td>' +
-    '<td>' + esc(row.price) + '</td>' +
+    '<td>' + renderBackpackPrice(row.price) + '</td>' +
     '<td><div class="backpack-range">' + row.ranges.map(name => '<span>' + esc(name) + '</span>').join('') + '</div></td>' +
     '<td style="text-align:right"><button type="button" class="btn btn-sm btn-danger" data-backpack-delete="' + esc(row.product_id) + '">删除</button></td></tr>'
   ).join('') : emptyRow(5, query ? '没有匹配的商品' : '商店暂无商品', query ? '试试物品名称或 ID' : '添加已有物品');
@@ -3311,7 +3327,6 @@ async function loadBackpackShop(){
   try{
     const response = await api('/api/backpack-shop');
     state.backpackShop = response.data;
-    renderBackpackMerchants();
     renderBackpackRows();
     renderBackpackRuntime(response.data.runtime);
   }catch(error){
@@ -3337,37 +3352,86 @@ async function searchBackpackItems(query){
     box.classList.remove('is-hidden');
   }
 }
-async function addBackpackItem(){
+function backpackDraftSignature(item){
+  return JSON.stringify({item_id:item.item_id, ranges:[...item.ranges].sort(), price:item.price, unit:item.unit});
+}
+function renderBackpackDraft(){
+  const draft = state.backpackDraft;
+  const box = $('#backpack-draft');
+  box.hidden = draft.length === 0;
+  $('#backpack-draft-rows').innerHTML = draft.map(item =>
+    '<div class="cart-item backpack-draft-row"><div><div class="cart-title"><b>' + esc(item.name) + '</b><small>#' + esc(item.item_id) + '</small></div>' +
+    '<div class="meta">' + esc(item.price) + ' ' + esc(item.unit) + '</div></div>' +
+    '<button type="button" class="cart-remove" data-backpack-draft-remove="' + esc(item.item_id) + '" aria-label="移除 ' + esc(item.name) + '" title="移除物品"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg></button></div>'
+  ).join('');
+}
+function resetBackpackForm(){
+  $('#backpack-item-id').value = '';
+  $('#backpack-item-q').value = '';
+  $('#backpack-price').value = '';
+  $('#backpack-selected').textContent = '请选择一个物品';
+  $('#backpack-selected').classList.remove('is-set');
+  state.backpackSelectedName = '';
+}
+function addBackpackItem(){
   if (!state.backpackShop){ setBackpackStatus('请先刷新商店列表', 'error'); return; }
   const itemId = Number($('#backpack-item-id').value);
-  const ranges = [...state.backpackSelectedRanges];
+  const ranges = ['VIP', 'SVIP'];
   const price = $('#backpack-price').value.trim();
   const unit = $('#backpack-price-unit').value;
   if (!itemId){ setBackpackStatus('请先搜索并选择物品', 'error'); return; }
-  if (!ranges.length){ setBackpackStatus('请至少选择一个售卖范围', 'error'); return; }
   if (!price || !Number.isFinite(Number(price)) || Number(price) <= 0){ setBackpackStatus('请输入大于 0 的出售价格', 'error'); return; }
-  const button = $('#backpack-add');
-  busy(button, true, '正在保存…');
+  const name = state.backpackSelectedName || ('物品 #' + itemId);
+  const entry = {item_id:itemId, name, ranges, price, unit};
+  const index = state.backpackDraft.findIndex(row => row.item_id === itemId);
+  const replacing = index >= 0;
+  if (replacing) state.backpackDraft[index] = entry;
+  else state.backpackDraft.push(entry);
+  renderBackpackDraft();
+  resetBackpackForm();
+  setBackpackStatus('', '');
+}
+function removeBackpackDraft(itemId){
+  state.backpackDraft = state.backpackDraft.filter(row => row.item_id !== itemId);
+  renderBackpackDraft();
+}
+function editBackpackQueueItem(item){
+  state.backpackSelectedName = item.name;
+  showView('item');
+  setItemMode('backpack');
+  $('#backpack-item-id').value = String(item.item_id);
+  $('#backpack-item-q').value = item.name;
+  $('#backpack-selected').textContent = item.name + '  #' + item.item_id;
+  $('#backpack-selected').classList.add('is-set');
+  $('#backpack-price').value = item.price;
+  $('#backpack-price-unit').value = item.unit;
+  setBackpackStatus('正在编辑队列中的上架项：修改后点「加入清单」，再点「加入队列」替换队列中的这一项。');
+}
+function queueBackpackDraft(){
+  if (!state.backpackDraft.length){ setBackpackStatus('待上架清单为空', 'error'); return; }
+  if (dpkQueueRunning){ setBackpackStatus('执行队列正在运行，请稍后再试', 'error'); return; }
+  let added = 0;
+  dpkQueueSilent = true;
   try{
-    const response = await postJSON('/api/backpack-shop/edit', {
-      action:'add', item_id:itemId, ranges, price, unit, revision:state.backpackShop.revision
-    });
-    state.backpackShop = response.data.catalog;
-    renderBackpackRows();
-    $('#backpack-item-id').value = '';
-    $('#backpack-item-q').value = '';
-    $('#backpack-price').value = '';
-    $('#backpack-selected').textContent = '请选择一个物品';
-    $('#backpack-selected').classList.remove('is-set');
-    const cache = response.data.reload.merchant_cache?.state;
-    const name = response.data.name;
-    setBackpackStatus(cache === 'applied' || cache === 'unverified'
-      ? name + '已上架背包商店，热重载完成。'
-      : name + '上架未通过热重载验证：' + (response.data.reload.merchant_cache?.error || '请检查商品是否已在游戏内生效。'),
-      cache === 'applied' || cache === 'unverified' ? 'success' : 'warning');
-    await loadBackpackShop();
-  }catch(error){ setBackpackStatus(error.message, 'error'); }
-  finally{ busy(button, false); }
+    for (const item of state.backpackDraft){
+      const ok = queueDpkChange({
+        key:'backpack:' + item.item_id,
+        signature:backpackDraftSignature(item),
+        label:'背包上架：' + item.name,
+        summary:item.price + ' ' + item.unit,
+        reloadable:true, reloadScope:'backpack',
+        jump:() => editBackpackQueueItem(item),
+        operation:{kind:'backpack', payload:{action:'add', item_id:item.item_id,
+          ranges:item.ranges, price:item.price, unit:item.unit}}
+      });
+      if (ok) added += 1;
+    }
+  }finally{ dpkQueueSilent = false; }
+  state.backpackDraft = [];
+  renderBackpackDraft();
+  setBackpackStatus(added
+    ? '已把 ' + added + ' 项上架加入右上角执行队列。执行队列时才会写入服务端并生成 mb.dpk。'
+    : '清单中的上架项都已在执行队列中，无需重复加入。', added ? 'success' : 'warning');
 }
 async function deleteBackpackItem(productId){
   const row = state.backpackShop?.rows.find(item => item.product_id === productId);
@@ -3396,6 +3460,7 @@ $('#backpack-item-q').addEventListener('input', () => {
   $('#backpack-item-id').value = '';
   $('#backpack-selected').textContent = '请选择一个物品';
   $('#backpack-selected').classList.remove('is-set');
+  state.backpackSelectedName = '';
   clearTimeout(backpackSearchTimer);
   backpackSearchTimer = setTimeout(() => searchBackpackItems($('#backpack-item-q').value), 180);
 });
@@ -3406,17 +3471,16 @@ $('#backpack-suggestions').addEventListener('click', event => {
   $('#backpack-item-q').value = option.dataset.backpackName;
   $('#backpack-selected').textContent = option.dataset.backpackName + '  #' + option.dataset.backpackItem;
   $('#backpack-selected').classList.add('is-set');
+  state.backpackSelectedName = option.dataset.backpackName;
   $('#backpack-suggestions').classList.add('is-hidden');
   setBackpackStatus('');
 });
-$('#backpack-merchants').addEventListener('change', event => {
-  const box = event.target.closest('input[type=checkbox]');
-  if (!box) return;
-  const name = box.value;
-  if (box.checked) state.backpackSelectedRanges.add(name);
-  else state.backpackSelectedRanges.delete(name);
-});
 $('#backpack-add').addEventListener('click', addBackpackItem);
+$('#backpack-draft-queue').addEventListener('click', queueBackpackDraft);
+$('#backpack-draft-rows').addEventListener('click', event => {
+  const button = event.target.closest('[data-backpack-draft-remove]');
+  if (button) removeBackpackDraft(Number(button.dataset.backpackDraftRemove));
+});
 $('#backpack-refresh').addEventListener('click', loadBackpackShop);
 $('#backpack-filter').addEventListener('input', renderBackpackRows);
 $('#backpack-rows').addEventListener('click', event => {
@@ -3447,9 +3511,7 @@ function cartHTML(){
 
 function renderCart(){
   $('#cart').innerHTML = cartHTML();
-  $('#mail-cart').innerHTML = cartHTML();
   $('#cart-count').textContent = state.cart.length + ' 种';
-  $('#mail-cart-count').textContent = state.cart.length + ' 项';
   const badge = $('#cart-badge');
   badge.textContent = state.cart.length;
   badge.classList.toggle('is-hidden', state.cart.length === 0);
@@ -3520,49 +3582,29 @@ $('#it-mail-submit').addEventListener('click', async e => {
 /* ============================================================
    邮件
    ============================================================ */
-function updateMailKindHint(){
-  const kind = $('#ml-kind').value;
-  const hint = $('#ml-kind-hint');
-  hint.textContent = kind === 'player'
-    ? '纯文本邮件，不支持附件。'
-    : '附件会保留在邮件中，由角色手动领取。';
-}
-$('#ml-kind').addEventListener('change', updateMailKindHint);
-
 $('#ml-submit').addEventListener('click', async e => {
   const btn = e.currentTarget;
   busy(btn, true, '查询角色');
   try{
     const c = await resolveChar($('#ml-char').value);
-    const total = state.cart.reduce((s, x) => s + x.num, 0);
-    const kind = $('#ml-kind').value;
-    if (kind === 'player' && state.cart.length){
-      throw new Error('玩家邮件不能带附件，请清空清单或改选系统邮件');
-    }
     busy(btn, false);
-    const delivery = kind === 'player' ? '发送纯文本玩家邮件。'
-      : state.cart.length ? '附件将放入系统邮件，由角色手动领取。' : '发送系统邮件。';
     const ok = await confirmDialog({
       title:'确认发送邮件',
       html:'收件角色 <b>' + esc(c.name) + '</b>（ID ' + esc(c.char_id) + '）<br>' +
-           '标题「' + esc($('#ml-title').value || '无标题') + '」；' +
-           (state.cart.length ? '清单 <b>' + state.cart.length + ' 项 / ' + fmt(total) + ' 个</b>。' : '') +
-           delivery,
+           '标题「' + esc($('#ml-title').value || '无标题') + '」',
       okText:'确认发送', danger:false
     });
     if (!ok) return;
     busy(btn, true, '发送中');
-    const j = await postJSON('/api/mail_send', {
+    await postJSON('/api/mail_send', {
       char_id: c.char_id,
       title: $('#ml-title').value,
       body: $('#ml-body').value,
       sender: $('#ml-sender').value || '系统',
-      items: state.cart.map(x => ({ excel_id: x.excel_id, num: x.num })),
-      kind
+      items: [],
+      kind: 'player'
     });
-    toast('邮件已发送给「' + c.name + '」（' +
-      (j.data.kind === 'player' ? '玩家邮件' : '系统邮件附件待领取') +
-      '）');
+    toast('邮件已发送给「' + c.name + '」');
   } catch(err){
     toast(err.message, true);
   } finally {
@@ -3649,19 +3691,20 @@ async function confirmSkillHotReload(button, scopes, status=null){
     'all':'重载跨职业技能、职业技能和召唤物配置。正在运行的技能效果会被清理；替换客户端包并重新登录，召唤物修改后重新召唤。',
     'rides':'重载骑宠列表（表 85）和乘骑连接（表 84），应用服务端当前主包中的骑宠设置。两条线路会依次处理；已经骑乘的角色建议先下坐骑再重新骑乘。',
     'shop':'重新载入商城商品文件，并通过 reloadxyshopitem 刷新商城配置和在线商城数据。',
+    'backpack':'重载已保存的背包商店配置，刷新并核对两条线路的商人列表。',
     'weapon':'重载物品列表表 41（三个 item_list 文件），让新武器定义供服务端后续发放。失败时不回滚运行中的旧表，也不自动重启；如果状态异常，可由你决定是否手动重启。客户端仍需替换 mb.dpk 并重新登录。'
   };
-  const names={definitions:'职业技能配置','skill-learn':'跨职业技能',all:'召唤物',rides:'骑宠设置',shop:'商城',weapon:'新增武器'};
+  const names={definitions:'职业技能配置','skill-learn':'跨职业技能',all:'召唤物',rides:'骑宠设置',shop:'商城',backpack:'背包商店',weapon:'新增武器'};
   const hasWeapon=scopes.includes('weapon');
   const title=scopes.length===1&&scopes[0]==='rides'?'确认热重载骑宠设置':
     scopes.length===1&&scopes[0]==='shop'?'确认热重载商城':
+    scopes.length===1&&scopes[0]==='backpack'?'确认热重载背包商店':
     scopes.length===1&&hasWeapon?'确认热重载新增武器':
     scopes.length===1?'确认热重载技能':'确认热重载 '+scopes.length+' 项配置';
   const detail=[
     '<p>本次选择：'+scopes.map(scope=>esc(names[scope]||scope)).join('、')+'。</p>',
     scopes.map(scope=>'<p>'+notes[scope]+'</p>').join(''),
-    '<p>相同表会合并，每张表在每条线路只重载一次；若包含职业技能定义，只执行一次 reloadskill。</p>',
-    '<p>失败时清理本次临时散文件；不恢复运行中的旧表，也不自动重启服务端。</p>',
+    scopes.some(scope=>scope!=='backpack')?'<p>其他配置的相同表会合并；若包含职业技能定义，只执行一次 reloadskill。</p>':'',
     scopes.includes('rides')&&!hasWeapon?'<p>已有骑乘的角色建议先下坐骑，再重新骑乘。</p>':'',
     scopes.includes('weapon')?'<p>客户端包仍需替换游戏目录中的 mb.dpk 并重新登录。</p>':'',
     '<p class="server-action-timer" hidden>已用时 <span>00:00</span></p>'
@@ -3687,9 +3730,12 @@ async function confirmSkillHotReload(button, scopes, status=null){
         const response = await postJSON('/api/config/reload',
           {scopes,item_ids:hasWeapon?state.weaponReloadItemIds:[]});
         const commandCount=Object.values(response.data.commands||{}).reduce((count,commands)=>count+commands.length,0);
-        const message = scopes.length===1&&scopes[0]==='shop'
+        let message = scopes.length===1&&scopes[0]==='backpack'
+          ? '背包商店热重载完成，两条线路的商人列表已核对。'
+          : scopes.length===1&&scopes[0]==='shop'
           ? '商城热重载完成，普通线和交易线共执行 '+commandCount+' 条命令。'
           : '热重载完成，已校验两条线路的 '+response.data.tables+' 张配置表，共执行 '+commandCount+' 条线路命令。';
+        if (scopes.includes('backpack') && scopes.length > 1) message += ' 背包商店两条线路的商人列表已核对。';
         if (status){
           status.textContent = message;
           status.classList.add('is-success');
@@ -3824,7 +3870,7 @@ function renderProfessionSkillRows(){
     Number(cooldownValue) < 0 || Number(cooldownValue) > 86400 ||
     (selected?.has_range && (!distanceValue || !Number.isFinite(Number(distanceValue)) ||
     Number(distanceValue) < 1 || Number(distanceValue) > 100000));
-  $('#profession-skill-stage').textContent = pending ? '更新待应用项' : '加入待应用';
+  $('#profession-skill-stage').textContent = pending ? '更新修改清单项' : '加入修改清单';
   renderProfessionSkillPending();
 }
 async function loadProfessionSkills(){
@@ -3879,7 +3925,7 @@ $('#profession-skill-stage').addEventListener('click', event => {
     has_range:skill.has_range
   });
   renderProfessionSkillRows();
-  toast('已加入待应用列表');
+  toast('已加入修改清单');
 });
 $('#profession-skill-pending-list').addEventListener('click', event => {
   const button = event.target.closest('[data-remove-profession-pending]');
