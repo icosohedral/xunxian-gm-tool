@@ -77,11 +77,23 @@ def _shadow_combat_attributes(header: list[str], fields: list[str]) -> dict:
     return {key: fields[header.index(label)] for key, label in columns.items()}
 
 
-def load_friend_catalog(client_path: Path | None) -> list[dict]:
+def load_friend_catalog(client_path: Path | None, reference_path: Path | None = None) -> list[dict]:
     """Build the selectable仙友 list and their profession skills from mb.dpk."""
     skills_by_profession: dict[int, list[dict]] = {}
     cooldowns: dict[int, str] = {}
     friend_fights: dict[int, tuple[int, dict]] = {}
+    original_professions: dict[int, int] = {}
+    if reference_path is not None and reference_path.is_file():
+        with DpkReader(reference_path) as reader:
+            entries = {entry.path.lower(): entry for entry in reader.read_entries()}
+            if SKILL_LEARN in entries:
+                lines, _ = _decode(reader.extract(entries[SKILL_LEARN]), SKILL_LEARN)
+                for line in lines:
+                    fields = line.rstrip("\r\n").split("\t")
+                    if len(fields) >= 5 and fields[1].isdigit() and fields[4].isdigit():
+                        profession_id = int(fields[4])
+                        if 1 <= profession_id <= 10:
+                            original_professions[int(fields[1])] = profession_id
     if client_path is not None and client_path.is_file():
         with DpkReader(client_path) as reader:
             entries = {entry.path.lower(): entry for entry in reader.read_entries()}
@@ -116,6 +128,8 @@ def load_friend_catalog(client_path: Path | None) -> list[dict]:
                     if len(fields) < 5 or not fields[1].isdigit() or not fields[4].isdigit():
                         continue
                     profession_id, skill_id = int(fields[4]), int(fields[1])
+                    if profession_id == 0:
+                        profession_id = original_professions.get(skill_id, 0)
                     if 1 <= profession_id <= 10 and skill_id != SUMMON_SKILL_ID:
                         skills_by_profession.setdefault(profession_id, []).append(
                             {"id": skill_id, "name": fields[0],

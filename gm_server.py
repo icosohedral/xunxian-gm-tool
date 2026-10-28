@@ -31,7 +31,7 @@ from pathlib import Path
 import paramiko
 from scripts.skill_limits import (CAREER_GROUP, CAREER_GROUP_NAMES, inspect_client_dpk,
                                   inspect_dpk_career_groups, inspect_dpk_skills,
-                                  patch_dpk_changes, touch_client_session,
+                                  patch_global_skill_limits, touch_client_session,
                                   SESSIONS as _skill_limit_client_sessions,
                                   SESSION_LAST_USED as _skill_limit_session_last_used,
                                   SESSION_LOCK as _skill_limit_session_lock)
@@ -1432,7 +1432,7 @@ def edit_backpack_shop(body):
     if not isinstance(body, dict):
         raise ValueError("背包商店请求无效")
     action = body.get("action")
-    if action not in ("add", "delete", "sync"):
+    if action not in ("add", "delete", "delete-batch", "sync"):
         raise ValueError("背包商店操作无效")
     revision = body.get("revision")
     if not isinstance(revision, dict) or set(revision) != {BACKPACK_PRODUCT_PATH, BACKPACK_MERCHANT_PATH, "server_mb"}:
@@ -1462,6 +1462,27 @@ def edit_backpack_shop(body):
             raise ValueError("商店配置已变化，请刷新列表后重试")
         if action == "sync":
             return _sync_backpack_shop_client(before, items)
+        if action == "delete-batch":
+            ids = body.get("product_ids")
+            if (not isinstance(ids, list) or not ids or
+                    any(isinstance(value, bool) or not isinstance(value, int) or value < 1 for value in ids) or
+                    len(set(ids)) != len(ids)):
+                raise ValueError("所选商品清单无效")
+            rows = {row["product_id"]: row for row in backpack_catalog(before, items)["rows"]}
+            if any(product_id not in rows for product_id in ids):
+                raise ValueError("商品列表已变化，请刷新后重试")
+            after = before
+            changes = []
+            for product_id in ids:
+                after, change = prepare_backpack_edit(after, action="delete", product_id=product_id,
+                                                     merchant_ids=rows[product_id]["merchant_ids"])
+                changes.append(change)
+            with _lock:
+                reloaded = reload_backpack_remote(ssh(), before, after, source_sha256=source_hash)
+            data = backpack_catalog(after, items)
+            data["revision"]["server_mb"] = source_hash
+            return {"change": {"action": action, "product_ids": ids}, "changes": changes,
+                    "reload": reloaded, "catalog": data}
         with tempfile.TemporaryDirectory(prefix="backpack-price-", dir=CACHE_DIR) as work:
             patched = Path(work) / "server-main.dpk"
             price_change = None
@@ -2570,7 +2591,7 @@ def _apply_custom_weapon(template_id, fields, defer_download=False):
     if fields[9] not in {"", "1", "2", "3", "4"}:
         raise ValueError("职业限制值无效")
     for index, label in ((11, "等级"), (19, "伤害力"), (20, "防御力"),
-                         (21, "体魄"), (22, "力量"), (23, "筋骨"), (24, "元神")):
+                         (21, "体魄"), (22, "力量"), (23, "筋骨"), (24, "元神"), (53, "法术抗性")):
         if fields[index] and not fields[index].isdigit():
             raise ValueError(label + "必须是非负整数")
     if not fields[4].strip() or not fields[5].isdigit():
@@ -3214,7 +3235,7 @@ class Handler(BaseHTTPRequestHandler):
                     catcher_ids = CATCHER_ROLE_IDS
                     catchers = [item for item in catalog if item.get("role_id") in catcher_ids]
                     catalog = [item for item in catalog if item.get("role_id") not in catcher_ids]
-                    friends = load_friend_catalog(client_path)
+                    friends = load_friend_catalog(client_path, catalog_source)
                     saved = {}
                     if os.path.exists(SUMMON_CONFIG_PATH):
                         with open(SUMMON_CONFIG_PATH, "r", encoding="utf-8") as f:
@@ -3397,7 +3418,8 @@ class Handler(BaseHTTPRequestHandler):
                 ids_text = qs.get("ids", [""])[0]
                 ids = {int(value) for value in ids_text.split(",") if value.isdigit()} if ids_text else None
                 data = search_traits(_ensure_client_work_package(),
-                                     qs.get("q", [""])[0].strip(), ids=ids)
+                                     qs.get("q", [""])[0].strip(), ids=ids,
+                                     hide_empty_values=qs.get("hide_empty", [""])[0] == "1")
                 return self._json({"ok": True, "data": data})
             if p == "/api/items":
                 q = qs.get("q", [""])[0].strip()
@@ -3800,6 +3822,8 @@ class Handler(BaseHTTPRequestHandler):
                     server_skills[label] = {row["id"]: row for row in rows}
                     server_career_groups[label] = inspect_dpk_career_groups(Path(local))
                 client_skills = info["skills"]
+                _, reference_rows, _ = inspect_dpk_skills(configured_client_path)
+                reference_skills = {row["id"]: row for row in reference_rows}
                 shared_skills = []
                 for client_row in client_skills:
                     main_row = server_skills.get("主包", {}).get(client_row["id"])
@@ -3812,8 +3836,11 @@ class Handler(BaseHTTPRequestHandler):
                     all_groups.update(main_row.get("career_groups", []))
                     for groups_by_id in server_career_groups.values():
                         all_groups.update(groups_by_id.get(client_row["id"], []))
-                    original_profession = int(client_provenance.get(
-                        str(client_row["id"]), client_row["profession_id"]))
+                    reference_origin = reference_skills.get(client_row["id"], {}).get("profession_id")
+                    original_profession = int(client_provenance.get(str(client_row["id"]),
+                        reference_origin if reference_origin in CAREER_GROUP else client_row["profession_id"]))
+                    if original_profession not in CAREER_GROUP:
+                        continue
                     client_group = CAREER_GROUP.get(original_profession, (None,))[0]
                     server_rows = [main_row] + ([dynamic_row] if dynamic_row is not None else [])
                     server_owner_groups = {
@@ -3849,6 +3876,12 @@ class Handler(BaseHTTPRequestHandler):
                     client_row["source_professions"] = source_professions
                     client_row["career_groups"] = sorted(all_groups)
                     client_row["assigned_to"] = assigned_to
+                    owner_values = [client_row["profession_id"], main_row["profession_id"]]
+                    if dynamic_row is not None:
+                        owner_values.append(dynamic_row["profession_id"])
+                    client_row["unrestricted"] = all(owner == 0 for owner in owner_values)
+                    client_row["modified"] = any(owner != original_profession for owner in owner_values)
+                    client_row["legacy_assigned"] = client_row["modified"] and not client_row["unrestricted"]
                     client_row["dynamic_has_learn"] = dynamic_row is not None
                     shared_skills.append(client_row)
                 info["skills"] = shared_skills
@@ -3870,7 +3903,6 @@ class Handler(BaseHTTPRequestHandler):
                 if not touch_client_session(session_id):
                     raise ValueError("技能包会话已过期，请重新读取客户端 mb.dpk")
                 raw_changes = body.get("changes")
-                target_profession = qint(body.get("target_profession"))
                 with _skill_limit_server_sessions_lock:
                     server_session = _skill_limit_server_sessions.get(session_id)
                 if not server_session:
@@ -3879,8 +3911,6 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError("服务器包已变化，请重新读取技能配置")
                 if not isinstance(raw_changes, list) or not raw_changes:
                     raise ValueError("没有待应用的技能修改")
-                if target_profession not in CAREER_GROUP:
-                    raise ValueError("目标职业 ID 无效")
                 inspected_skills = server_session.get("skills", {})
                 changes = {}
                 source_professions = {}
@@ -3894,22 +3924,21 @@ class Handler(BaseHTTPRequestHandler):
                     if not skill:
                         raise ValueError(f"技能 {skill_id} 不属于本次读取的客户端与服务器主包共有技能")
                     source_ids = skill.get("source_professions", [])
-                    if target_profession in source_ids:
-                        raise ValueError(f"技能 {skill_id} 属于目标职业，不能作为跨职业技能添加")
-                    currently_assigned = target_profession in skill.get("assigned_to", [])
-                    if item["assigned"] == currently_assigned:
+                    if not source_ids or int(source_ids[0]) not in CAREER_GROUP:
+                        raise ValueError(f"技能 {skill_id} 缺少原职业信息")
+                    if (item["assigned"] and skill.get("unrestricted")) or (not item["assigned"] and not skill.get("modified")):
                         raise ValueError(f"技能 {skill_id} 没有状态变化")
                     changes[skill_id] = item["assigned"]
                     source_professions[skill_id] = int(source_ids[0])
                 client_path = _ensure_client_work_package()
-                result, filename = patch_dpk_changes(client_path, target_profession,
+                result, filename = patch_global_skill_limits(client_path,
                     changes, source_professions, Path(CACHE_DIR))
                 server_outputs = {}
                 for label, source_path in server_session["local_paths"].items():
                     allowed_missing = ({skill_id for skill_id in changes
                         if not inspected_skills[skill_id].get("dynamic_has_learn")}
                         if label == "动态包" else set())
-                    patched, _ = patch_dpk_changes(Path(source_path), target_profession,
+                    patched, _ = patch_global_skill_limits(Path(source_path),
                         changes, source_professions, Path(CACHE_DIR), allowed_missing)
                     output_path = os.path.join(CACHE_DIR, f"skill-limits-{session_id}-{label}-patched.dpk")
                     with open(output_path, "wb") as f:
@@ -3980,28 +4009,19 @@ class Handler(BaseHTTPRequestHandler):
                     else:
                         provenance.pop(server_session["provenance_key"], None)
                     _save_skill_limit_provenance(provenance)
-                target_group = CAREER_GROUP[target_profession][0]
                 for skill_id, assigned in changes.items():
                     skill = inspected_skills[skill_id]
-                    skill["assigned_to"] = [owner for owner in skill.get("assigned_to", [])
-                                            if owner != target_profession]
-                    skill["career_groups"] = [group for group in skill.get("career_groups", [])
-                                              if assigned or group != target_group or
-                                              group in skill.get("source_groups", [])]
-                    if assigned:
-                        skill["assigned_to"].append(target_profession)
-                        if target_group not in skill["career_groups"]:
-                            skill["career_groups"].append(target_group)
+                    skill["unrestricted"] = assigned
+                    skill["modified"] = assigned
+                    skill["legacy_assigned"] = False
                 with _skill_limit_server_sessions_lock:
                     server_session["local_paths"] = {
                         label: str(path) for label, path in SERVER_MB_CACHE_PATHS.items()}
                 for output_path in server_outputs.values():
                     Path(output_path).unlink(missing_ok=True)
                 if body.get("defer_download"):
-                    op_log("同步技能限制配置包", {"target_profession": body.get("target_profession"),
-                        "changes": raw_changes, "server_backups": backups})
-                    return self._json({"ok": True, "data": {"backups": backups,
-                        "target_profession": target_profession}})
+                    op_log("同步技能限制配置包", {"changes": raw_changes, "server_backups": backups})
+                    return self._json({"ok": True, "data": {"backups": backups}})
                 self.send_response(200)
                 self.send_header("Content-Type", "application/octet-stream")
                 self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
@@ -4013,7 +4033,6 @@ class Handler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(result)
                 op_log("同步技能限制配置包", {"filename": filename,
-                    "target_profession": body.get("target_profession"),
                     "changes": raw_changes, "bytes": len(result),
                     "server_backups": backups})
                 return
@@ -4030,7 +4049,7 @@ class Handler(BaseHTTPRequestHandler):
                 if summon_type not in {"monster", "catcher", "friend"}:
                     raise ValueError("召唤类型无效")
                 if summon_type == "friend":
-                    catalog += load_friend_catalog(client_path)
+                    catalog += load_friend_catalog(client_path, _configured_client_package_path())
                 config = {
                     "summon_type": summon_type,
                     "role_id": int(body.get("role_id")),

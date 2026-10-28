@@ -15,6 +15,15 @@ from scripts.ride_speed import prepare_changes
 
 
 class QueueBuilderTests(unittest.TestCase):
+    def test_weapon_magic_resistance_rejects_invalid_values(self):
+        fields = [''] * 55
+        fields[1], fields[2], fields[7], fields[18], fields[53] = '武器', '100', '10', '300', '-1'
+        builder = object.__new__(PackageQueueBuilder)
+        with self.assertRaisesRegex(ValueError, '非负整数'):
+            builder._patch_weapon({'fields': fields}, {})
+        with self.assertRaisesRegex(ValueError, '法术抗性必须是非负整数'):
+            server._apply_custom_weapon(1, fields)
+
     def test_later_item_reads_previous_changes_without_publishing_sources(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

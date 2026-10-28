@@ -1,6 +1,7 @@
 """Read weapon templates and prepare an in-memory draft; never write a DPK."""
 
 from pathlib import Path
+import re
 
 from .unpack import DpkReader
 
@@ -9,8 +10,8 @@ PROFESSIONS = {"1": "游侠", "2": "力士", "3": "符咒师", "4": "法师", ""
 ITEM_TRAIT = "item/item_trait.txt"
 
 
-def search_traits(path: Path, query: str = "", limit: int = 60,
-                  ids: set[int] | None = None) -> dict:
+def search_traits(path: Path, query: str = "", limit: int = 200,
+                  ids: set[int] | None = None, hide_empty_values: bool = False) -> dict:
     with DpkReader(path) as reader:
         entries = {entry.path.lower(): entry for entry in reader.read_entries()}
         entry = entries.get(ITEM_TRAIT)
@@ -25,6 +26,8 @@ def search_traits(path: Path, query: str = "", limit: int = 60,
             if ids is not None and trait_id not in ids:
                 continue
             if query and query.casefold() not in name.casefold() and query not in str(trait_id):
+                continue
+            if hide_empty_values and not re.match(r"^.*?\D[+−-]?\d+(?:\.\d+)?(?:%|点|秒|步|级)?$", name):
                 continue
             rows.append({"id": trait_id, "name": name})
         return {"rows": rows[:limit], "total": len(rows)}

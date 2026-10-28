@@ -102,14 +102,16 @@ body.has-modal{overflow:hidden}
 .view-actions{display:flex;align-items:center;justify-content:flex-start;gap:8px;margin-bottom:7px}
 .view-actions .muted{font-size:11px}
 .weapon-layout{display:grid;grid-template-columns:minmax(230px,.75fr) minmax(400px,1.25fr) minmax(260px,.85fr);gap:14px;align-items:start}
-.weapon-filter{display:flex;gap:8px;align-items:center}.weapon-filter select{width:145px;flex:none}.weapon-filter input{min-width:0;flex:1}
+.weapon-filter{display:flex;gap:8px;align-items:center}.weapon-filter select{width:108px;flex:none}.weapon-filter input{min-width:0;flex:1}
 .weapon-template-row{cursor:pointer}.weapon-template-row.is-active{background:var(--mint)}
 .weapon-editor-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 .weapon-editor-grid .field{margin:0}.weapon-editor-grid .field.wide{grid-column:span 2}
 .weapon-editor-grid .field.stat-start{grid-column:1}
-.weapon-trait-picker{margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:10px;background:#f8fbf9}
+.weapon-trait-picker{margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:10px;background:#f8fbf9;cursor:pointer}
+.weapon-trait-picker:focus-visible{outline:2px solid var(--jade);outline-offset:2px}
 .weapon-trait-picker h4{margin:0 0 11px;color:var(--pine);font-size:12px;font-weight:800;line-height:1.3;letter-spacing:.02em}
-.weapon-trait-search{width:100%}.weapon-trait-search input{width:100%}
+.weapon-trait-toolbar{display:flex;align-items:center;gap:8px}.weapon-trait-search{flex:1;min-width:0}.weapon-trait-search input{width:100%}
+.weapon-trait-hide-empty{flex:none;white-space:nowrap}.weapon-trait-hide-empty[aria-pressed="true"]{border-color:var(--jade);background:var(--mint);color:var(--pine)}
 .weapon-trait-row{cursor:pointer}.weapon-trait-row td:last-child{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--pine);font-weight:700}.weapon-trait-row:focus-visible{outline:2px solid var(--jade);outline-offset:-2px}
 .weapon-trait-label{min-width:0;flex:0 1 auto;overflow-wrap:anywhere}.weapon-trait-number{margin-left:8px;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--pine);font-weight:700}
 .weapon-trait-list{display:flex;flex-wrap:wrap;align-content:flex-start;gap:5px}
@@ -119,13 +121,11 @@ body.has-modal{overflow:hidden}
 .weapon-icon-trigger{display:grid;place-items:center;width:100%;height:34px;padding:2px;border:1px solid var(--line);border-radius:9px;background:#f8fbfa;color:var(--ink-soft);font-size:10px;cursor:pointer}
 .weapon-icon-trigger:hover,.weapon-icon-trigger:focus-visible{border-color:var(--jade);background:var(--mint);outline:none}
 .weapon-icon-trigger img{width:28px;height:28px;object-fit:contain;image-rendering:pixelated}
-.weapon-icon-name{display:flex;align-items:center;height:34px;padding:0 11px;border:1px solid var(--line);border-radius:9px;background:#f8fbfa;color:var(--ink);font-size:12px}
-.weapon-icon-picker{width:min(650px,100%)}.weapon-icon-picker .modal-head{justify-content:space-between}.weapon-icon-picker .modal-body{padding-top:14px}
-.weapon-icon-picker input{margin-bottom:12px}.weapon-icon-options{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));gap:8px;max-height:min(58vh,490px);overflow:auto;padding:2px}
+.weapon-icon-options{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));align-content:start;gap:8px;padding:12px;overflow:auto}
 .weapon-icon-option{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0;padding:9px 5px;border:1px solid var(--line);border-radius:9px;background:#f8fbfa;color:var(--ink);font-size:11px;cursor:pointer}
 .weapon-icon-option img{width:44px;height:44px;object-fit:contain;image-rendering:pixelated}.weapon-icon-option:hover,.weapon-icon-option:focus-visible{border-color:var(--jade);background:var(--mint);outline:none}.weapon-icon-option.is-selected{border-color:var(--jade);background:var(--mint);color:var(--pine);font-weight:750}
-@media(max-width:1180px){.weapon-layout{grid-template-columns:minmax(260px,.8fr) minmax(0,1.2fr)}.weapon-trait-panel{grid-column:2}}
-@media(max-width:900px){.weapon-layout{grid-template-columns:1fr}.weapon-trait-panel{grid-column:auto}}@media(max-width:560px){.weapon-editor-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:1180px){.weapon-layout{grid-template-columns:minmax(260px,.8fr) minmax(0,1.2fr)}.weapon-trait-panel,.weapon-icon-panel{grid-column:2}}
+@media(max-width:900px){.weapon-layout{grid-template-columns:1fr}.weapon-trait-panel,.weapon-icon-panel{grid-column:auto}}@media(max-width:560px){.weapon-editor-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 /* ============================================================
    5. 卡片
@@ -188,6 +188,7 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .toolbar .search{width:250px}
 .toolbar input,.toolbar select{min-width:0}
+.item-list-search{padding:12px 16px;border-bottom:1px solid var(--line)}
 .muted{color:var(--ink-faint);font-size:11px}
 .hint-text{margin:10px 0 0;color:var(--ink-faint);font-size:11px;line-height:1.7}
 .hint-text b{color:var(--ink-soft);font-weight:750}
@@ -322,7 +323,7 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .definition-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 .skill-limits-loading{display:inline-flex;align-items:center;gap:7px;color:var(--ink-soft);font-size:11px;font-weight:650}
 .skill-limits-loading[hidden]{display:none}
-.skill-limits-toolbar{display:grid;grid-template-columns:minmax(155px,210px) minmax(190px,1fr) auto;align-items:end;gap:9px;margin:14px 0 8px}
+.skill-limits-toolbar{display:grid;grid-template-columns:minmax(190px,1fr) auto;align-items:end;gap:9px;margin:14px 0 8px}
 .skill-limits-toolbar .field{min-width:0;margin:0}
 .skill-limits-toolbar input[type=search]{min-width:0;height:34px}
 .skill-limits-profession-filter{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:2px 0 8px}
@@ -377,8 +378,9 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .skill-limits-hint{color:var(--ink-faint);font-size:12px;margin:8px 0}
 .skill-limits-check{width:16px;height:16px;accent-color:var(--jade)}
 .skill-limits-actions{white-space:nowrap}
-.summon-config-toolbar{display:grid;grid-template-columns:minmax(130px,.7fr) minmax(210px,1.4fr) minmax(180px,1fr);align-items:end;gap:10px;margin:6px 0 14px}
+.summon-config-toolbar{display:grid;grid-template-columns:minmax(130px,.7fr) minmax(210px,1.4fr) minmax(180px,1fr) auto;align-items:end;gap:10px;margin:6px 0 14px}
 .summon-config-toolbar .field{min-width:0;margin:0}
+.summon-config-toolbar #summon-apply{justify-self:end}
 .summon-creature-search input{height:34px}
 .summon-selection-summary{margin:0 0 12px;font-size:11px}
 .summon-skills-layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(230px,.85fr) minmax(210px,.75fr);align-items:stretch;gap:12px}
@@ -408,10 +410,8 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .summon-order-name{min-width:0;overflow-wrap:anywhere;font-size:12px;font-weight:650}
 .summon-order-cooldown{color:var(--ink-soft);font-size:11px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .summon-order-empty{padding:7px 2px;color:var(--ink-faint);font-size:11px}
-.summon-config-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px}
-.summon-config-footer .muted{font-size:11px}
-@media(max-width:760px){.summon-config-toolbar{grid-template-columns:minmax(130px,.7fr) minmax(210px,1.4fr)}.summon-creature-search{grid-column:1/-1}}
-@media(max-width:460px){.summon-config-toolbar{grid-template-columns:1fr}.summon-creature-search{grid-column:auto}}
+@media(max-width:760px){.summon-config-toolbar{grid-template-columns:minmax(130px,.7fr) minmax(210px,1.4fr)}.summon-config-toolbar .field:nth-child(2){grid-column:2}.summon-creature-search{grid-column:1}}
+@media(max-width:460px){.summon-config-toolbar{grid-template-columns:minmax(0,1fr) auto}.summon-config-toolbar .field:nth-child(1),.summon-config-toolbar .field:nth-child(2){grid-column:1/-1}}
 @media(max-width:900px){.summon-skills-layout{grid-template-columns:minmax(0,1.4fr) minmax(220px,.8fr)}.summon-order-section{grid-column:1/-1}.summon-attributes-section{height:auto;min-height:0;max-height:300px}}
 @media(max-width:760px){.summon-skills-layout{grid-template-columns:minmax(0,1fr)}.summon-skills-layout .definition-table-wrap{height:min(48vh,380px);min-height:240px}.summon-order-section{grid-column:auto}.summon-attributes-section{grid-column:auto}}
 @media(max-width:420px){.definition-table.summon-skill-table th:first-child,.definition-table.summon-skill-table td:first-child{width:38px}.definition-table.summon-skill-table th:nth-child(2),.definition-table.summon-skill-table td:nth-child(2){width:66px}.definition-table.summon-skill-table th:last-child,.definition-table.summon-skill-table td:last-child{width:112px}.definition-table.summon-skill-table th,.definition-table.summon-skill-table td{padding-left:6px;padding-right:6px}.summon-skill-cd{padding-left:5px;padding-right:5px}}
@@ -675,7 +675,8 @@ tbody tr.is-static:hover{background:transparent}
 .backpack-range{display:flex;flex-wrap:wrap;gap:4px}
 .backpack-range span{padding:3px 6px;border-radius:6px;background:#eef4f1;color:var(--pine);font-size:10px;white-space:nowrap}
 .backpack-runtime{padding:0 0 8px;font-size:11px;line-height:1.5;color:var(--ink-soft)}
-.backpack-head-actions{display:flex;gap:6px}
+.backpack-runtime:empty{display:none}
+.backpack-head-actions{display:flex;align-items:center;gap:6px}
 .backpack-runtime.is-warning{color:#855a1c}
 #item-panel-backpack .shop-grid{align-items:stretch}
 .backpack-add-column{display:flex;flex-direction:column;gap:7px}
@@ -1081,7 +1082,6 @@ tbody tr.is-static:hover{background:transparent}
               </div>
 
               <button class="btn btn-primary btn-block" id="pt-submit" style="height:38px">执行充值</button>
-              <p class="hint-text">可输入账号名或账号 ID。若游戏客户端未刷新余额，重新登录后查看。</p>
             </div>
           </article>
 
@@ -1137,7 +1137,7 @@ tbody tr.is-static:hover{background:transparent}
         <div class="cols-main">
           <article class="card">
             <div class="card-head"><h3><span class="step">01</span>选择物品</h3><span class="muted" id="item-count">—</span></div>
-            <div class="card-body" style="padding:12px 16px;border-bottom:1px solid var(--line)">
+            <div class="card-body item-list-search">
               <div class="toolbar">
                 <div class="search">
                   <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
@@ -1173,10 +1173,10 @@ tbody tr.is-static:hover{background:transparent}
         <div id="item-panel-weapon" class="is-hidden">
           <div class="weapon-layout" id="weapon-layout">
             <article class="card">
-              <div class="card-head"><h3>选择武器模板</h3><span class="muted" id="weapon-count">—</span></div>
-              <div class="card-body"><div class="weapon-filter">
-                <select id="weapon-profession" aria-label="按职业筛选武器"><option value="all">全部职业</option><option value="1">游侠</option><option value="2">力士</option><option value="3">符咒师</option><option value="4">法师</option><option value="">未限制</option></select>
+              <div class="card-head"><h3>武器模板</h3><span class="muted" id="weapon-count">—</span></div>
+              <div class="card-body item-list-search"><div class="weapon-filter">
                 <input id="weapon-search" type="search" placeholder="搜索武器名称或 ID" autocomplete="off" aria-label="搜索武器名称或 ID">
+                <select id="weapon-profession" aria-label="按职业筛选武器"><option value="all">全部职业</option><option value="1">游侠</option><option value="2">力士</option><option value="3">符咒师</option><option value="4">法师</option><option value="">未限制</option></select>
               </div></div>
               <div class="table-wrap tall"><table><thead><tr><th>武器</th><th>ID</th><th>等级</th></tr></thead><tbody id="weapon-rows"><tr class="is-static"><td colspan="3">切换标签后读取</td></tr></tbody></table></div>
             </article>
@@ -1186,7 +1186,7 @@ tbody tr.is-static:hover{background:transparent}
                 <div id="weapon-editor-empty" class="muted">从左侧选择一把武器，载入完整记录。</div>
                 <div id="weapon-editor" class="is-hidden">
                   <div class="weapon-editor-grid" id="weapon-fields"></div>
-                  <section class="weapon-trait-picker" aria-label="已选属性词条">
+                  <section class="weapon-trait-picker" id="weapon-trait-picker" tabindex="0" aria-label="已选属性词条，点击打开词条列表" aria-controls="weapon-trait-panel">
                     <h4>属性词条</h4>
                     <div class="weapon-trait-list" id="weapon-trait-list"></div>
                   </section>
@@ -1195,12 +1195,17 @@ tbody tr.is-static:hover{background:transparent}
                 <div class="definition-status" id="weapon-status" role="status" aria-live="polite"></div>
               </div>
             </article>
-            <article class="card weapon-trait-panel" id="weapon-trait-panel">
+            <article class="card weapon-trait-panel is-hidden" id="weapon-trait-panel">
               <div class="card-head"><h3>属性词条</h3><span class="muted" id="weapon-trait-count">—</span></div>
               <div class="card-body" style="padding:12px 16px;border-bottom:1px solid var(--line)">
-                <div class="search weapon-trait-search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><input id="weapon-trait-query" type="search" placeholder="搜索词条名称或 ID" aria-label="搜索词条名称或 ID" autocomplete="off"></div>
+                <div class="weapon-trait-toolbar"><div class="search weapon-trait-search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><input id="weapon-trait-query" type="search" placeholder="搜索词条名称或 ID" aria-label="搜索词条名称或 ID" autocomplete="off"></div><button type="button" class="btn btn-sm weapon-trait-hide-empty" id="weapon-trait-hide-empty" aria-pressed="false">隐藏空数值</button></div>
               </div>
               <div class="table-wrap tall"><table><thead><tr><th>属性词条</th><th style="text-align:right">数值</th></tr></thead><tbody id="weapon-trait-results"><tr class="is-static"><td colspan="2">读取中…</td></tr></tbody></table></div>
+            </article>
+            <article class="card weapon-icon-panel is-hidden" id="weapon-icon-panel">
+              <div class="card-head"><h3>选择武器模型</h3><span class="muted" id="weapon-icon-count">—</span></div>
+              <div class="card-body item-list-search"><div class="search weapon-trait-search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><input id="weapon-icon-query" type="search" placeholder="搜索图片名称或模型 ID" autocomplete="off" aria-label="搜索道具图片"></div></div>
+              <div class="table-wrap tall weapon-icon-options" id="weapon-icon-options"></div>
             </article>
           </div>
         </div>
@@ -1209,7 +1214,7 @@ tbody tr.is-static:hover{background:transparent}
           <article class="card">
             <div class="card-head">
               <h3>道具管理</h3>
-              <div class="toolbar"><span class="muted" id="custom-item-count">—</span><button type="button" class="btn btn-sm" id="custom-item-refresh">刷新</button><button type="button" class="btn btn-sm btn-danger" id="custom-item-delete" disabled>删除选中</button></div>
+              <div class="toolbar"><span class="muted" id="custom-item-count">—</span><button type="button" class="btn btn-sm btn-danger" id="custom-item-delete" disabled>删除选中</button></div>
             </div>
             <div class="card-body">
               <div id="custom-item-status" class="shop-status" role="status" aria-live="polite"></div>
@@ -1246,15 +1251,14 @@ tbody tr.is-static:hover{background:transparent}
             <article class="card shop-catalog-card">
               <div class="card-head">
                 <h3><span class="step">02</span>商城商品</h3>
-                <button class="btn btn-sm" id="shop-refresh">刷新</button>
+                <span class="muted" id="shop-total-count">—</span>
               </div>
-              <div class="card-body" style="padding-bottom:10px">
+              <div class="card-body item-list-search">
                 <div class="toolbar">
                   <div class="search">
                     <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
                     <input id="shop-filter" type="search" placeholder="筛选名称或物品 ID">
                   </div>
-                  <span class="muted" id="shop-total-count">—</span>
                 </div>
               </div>
               <div class="table-wrap" style="max-height:calc(100vh - 310px);min-height:260px">
@@ -1299,15 +1303,15 @@ tbody tr.is-static:hover{background:transparent}
                 </article>
             </div>
             <article class="card shop-catalog-card">
-              <div class="card-head"><h3>商店物品</h3><div class="backpack-head-actions">
-                <button type="button" class="btn btn-sm" id="backpack-refresh">刷新</button></div></div>
-              <div class="card-body" style="padding-bottom:10px">
+              <div class="card-head"><h3>商店物品</h3><div class="backpack-head-actions"><span class="muted" id="backpack-count">—</span>
+                <button type="button" class="btn btn-sm btn-danger" id="backpack-batch-delete" disabled>批量删除</button></div></div>
+              <div class="card-body item-list-search">
                 <div id="backpack-runtime" class="backpack-runtime" role="status"></div>
                 <div class="toolbar"><div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
                   <input id="backpack-filter" type="search" placeholder="筛选物品名称或 ID" aria-label="筛选背包商品"></div>
-                  <span class="muted" id="backpack-count">—</span></div>
+                </div>
               </div>
-              <div class="table-wrap backpack-table-wrap"><table><thead><tr><th>物品</th><th>商品 ID</th><th>售价</th><th>售卖范围</th><th></th></tr></thead>
+              <div class="table-wrap backpack-table-wrap"><table><thead><tr><th>物品</th><th>商品 ID</th><th>售价</th><th>售卖范围</th><th style="text-align:right"><input type="checkbox" id="backpack-select-all" aria-label="选择当前列表"></th></tr></thead>
                 <tbody id="backpack-rows"><tr class="is-static"><td colspan="5" class="muted">切换标签后读取</td></tr></tbody></table></div>
             </article>
           </div>
@@ -1443,7 +1447,6 @@ tbody tr.is-static:hover{background:transparent}
             <div class="card-head"><h3>跨职业技能</h3><span class="skill-limits-loading" id="skill-limits-loading" role="status" hidden><span class="spinner" aria-hidden="true"></span>读取中</span></div>
             <div class="card-body">
               <div class="skill-limits-toolbar">
-                <label class="field"><select id="skill-limits-target" aria-label="允许学习的职业" disabled></select></label>
                 <input id="skill-limits-search" type="search" placeholder="搜索技能名称或 ID" aria-label="搜索技能名称或 ID" disabled>
                 <button class="btn btn-primary" id="skill-limits-build" type="button" disabled>加入修改队列</button>
               </div>
@@ -1494,6 +1497,7 @@ tbody tr.is-static:hover{background:transparent}
                 <label class="field" for="summon-type"><span>召唤类型</span><select id="summon-type"><option value="friend">职业导师</option><option value="monster">怪物</option><option value="catcher">捕快</option></select></label>
                 <label class="field" for="summon-creature"><span>召唤物</span><select id="summon-creature" disabled></select></label>
                 <label class="field summon-creature-search" for="summon-creature-search"><span>搜索召唤物</span><input id="summon-creature-search" placeholder="搜索召唤物名称" autocomplete="off"></label>
+                <button class="btn btn-primary" id="summon-apply" type="button" disabled>加入修改队列</button>
               </div>
               <div class="summon-selection-summary muted"><span id="summon-selection-count">已选择 0/4 个技能</span></div>
               <div class="summon-skills-layout">
@@ -1507,7 +1511,6 @@ tbody tr.is-static:hover{background:transparent}
                   <ol class="summon-order-list" id="summon-skill-order-list" aria-label="召唤物技能栏顺序" aria-live="polite"><li class="summon-order-empty">勾选技能后可调整顺序</li></ol>
                 </section>
               </div>
-              <div class="summon-config-footer"><button class="btn btn-primary" id="summon-apply" type="button" disabled>加入修改队列</button></div>
               <div class="definition-status" id="summon-status" role="status" aria-live="polite"></div>
             </div>
           </article>
@@ -1824,7 +1827,7 @@ $('#modal-root').addEventListener('click', async event => {
         if(item.operation.kind==='weapon'){
           const id=resultById.get(item.id).weapon_id;
           if(!state.weaponReloadItemIds.includes(id))state.weaponReloadItemIds.push(id);
-          $('#weapon-proposed-id').textContent='已分配 ID '+id;
+          $('#weapon-proposed-id').textContent='新物品 ID '+id;
         }
         if(item.operation.kind==='profession-skills')state.professionSkillPending.clear();
         if(item.operation.kind==='summon')state.summonConfig=item.operation.payload;
@@ -2063,7 +2066,7 @@ function readDefinitionFavorites(){
 const state = { view:'home', cart:[], scenes:null, acctId:null, charId:null, logs:[], logFilter:'all',
                 acctMode:'account', itemMode:'item', logsMode:'server', ratesLoaded:false,
                 customItems:null, customItemRevision:null, customItemLoading:false, customItemDeleting:false, customItemSelectedIds:new Set(),
-                backpackShop:null, backpackLoading:false,
+                backpackShop:null, backpackLoading:false, backpackDeleting:false, backpackSelectedProducts:new Set(),
                 backpackSelectedName:'', backpackDraft:[],
                 weaponTemplate:null, weaponDraft:[], weaponProposedId:null, weaponTraitNames:new Map(), weaponIconModels:{}, weaponIconChoices:[], weaponReloadItemIds:[],
                 gameConfigMode:'rates', definitions:{base:null,dynamic:null}, fateLocks:null,
@@ -2082,8 +2085,8 @@ const VIEWS = ['home','acct','item','rates','skill-config','pet-config','logs'];
 function syncHash(){
   let h = state.view;
   if (state.view === 'logs') h = state.logsMode === 'config' ? 'config' : state.logsMode === 'log' ? 'logs' : state.logsMode === 'whitelist' ? 'ip-whitelist' : 'ops';
-  if (state.view === 'acct' && ['mail','point'].includes(state.acctMode)) h = state.acctMode;
-  if (state.view === 'item') h = state.itemMode === 'weapon' ? 'weapon' : state.itemMode === 'backpack' ? 'backpack' : state.itemMode === 'custom' ? 'custom' : 'item';
+  if (state.view === 'acct' && ['char','mail','point'].includes(state.acctMode)) h = state.acctMode;
+  if (state.view === 'item') h = state.itemMode;
   if (location.hash.slice(1) !== h) history.replaceState(null, '', '#' + h);
 }
 
@@ -2140,10 +2143,15 @@ function setItemMode(mode, skipLoad){
   $('#item-panel-backpack').classList.toggle('is-hidden', state.itemMode !== 'backpack');
   if (!skipLoad){
     if (state.itemMode === 'item') ensureItemList();
-    if (state.itemMode === 'weapon'){ loadWeaponTemplates(); searchWeaponTraits(); }
+    if (state.itemMode === 'weapon') loadWeaponTemplates();
     if (state.itemMode === 'custom') loadCustomItems();
     if (state.itemMode === 'shop') loadShop();
     if (state.itemMode === 'backpack') loadBackpackShop();
+  }
+  if (state.itemMode !== 'weapon'){
+    $('#weapon-trait-panel').classList.add('is-hidden');
+    $('#weapon-icon-panel').classList.add('is-hidden');
+    $('#weapon-layout').classList.remove('traits-open');
   }
   if (state.view === 'item') syncHash();
 }
@@ -2157,7 +2165,6 @@ function updateCustomItemSelection(){
     ? '删除选中 (' + state.customItemSelectedIds.size + ')'
     : '删除选中';
   $('#custom-item-delete').disabled = !state.customItemSelectedIds.size || blocked;
-  $('#custom-item-refresh').disabled = blocked;
   $$('#custom-item-rows [data-custom-item-select]').forEach(box => {
     const active = state.customItemSelectedIds.has(Number(box.dataset.customItemSelect));
     box.checked = active;
@@ -2252,7 +2259,6 @@ async function deleteCustomItems(){
   $('#custom-item-status').classList.toggle('error', !!(failure || reloadError));
   if (failure || reloadError) toast(message, true);
 }
-$('#custom-item-refresh').addEventListener('click', loadCustomItems);
 $('#custom-item-delete').addEventListener('click', deleteCustomItems);
 $('#custom-item-rows').addEventListener('change', event => {
   const box = event.target.closest('[data-custom-item-select]');
@@ -2265,7 +2271,7 @@ $('#custom-item-rows').addEventListener('change', event => {
 
 const weaponEditableFields = [
   [1,'武器名称','text'],[9,'职业','profession'],[11,'等级','number'],
-  [19,'伤害力','number'],[20,'防御力','number'],
+  [19,'伤害力','number'],[20,'防御力','number'],[53,'法术抗性','number'],
   [22,'力量','number'],[21,'体魄','number'],[24,'元神','number'],[23,'筋骨','number']
 ];
 let weaponSearchTimer = null, weaponListRequest = 0, weaponTraitTimer = null, weaponTraitRequest = 0;
@@ -2300,18 +2306,34 @@ function weaponTraitHtml(name){
   return '<span class="weapon-trait-label">' + esc(label) + '</span>' +
     (number ? '<span class="weapon-trait-number">' + esc(number) + '</span>' : '');
 }
+function openWeaponTraitPanel(){
+  const panel = $('#weapon-trait-panel');
+  if (!panel.classList.contains('is-hidden')) return;
+  $('#weapon-icon-panel').classList.add('is-hidden');
+  panel.classList.remove('is-hidden');
+  $('#weapon-layout').classList.add('traits-open');
+  searchWeaponTraits();
+}
+$('#weapon-trait-picker').addEventListener('click', event => {
+  if (!event.target.closest('[data-clear-weapon-trait]')) openWeaponTraitPanel();
+});
+$('#weapon-trait-picker').addEventListener('keydown', event => {
+  if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')){
+    event.preventDefault();
+    openWeaponTraitPanel();
+  }
+});
 function renderWeaponTraitSlots(){
   const selected = state.weaponDraft.slice(25,30).filter(Boolean);
   $('#weapon-trait-list').innerHTML = selected.length ? selected.map((id,index) => {
     const slot = 25 + index, name = state.weaponTraitNames.get(Number(id)) || '未知词条';
     return '<div class="weapon-trait-entry">' + weaponTraitHtml(name) +
       '<button type="button" data-clear-weapon-trait="' + slot + '" aria-label="移除属性词条 ' + (index + 1) + '">×</button></div>';
-  }).join('') : '<span class="weapon-trait-empty">右侧选择词条添加</span>';
+  }).join('') : '<span class="weapon-trait-empty">点击添加</span>';
 }
 function updateWeaponIconPreview(){
   const icon = String(state.weaponDraft[4] || '').trim().toLowerCase();
   const image = $('#weapon-icon-image'), empty = $('#weapon-icon-empty');
-  $('#weapon-icon-name').textContent = state.weaponDraft[4] || '未选择';
   image.classList.add('is-hidden');
   empty.classList.remove('is-hidden');
   image.onload = () => { image.classList.remove('is-hidden'); empty.classList.add('is-hidden'); };
@@ -2327,45 +2349,30 @@ function assignWeaponModel(){
   state.weaponDraft[5] = state.weaponIconModels[icon] || '';
 }
 function openWeaponIconPicker(){
-  const choices = state.weaponIconChoices;
-  if (!choices.length){ toast('没有可选的武器图片', true); return; }
-  const root = $('#modal-root'), trigger = $('#weapon-icon-trigger');
-  root.innerHTML = '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="weapon-icon-picker-title">' +
-    '<div class="modal-shell weapon-icon-picker"><div class="modal-head"><h3 id="weapon-icon-picker-title">选择道具图片</h3>' +
-    '<button type="button" class="btn btn-sm" data-close>关闭</button></div>' +
-    '<div class="modal-body"><input id="weapon-icon-query" type="search" placeholder="搜索图片名称或模型 ID" autocomplete="off" aria-label="搜索道具图片">' +
-    '<div class="weapon-icon-options" id="weapon-icon-options"></div></div></div></div>';
-  document.body.classList.add('has-modal');
-  const options = $('#weapon-icon-options', root);
-  function renderOptions(){
-    const query = $('#weapon-icon-query', root).value.trim().toLowerCase();
-    const visible = choices.filter(icon => icon.includes(query) || state.weaponIconModels[icon].includes(query));
-    options.innerHTML = visible.length ? visible.map(icon =>
-      '<button type="button" class="weapon-icon-option' + (icon === state.weaponDraft[4].toLowerCase() ? ' is-selected' : '') +
-      '" data-icon="' + icon + '" aria-label="选择 ' + icon + '"><img src="/logos/icons/wq/' + icon + '.png" alt="" loading="lazy"><span>' + icon + '</span></button>').join('') :
-      '<div class="muted">没有匹配的图片</div>';
-  }
-  function close(){
-    root.innerHTML = '';
-    document.body.classList.remove('has-modal');
-    document.removeEventListener('keydown', onKey);
-    trigger.focus();
-  }
-  function onKey(event){ if (event.key === 'Escape') close(); }
-  root.querySelector('.modal').addEventListener('click', event => {
-    if (event.target.classList.contains('modal') || event.target.closest('[data-close]')) return close();
-    const option = event.target.closest('[data-icon]');
-    if (!option) return;
-    state.weaponDraft[4] = option.dataset.icon;
-    assignWeaponModel();
-    updateWeaponIconPreview();
-    close();
-  });
-  $('#weapon-icon-query', root).addEventListener('input', renderOptions);
-  document.addEventListener('keydown', onKey);
-  renderOptions();
-  $('#weapon-icon-query', root).focus();
+  if (!state.weaponIconChoices.length){ toast('没有可选的武器图片', true); return; }
+  $('#weapon-trait-panel').classList.add('is-hidden');
+  $('#weapon-icon-panel').classList.remove('is-hidden');
+  $('#weapon-layout').classList.add('traits-open');
+  renderWeaponIconOptions();
 }
+function renderWeaponIconOptions(){
+  const query = $('#weapon-icon-query').value.trim().toLowerCase();
+  const visible = state.weaponIconChoices.filter(icon => icon.includes(query) || String(state.weaponIconModels[icon] || '').includes(query));
+  $('#weapon-icon-count').textContent = '共 ' + visible.length + ' 个';
+  $('#weapon-icon-options').innerHTML = visible.length ? visible.map(icon =>
+    '<button type="button" class="weapon-icon-option' + (icon === String(state.weaponDraft[4] || '').toLowerCase() ? ' is-selected' : '') +
+    '" data-icon="' + esc(icon) + '" aria-label="选择 ' + esc(icon) + '"><img src="/logos/icons/wq/' + esc(icon) + '.png" alt="" loading="lazy"><span>' + esc(icon) + '</span></button>').join('') :
+    '<div class="muted">没有匹配的图片</div>';
+}
+$('#weapon-icon-query').addEventListener('input', renderWeaponIconOptions);
+$('#weapon-icon-options').addEventListener('click', event => {
+  const option = event.target.closest('[data-icon]');
+  if (!option) return;
+  state.weaponDraft[4] = option.dataset.icon;
+  assignWeaponModel();
+  updateWeaponIconPreview();
+  renderWeaponIconOptions();
+});
 $('#weapon-fields').addEventListener('click', event => {
   if (event.target.closest('#weapon-icon-trigger')) openWeaponIconPicker();
 });
@@ -2382,7 +2389,7 @@ async function selectWeaponTemplate(id){
     state.weaponDraft[18] = '300';
     compactWeaponTraits();
     state.weaponProposedId = j.data.proposed_id;
-    $('#weapon-proposed-id').textContent = state.weaponProposedId ? '模拟 ID ' + state.weaponProposedId : '无可用 ID';
+    $('#weapon-proposed-id').textContent = state.weaponProposedId ? '新物品 ID ' + state.weaponProposedId : '无可用 ID';
     const traitIds = state.weaponDraft.slice(25,30).filter(value => /^\d+$/.test(value));
     if (traitIds.length){
       const traits = await api('/api/weapon_traits?ids=' + encodeURIComponent(traitIds.join(',')));
@@ -2398,12 +2405,12 @@ async function selectWeaponTemplate(id){
         '<input data-weapon-field="' + index + '" type="' + type + '"' +
         (type === 'number' ? ' step="1"' : '') + ' value="' + esc(value) + '">';
       const field = '<label class="field' + (index === 1 ? ' wide' : index === 22 ? ' stat-start' : '') + '"><span>' + label + '</span>' + input + '</label>';
-      return field + (index === 20 ?
-        '<div class="field"><span>图标</span><button type="button" class="weapon-icon-trigger" id="weapon-icon-trigger" aria-label="选择道具图片"><img id="weapon-icon-image" alt="" class="is-hidden"><span id="weapon-icon-empty">无图标</span></button></div>' +
-        '<div class="field"><span>道具图片</span><div class="weapon-icon-name" id="weapon-icon-name"></div></div>' : '');
+      return field + (index === 53 ?
+        '<div class="field"><span>武器模型</span><button type="button" class="weapon-icon-trigger" id="weapon-icon-trigger" aria-label="选择武器模型"><img id="weapon-icon-image" alt="" class="is-hidden"><span id="weapon-icon-empty">无图标</span></button></div>' : '');
     }).join('');
     updateWeaponIconPreview();
     renderWeaponTraitSlots();
+    if (!$('#weapon-icon-panel').classList.contains('is-hidden')) renderWeaponIconOptions();
     $('#weapon-status').textContent = '';
     $$('#weapon-rows [data-weapon-id]').forEach(row => row.classList.toggle('is-active', Number(row.dataset.weaponId) === id));
   }catch(err){ $('#weapon-status').textContent = err.message; }
@@ -2424,6 +2431,7 @@ async function restoreQueuedWeaponDraft(templateId, fields){
   });
   updateWeaponIconPreview();
   renderWeaponTraitSlots();
+  if (!$('#weapon-icon-panel').classList.contains('is-hidden')) renderWeaponIconOptions();
 }
 $('#weapon-profession').addEventListener('change', loadWeaponTemplates);
 $('#weapon-search').addEventListener('input', () => {
@@ -2453,7 +2461,8 @@ async function searchWeaponTraits(){
   const request = ++weaponTraitRequest, query = $('#weapon-trait-query').value.trim();
   $('#weapon-trait-results').innerHTML = '<tr class="is-static"><td colspan="2">读取中…</td></tr>';
   try{
-    const j = await api('/api/weapon_traits?q=' + encodeURIComponent(query));
+    const hideEmpty = $('#weapon-trait-hide-empty').getAttribute('aria-pressed') === 'true';
+    const j = await api('/api/weapon_traits?q=' + encodeURIComponent(query) + (hideEmpty ? '&hide_empty=1' : ''));
     if (request !== weaponTraitRequest) return;
     for (const item of j.data.rows) state.weaponTraitNames.set(item.id,item.name);
     $('#weapon-trait-count').textContent = '共 ' + j.data.total + ' 条';
@@ -2469,6 +2478,11 @@ async function searchWeaponTraits(){
 $('#weapon-trait-query').addEventListener('input', () => {
   clearTimeout(weaponTraitTimer);
   weaponTraitTimer = setTimeout(searchWeaponTraits, 180);
+});
+$('#weapon-trait-hide-empty').addEventListener('click', event => {
+  const button = event.currentTarget;
+  button.setAttribute('aria-pressed', button.getAttribute('aria-pressed') === 'true' ? 'false' : 'true');
+  searchWeaponTraits();
 });
 $('#weapon-trait-results').addEventListener('click', e => {
   const button = e.target.closest('[data-weapon-trait-id]');
@@ -2535,8 +2549,15 @@ function goto(target){
   if (target === 'char'){ setAcctMode('char', true); showView('acct'); return; }
   if (target === 'point'){ setAcctMode('point', true); showView('acct'); return; }
   if (target === 'mail'){ setAcctMode('mail', true); showView('acct'); return; }
-  if (target === 'custom'){ setItemMode('custom', true); showView('item'); return; }
-  if (target === 'backpack'){ setItemMode('backpack', true); showView('item'); loadBackpackShop(); return; }
+  if (['weapon','custom','shop','backpack'].includes(target)){
+    setItemMode(target, true);
+    showView('item');
+    if (target === 'weapon') loadWeaponTemplates();
+    if (target === 'custom') loadCustomItems();
+    if (target === 'shop') loadShop();
+    if (target === 'backpack') loadBackpackShop();
+    return;
+  }
   if (target === 'acct'){ setAcctMode('account', true); showView('acct'); return; }
   if (target === 'item'){ setItemMode('item', true); showView('item'); return; }
   if (target === 'logs'){ setLogsMode('server', true); showView('logs'); return; }
@@ -3257,7 +3278,6 @@ $('#shop-item-suggestions').addEventListener('click', e => {
   if (option) selectShopItem(option.dataset.shopItemId, option.dataset.shopItemName);
 });
 $('#shop-add').addEventListener('click', addShopItem);
-$('#shop-refresh').addEventListener('click', loadShop);
 $('#shop-filter').addEventListener('input', () => {
   clearTimeout(shopSearchTimer);
   shopSearchTimer = setTimeout(loadShop, 180);
@@ -3301,7 +3321,7 @@ function renderBackpackPrice(price){
   const icons = {'铜':0, '银':1, '金':2, '砖':3};
   return esc(price).replace(/(\d+(?:\.\d+)?)\s+(铜|银|金|砖)(?=$|\s|[；+])/g,
     (_, amount, unit) => amount + '<img class="backpack-money-icon" src="/logos/icons/money/money' + icons[unit] + '.png" alt="' + unit + '" title="' + unit + '">')
-    .replace(/VIP凭证(?= × \d+)/g, '<img class="backpack-money-icon" src="/logos/icons/items/vip.png" alt="" title="VIP凭证"> VIP凭证');
+    .replace(/VIP凭证(?= × \d+)/g, '<img class="backpack-money-icon" src="/logos/icons/items/vip.png" alt="VIP凭证" title="VIP凭证">');
 }
 function renderBackpackRows(){
   const data = state.backpackShop;
@@ -3309,6 +3329,15 @@ function renderBackpackRows(){
   const query = $('#backpack-filter').value.trim().toLocaleLowerCase();
   const rows = data.rows.filter(row => !query ||
     (row.name + ' ' + row.item_id + ' ' + row.product_id).toLocaleLowerCase().includes(query));
+  const available = new Set(data.rows.map(row => row.product_id));
+  for (const id of state.backpackSelectedProducts) if (!available.has(id)) state.backpackSelectedProducts.delete(id);
+  const blocked = state.backpackLoading || state.backpackDeleting;
+  const selectAll = $('#backpack-select-all');
+  const selectedVisible = rows.filter(row => state.backpackSelectedProducts.has(row.product_id)).length;
+  selectAll.checked = rows.length > 0 && selectedVisible === rows.length;
+  selectAll.indeterminate = selectedVisible > 0 && selectedVisible < rows.length;
+  selectAll.disabled = blocked || !rows.length;
+  $('#backpack-batch-delete').disabled = blocked || !state.backpackSelectedProducts.size;
   $('#backpack-count').textContent = rows.length + ' / ' + data.rows.length + ' 件';
   $('#backpack-rows').innerHTML = rows.length ? rows.map(row =>
     '<tr><td><div class="backpack-product-name">' + esc(row.name) + '</div>' +
@@ -3316,12 +3345,15 @@ function renderBackpackRows(){
     '<td class="num">' + esc(row.product_id) + '</td>' +
     '<td>' + renderBackpackPrice(row.price) + '</td>' +
     '<td><div class="backpack-range">' + row.ranges.map(name => '<span>' + esc(name) + '</span>').join('') + '</div></td>' +
-    '<td style="text-align:right"><button type="button" class="btn btn-sm btn-danger" data-backpack-delete="' + esc(row.product_id) + '">删除</button></td></tr>'
+    '<td style="text-align:right"><input type="checkbox" data-backpack-select="' + esc(row.product_id) + '" aria-label="选择 ' + esc(row.name) + '"' +
+    (state.backpackSelectedProducts.has(row.product_id) ? ' checked' : '') + (blocked ? ' disabled' : '') + '></td></tr>'
   ).join('') : emptyRow(5, query ? '没有匹配的商品' : '商店暂无商品', query ? '试试物品名称或 ID' : '添加已有物品');
 }
 async function loadBackpackShop(){
   if (state.backpackLoading) return;
   state.backpackLoading = true;
+  $('#backpack-batch-delete').disabled = true;
+  $('#backpack-select-all').disabled = true;
   $('#backpack-rows').innerHTML = skeleton(5);
   renderBackpackRuntime(null);
   try{
@@ -3330,10 +3362,12 @@ async function loadBackpackShop(){
     renderBackpackRows();
     renderBackpackRuntime(response.data.runtime);
   }catch(error){
+    state.backpackShop = null;
+    state.backpackSelectedProducts.clear();
     $('#backpack-rows').innerHTML = emptyRow(5, '商店配置读取失败', error.message);
     renderBackpackRuntime({state:'unavailable'});
     setBackpackStatus(error.message, 'error');
-  }finally{ state.backpackLoading = false; }
+  }finally{ state.backpackLoading = false; if (state.backpackShop) renderBackpackRows(); }
 }
 async function searchBackpackItems(query){
   const box = $('#backpack-suggestions');
@@ -3433,28 +3467,34 @@ function queueBackpackDraft(){
     ? '已把 ' + added + ' 项上架加入右上角执行队列。执行队列时才会写入服务端并生成 mb.dpk。'
     : '清单中的上架项都已在执行队列中，无需重复加入。', added ? 'success' : 'warning');
 }
-async function deleteBackpackItem(productId){
-  const row = state.backpackShop?.rows.find(item => item.product_id === productId);
-  if (!row) return;
-  const ok = await confirmDialog({title:'删除背包商品',
-    html:'<p>从 <b>' + row.ranges.map(esc).join('、') + '</b> 删除 <b>' + esc(row.name) + '</b> 吗？</p><p class="muted">保存后会热重载两条线路并检查商人列表。</p>',
-    okText:'确认删除'});
+async function deleteBackpackItems(){
+  if (!state.backpackShop || state.backpackLoading || state.backpackDeleting) return;
+  const ids = [...state.backpackSelectedProducts];
+  if (!ids.length) return;
+  const ok = await confirmDialog({title:'批量删除背包商品',
+    html:'确定删除选中的 <b>' + ids.length + '</b> 件商品？', okText:'确认删除'});
   if (!ok) return;
+  const button = $('#backpack-batch-delete');
+  state.backpackDeleting = true;
+  busy(button, true, '删除中…');
+  renderBackpackRows();
   setBackpackStatus('正在保存删除操作…');
   try{
     const response = await postJSON('/api/backpack-shop/edit', {
-      action:'delete', product_id:productId, merchants:row.merchant_ids,
+      action:'delete-batch', product_ids:ids,
       revision:state.backpackShop.revision
     });
     state.backpackShop = response.data.catalog;
+    state.backpackSelectedProducts.clear();
     renderBackpackRows();
     const cache = response.data.reload.merchant_cache?.state;
-    setBackpackStatus(cache === 'applied' ? '已删除 ' + row.name + '，两条线路的商人列表已热重载。' :
-      '已从配置中删除 ' + row.name + '，热重载未通过验证：' +
+    setBackpackStatus(cache === 'applied' ? '已删除 ' + ids.length + ' 件商品，两条线路的商人列表已热重载。' :
+      '已删除 ' + ids.length + ' 件商品，热重载未通过验证：' +
       (response.data.reload.merchant_cache?.error || '请检查商品是否仍在游戏内。'),
       cache === 'applied' ? 'success' : 'warning');
     await loadBackpackShop();
   }catch(error){ setBackpackStatus(error.message, 'error'); }
+  finally{ state.backpackDeleting = false; busy(button, false); if (state.backpackShop) renderBackpackRows(); }
 }
 $('#backpack-item-q').addEventListener('input', () => {
   $('#backpack-item-id').value = '';
@@ -3481,11 +3521,24 @@ $('#backpack-draft-rows').addEventListener('click', event => {
   const button = event.target.closest('[data-backpack-draft-remove]');
   if (button) removeBackpackDraft(Number(button.dataset.backpackDraftRemove));
 });
-$('#backpack-refresh').addEventListener('click', loadBackpackShop);
+$('#backpack-batch-delete').addEventListener('click', deleteBackpackItems);
 $('#backpack-filter').addEventListener('input', renderBackpackRows);
-$('#backpack-rows').addEventListener('click', event => {
-  const button = event.target.closest('[data-backpack-delete]');
-  if (button) deleteBackpackItem(Number(button.dataset.backpackDelete));
+$('#backpack-select-all').addEventListener('change', event => {
+  const selected = event.currentTarget.checked;
+  $$('#backpack-rows [data-backpack-select]').forEach(box => {
+    const id = Number(box.dataset.backpackSelect);
+    if (selected) state.backpackSelectedProducts.add(id);
+    else state.backpackSelectedProducts.delete(id);
+  });
+  renderBackpackRows();
+});
+$('#backpack-rows').addEventListener('change', event => {
+  const box = event.target.closest('[data-backpack-select]');
+  if (!box) return;
+  const id = Number(box.dataset.backpackSelect);
+  if (box.checked) state.backpackSelectedProducts.add(id);
+  else state.backpackSelectedProducts.delete(id);
+  renderBackpackRows();
 });
 
 function addCart(id, name, type){
@@ -3975,14 +4028,9 @@ const skillProfessionName = id => {
   const profession = (state.skillLimits?.professions || []).find(item => Number(item.id) === Number(id));
   return profession?.name || ('职业 ' + id);
 };
-const skillIsForeignToTarget = (skill, targetProfession) => {
-  return skillSourceProfessions(skill).some(id => Number(id) !== Number(targetProfession));
-};
-function skillLimitPendingChanges(targetProfession){
-  return (state.skillLimits?.skills || []).filter(skill => skillIsForeignToTarget(skill, targetProfession))
-    .map(skill => ({skill, assigned:state.skillLimitSelection.has(skill.id),
-      currentlyAssigned:(skill.assigned_to || []).includes(Number(targetProfession))}))
-    .filter(item => item.assigned !== item.currentlyAssigned);
+function skillLimitPendingChanges(){
+  return (state.skillLimits?.skills || []).map(skill => ({skill, assigned:state.skillLimitSelection.has(skill.id)}))
+    .filter(item => item.assigned ? !item.skill.unrestricted : item.skill.modified);
 }
 function groupSkillChanges(changes){
   const groups = new Map();
@@ -3994,9 +4042,8 @@ function groupSkillChanges(changes){
   return [...groups.values()];
 }
 function renderSkillLimitProfessionFilter(){
-  const targetProfession = Number($('#skill-limits-target').value);
   const professionIds = (state.skillLimits?.professions || [])
-    .map(profession => Number(profession.id)).filter(id => id !== targetProfession);
+    .map(profession => Number(profession.id));
   if (state.skillLimitSourceFilter !== 'all' && !professionIds.includes(Number(state.skillLimitSourceFilter))) {
     state.skillLimitSourceFilter = 'all';
   }
@@ -4011,11 +4058,9 @@ function renderSkillLimitRows(){
   const data = state.skillLimits;
   if (!data) return;
   const q = $('#skill-limits-search').value.trim().toLowerCase();
-  const targetProfession = Number($('#skill-limits-target').value);
   const groups = skillVariantGroups().filter(group => {
     const skill = group.skills[0];
-    return skillIsForeignToTarget(skill, targetProfession) &&
-      (state.skillLimitSourceFilter === 'all' || skillSourceProfessions(skill).some(id => String(id) === String(state.skillLimitSourceFilter))) &&
+    return (state.skillLimitSourceFilter === 'all' || skillSourceProfessions(skill).some(id => String(id) === String(state.skillLimitSourceFilter))) &&
       (!q || group.skills.some(s => String(s.id).includes(q) || s.name.toLowerCase().includes(q)));
   });
   state.skillLimitVisibleGroups = groups;
@@ -4042,9 +4087,9 @@ function renderSkillLimitRows(){
   $('#skill-limits-all').indeterminate = groups.some(group => group.skills.some(s => state.skillLimitSelection.has(s.id))) &&
     !$('#skill-limits-all').checked;
   const selectedGroups = skillVariantGroups().filter(group => group.skills.some(s => state.skillLimitSelection.has(s.id))).length;
-  $('#skill-limits-hint').textContent = '已选择 ' + selectedGroups + ' 项';
+  $('#skill-limits-hint').textContent = '已选择 ' + selectedGroups + ' 项，所选技能不限制职业';
   $('#skill-limits-build').disabled = state.skillLimitsLoading ||
-    skillLimitPendingChanges(targetProfession).length === 0;
+    skillLimitPendingChanges().length === 0;
 }
 
 async function loadSkillLimits(){
@@ -4059,13 +4104,8 @@ async function loadSkillLimits(){
     state.skillLimits = j.data; state.skillLimitSelection = new Set();
     state.skillLimitSourceFilter = 'all';
     state.skillLimitsPath = j.data.client_path || $('#cfg-client_mb_dpk').value.trim();
-    const opts = j.data.professions.map(p => '<option value="' + p.id + '">' + esc(p.name) + '</option>').join('');
-    $('#skill-limits-target').innerHTML = opts;
-    if (j.data.professions.some(p => p.id === 4)) $('#skill-limits-target').value = '4';
-    const targetProfession = Number($('#skill-limits-target').value);
     state.skillLimitSelection = new Set(j.data.skills
-      .filter(skill => (skill.assigned_to || []).includes(targetProfession)).map(skill => skill.id));
-    $('#skill-limits-target').disabled = false;
+      .filter(skill => skill.unrestricted || skill.legacy_assigned).map(skill => skill.id));
     $('#skill-limits-search').disabled = false; $('#skill-limits-build').disabled = false;
     $('#skill-limits-all').disabled = false;
     renderSkillLimitProfessionFilter();
@@ -4360,15 +4400,6 @@ $('#skill-limits-profession-filter').addEventListener('click', e => {
   renderSkillLimitRows();
 });
 $('#skill-limits-search').addEventListener('input', renderSkillLimitRows);
-$('#skill-limits-target').addEventListener('change', () => {
-  if (state.skillLimits) {
-    const targetProfession = Number($('#skill-limits-target').value);
-    state.skillLimitSelection = new Set(state.skillLimits.skills
-      .filter(skill => (skill.assigned_to || []).includes(targetProfession)).map(skill => skill.id));
-  }
-  renderSkillLimitProfessionFilter();
-  renderSkillLimitRows();
-});
 $('#skill-limits-rows').addEventListener('change', e => {
   const input = e.target.closest('[data-skill-group]'); if (!input) return;
   const group = state.skillLimitVisibleGroups[Number(input.dataset.skillGroup)];
@@ -4387,14 +4418,13 @@ $('#skill-limits-all').addEventListener('change', e => {
 $('#skill-limits-build').addEventListener('click', async e => {
   const status = $('#skill-limits-status');
   if (!state.skillLimits) return;
-  const targetProfession = Number($('#skill-limits-target').value);
-  const changes = skillLimitPendingChanges(targetProfession);
+  const changes = skillLimitPendingChanges();
   if (!changes.length) return;
   status.textContent = ''; status.classList.remove('is-bad');
   const payloadChanges=changes.map(({skill,assigned})=>({id:skill.id,assigned,name:skill.name}));
-  queueDpkChange({key:'skill-limits',signature:JSON.stringify({targetProfession,changes:payloadChanges.map(({id,assigned})=>({id,assigned})).sort((a,b)=>a.id-b.id)}),label:'跨职业技能',summary:payloadChanges.length+' 项技能调整',reloadable:true,reloadScope:'skill-learn',
-    operation:{kind:'skill-limits',payload:{target_profession:targetProfession,changes:payloadChanges.map(({id,assigned})=>({id,assigned}))}},
-    jump:()=>{showView('skill-config');setSkillConfigMode('cross-career');setTimeout(()=>{const target=$('#skill-limits-target');target.value=String(targetProfession);target.dispatchEvent(new Event('change'));state.skillLimitSelection=new Set((state.skillLimits?.skills||[]).filter(skill=>(skill.assigned_to||[]).includes(targetProfession)).map(skill=>skill.id));for(const item of payloadChanges){if(item.assigned)state.skillLimitSelection.add(item.id);else state.skillLimitSelection.delete(item.id);}$('#skill-limits-search').value=payloadChanges[0].name;renderSkillLimitRows();$('#skill-limits-rows').scrollIntoView({behavior:'smooth',block:'center'});},100);},
+  queueDpkChange({key:'skill-limits',signature:JSON.stringify({changes:payloadChanges.map(({id,assigned})=>({id,assigned})).sort((a,b)=>a.id-b.id)}),label:'跨职业技能',summary:payloadChanges.length+' 项技能调整',reloadable:true,reloadScope:'skill-learn',
+    operation:{kind:'skill-limits',payload:{changes:payloadChanges.map(({id,assigned})=>({id,assigned}))}},
+    jump:()=>{showView('skill-config');setSkillConfigMode('cross-career');setTimeout(()=>{state.skillLimitSelection=new Set((state.skillLimits?.skills||[]).filter(skill=>skill.unrestricted||skill.legacy_assigned).map(skill=>skill.id));for(const item of payloadChanges){if(item.assigned)state.skillLimitSelection.add(item.id);else state.skillLimitSelection.delete(item.id);}$('#skill-limits-search').value=payloadChanges[0].name;renderSkillLimitRows();$('#skill-limits-rows').scrollIntoView({behavior:'smooth',block:'center'});},100);},
   });
 });
 
@@ -5018,7 +5048,6 @@ async function loadConfig(){
       state.skillLimits = null;
       state.skillLimitsPath = null;
       state.skillLimitSelection = new Set();
-      $('#skill-limits-target').disabled = true;
       $('#skill-limits-search').disabled = true;
       $('#skill-limits-build').disabled = true;
       $('#skill-limits-all').disabled = true;
@@ -5133,6 +5162,8 @@ function routeFromHash(){
   if (v === 'char'){ goto('char'); return; }
   if (v === 'point'){ goto('point'); return; }
   if (v === 'mail'){ goto('mail'); return; }
+  if (v === 'weapon' || v === 'shop'){ goto(v); return; }
+  if (v === 'item' || v === 'acct'){ goto(v); return; }
   if (v === 'backpack'){ goto('backpack'); return; }
   if (v === 'custom'){ goto('custom'); return; }
   if (v === 'config'){ goto('config'); return; }
@@ -5142,10 +5173,7 @@ function routeFromHash(){
   showView(VIEWS.indexOf(v) >= 0 ? v : 'home');
 }
 routeFromHash();
-window.addEventListener('hashchange', () => {
-  const v = location.hash.slice(1);
-  if (v !== state.view) routeFromHash();
-});
+window.addEventListener('hashchange', routeFromHash);
 
 })();
 </script>

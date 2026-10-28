@@ -232,6 +232,33 @@ class BackpackPriceTransactionTest(unittest.TestCase):
 
 
 class BackpackUnpricedApiTest(unittest.TestCase):
+    def test_batch_delete_unlinks_all_selected_products_in_one_reload(self):
+        import gm_server as server
+        with tempfile.TemporaryDirectory() as work:
+            source = Path(work) / "main.dpk"
+            source.write_bytes(b"original")
+            source_hash = hashlib.sha256(b"original").hexdigest()
+            before = fixture()
+            revision = {key: hashlib.sha256(data).hexdigest() for key, data in before.items()}
+            revision["server_mb"] = source_hash
+            with contextlib.ExitStack() as stack:
+                stack.enter_context(patch.object(server, "_ensure_server_mb_cache", return_value=(
+                    {"主包": source}, {"主包": (8, 0, source_hash)})))
+                stack.enter_context(patch.object(server, "backpack_package_items", return_value=ITEMS))
+                stack.enter_context(patch.object(server, "ssh", return_value=object()))
+                stack.enter_context(patch.object(server, "read_backpack_remote", return_value=before))
+                reload = stack.enter_context(patch.object(server, "reload_backpack_remote", return_value={}))
+                result = server.edit_backpack_shop({"action": "delete-batch", "product_ids": [10, 11],
+                                                    "revision": revision})
+                self.assertEqual(result["catalog"]["rows"], [])
+                self.assertEqual(reload.call_count, 1)
+                self.assertEqual(reload.call_args.args[1], before)
+                self.assertEqual(catalog(reload.call_args.args[2], ITEMS)["rows"], [])
+                with self.assertRaisesRegex(ValueError, "商品列表已变化"):
+                    server.edit_backpack_shop({"action": "delete-batch", "product_ids": [10, 99],
+                                               "revision": revision})
+                self.assertEqual(reload.call_count, 1)
+
     def test_add_49985_uses_entered_price_and_server_package(self):
         import gm_server as server
         with tempfile.TemporaryDirectory() as work:

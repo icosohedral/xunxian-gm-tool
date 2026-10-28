@@ -102,13 +102,57 @@ def inspect_dpk_skills(path: Path) -> tuple[list[dict], list[dict], str]:
         if len(fields) < 7 or not fields[1].isdigit() or fields[2] != "1" or not fields[4].isdigit():
             continue
         owner = int(fields[4])
-        if owner not in profession_ids:
+        if owner != 0 and owner not in profession_ids:
             continue
         sid = int(fields[1])
         skills.append({"id": sid, "name": fields[0], "profession_id": owner,
                        "career_groups": sorted(career_groups_by_id.get(sid, set())),
                        "level": fields[3], "required_level": fields[6]})
     return professions, skills, encoding
+
+
+def patch_global_skill_limits(source: Path, changes: dict[int, bool],
+                              source_professions: dict[int, int], cache_dir: Path,
+                              allowed_missing_learn_ids: set[int] | None = None) -> tuple[bytes, str]:
+    """Set selected learn requirements to unrestricted, or restore their original profession."""
+    if not changes:
+        raise ValueError("没有待应用的技能修改")
+    original = _resources(source, {SKILL_LEARN})[SKILL_LEARN]
+    lines, found = [], set()
+    for line in original.splitlines(keepends=True):
+        body = line.rstrip(b"\r\n")
+        ending = line[len(body):]
+        fields = body.split(b"\t")
+        if len(fields) >= 5 and fields[1].isdigit() and int(fields[1]) in changes:
+            sid = int(fields[1])
+            if fields[2] != b"1" or sid in found:
+                raise ValueError(f"技能 {sid} 不可学习或记录重复")
+            origin = source_professions.get(sid)
+            if origin not in CAREER_GROUP:
+                raise ValueError(f"技能 {sid} 缺少原职业信息")
+            fields[4] = b"0" if changes[sid] else str(origin).encode("ascii")
+            line = b"\t".join(fields) + ending
+            found.add(sid)
+        lines.append(line)
+    missing = set(changes) - found
+    if missing - (allowed_missing_learn_ids or set()):
+        raise ValueError("以下技能 ID 在当前包的可学技能表中不存在：" + ", ".join(map(str, sorted(missing))))
+    if not found:
+        return source.read_bytes(), ""
+    work = Path(tempfile.mkdtemp(prefix="skill-limits-global-", dir=cache_dir))
+    try:
+        output = work / "patched.dpk"
+        replace_resource(source, SKILL_LEARN, None, output,
+            line_edit=None, line_edits=None, replacement_data=b"".join(lines),
+            compression_level=6, zlib_mem_level=8, zlib_strategy="default",
+            auto_zlib_parameters=True, allow_chain_shrink=False,
+            overwrite_output=False, overwrite_report=False,
+            max_input_size=2 * 1024 * 1024 * 1024, report_path=None)
+        result = output.read_bytes()
+        return result, f"mb.skill-limits.{hashlib.sha256(result).hexdigest()[:8]}.dpk"
+    finally:
+        import shutil
+        shutil.rmtree(work, ignore_errors=True)
 
 
 def inspect_dpk_career_groups(path: Path) -> dict[int, list[str]]:
@@ -205,7 +249,7 @@ def patch_dpk_changes(source: Path, target_profession: int, changes: dict[int, b
             if fields[2] != b"1":
                 raise ValueError(f"技能 {sid} 当前标记为不可学习")
             if desired[sid]:
-                fields[4] = str(target_profession).encode("ascii")
+                fields[4] = b"0"
             else:
                 source_profession = source_professions.get(sid)
                 if source_profession not in CAREER_GROUP:

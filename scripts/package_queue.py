@@ -10,7 +10,7 @@ from .backpack_shop import (PriceNotRepresentable, _price_copper as backpack_pri
                             product_entries as backpack_product_entries)
 from .profession_skills import inspect_archive as inspect_profession, has_skill, patch_archive_batch
 from .ride_speed import configuration_rows, prepare_changes, patch_archive as patch_rides
-from .skill_limits import CAREER_GROUP, inspect_dpk_skills, patch_dpk_changes
+from .skill_limits import CAREER_GROUP, inspect_dpk_skills, patch_global_skill_limits
 from .summon_config import SUMMON_SKILL_NAME, load_monster_catalog, load_friend_catalog, patch_summon_dpk
 from .weapon_custom import all_item_ids, append_weapon, verify_weapon
 from .weapon_drafts import search_traits, weapon_catalog
@@ -93,7 +93,7 @@ class PackageQueueBuilder:
             raise ValueError('武器名称、类型、品质或耐久值无效')
         if fields[9] not in {'', '1', '2', '3', '4'}:
             raise ValueError('职业限制值无效')
-        if any(fields[i] and not fields[i].isdigit() for i in (11, 19, 20, 21, 22, 23, 24)):
+        if any(fields[i] and not fields[i].isdigit() for i in (11, 19, 20, 21, 22, 23, 24, 53)):
             raise ValueError('武器等级与属性必须为非负整数')
         if not fields[4].strip() or not fields[5].isdigit():
             raise ValueError('道具图片或模型 ID 无效')
@@ -152,12 +152,12 @@ class PackageQueueBuilder:
         return {}
 
     def _patch_skill_limits(self, payload, outputs):
-        target = int(payload['target_profession'])
         raw = payload.get('changes')
-        if target not in CAREER_GROUP or not isinstance(raw, list) or not raw:
-            raise ValueError('目标职业或技能修改内容无效')
+        if not isinstance(raw, list) or not raw:
+            raise ValueError('技能修改内容无效')
         skills = {label: {row['id']: row for row in inspect_dpk_skills(path)[1]}
                   for label, path in self.packages.items()}
+        reference = {row['id']: row for row in inspect_dpk_skills(self.reference_client)[1]}
         changes, origins = {}, {}
         for item in raw:
             if not isinstance(item, dict) or type(item.get('assigned')) is not bool:
@@ -169,14 +169,20 @@ class PackageQueueBuilder:
                 raise ValueError(f'技能 {sid} 重复或不属于客户端与主包共有技能')
             if dynamic and main['profession_id'] != dynamic['profession_id']:
                 raise ValueError(f'技能 {sid} 的主包与动态包职业不一致')
-            origin = int(self.provenance.get(str(sid), client['profession_id']))
-            if origin not in CAREER_GROUP or target == origin:
-                raise ValueError(f'技能 {sid} 属于目标职业或缺少原职业信息')
+            reference_origin = reference.get(sid, {}).get('profession_id')
+            origin = int(self.provenance.get(str(sid), reference_origin
+                         if reference_origin in CAREER_GROUP else client['profession_id']))
+            if origin not in CAREER_GROUP:
+                raise ValueError(f'技能 {sid} 缺少原职业信息，无法安全修改')
             changes[sid], origins[sid] = item['assigned'], origin
         for label, source in self.packages.items():
             missing = set(changes) - skills[label].keys() if label == '动态包' else set()
-            data, _ = patch_dpk_changes(source, target, changes, origins, self.directory, missing)
+            data, _ = patch_global_skill_limits(source, changes, origins, self.directory, missing)
             outputs[label].write_bytes(data)
+            verified = {row['id']: row for row in inspect_dpk_skills(outputs[label])[1]}
+            for sid, assigned in changes.items():
+                if sid not in missing and (sid not in verified or verified[sid]['profession_id'] != (0 if assigned else origins[sid])):
+                    raise ValueError(f'{label}技能 {sid} 职业限制写入校验失败')
         for sid, assigned in changes.items():
             if assigned:
                 self.provenance[str(sid)] = origins[sid]
@@ -196,7 +202,7 @@ class PackageQueueBuilder:
         client = self.packages['客户端']
         catalog = load_monster_catalog(self.catalog_path, self.reference_client)
         if kind == 'friend':
-            catalog += load_friend_catalog(client)
+            catalog += load_friend_catalog(client, self.reference_client)
         for label, source in self.packages.items():
             data, _ = patch_summon_dpk(source, outputs[label], config,
                 optional_resources=(label == '动态包'), catalog=catalog,
