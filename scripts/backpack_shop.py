@@ -244,7 +244,8 @@ def _price_discount(price, unit, base_price) -> int:
 
 
 def prepare(files: dict[str, bytes], *, action: str, merchant_ids=None, ranges=None, item_id=None,
-            product_id=None, price=None, unit=None, base_price=None) -> tuple[dict[str, bytes], dict]:
+            product_id=None, price=None, unit=None, base_price=None,
+            item_name=None) -> tuple[dict[str, bytes], dict]:
     selected = _selected_ranges(ranges) if action == "add" else _selected(merchant_ids)
     product_lines, product_ending = _lines(files[PRODUCT_PATH])
     merchant_lines, merchant_ending = _lines(files[MERCHANT_PATH])
@@ -256,6 +257,8 @@ def prepare(files: dict[str, bytes], *, action: str, merchant_ids=None, ranges=N
     if action == "add":
         if isinstance(item_id, bool) or not isinstance(item_id, int) or item_id < 1:
             raise ValueError("物品 ID 无效")
+        if not isinstance(item_name, str) or not item_name.strip() or any(c in item_name for c in "\t\r\n"):
+            raise ValueError("物品名称无效")
         discount = _price_discount(price, unit, base_price)
         for merchant_id in selected:
             ids = [int(value) for value in filter(None, merchants[merchant_id][1][2].split("*"))]
@@ -266,7 +269,7 @@ def prepare(files: dict[str, bytes], *, action: str, merchant_ids=None, ranges=N
             raise ValueError("商品 ID 已用尽")
         width = max(24, len(product_lines[0].split("\t")))
         fields = [""] * width
-        fields[0], fields[1], fields[23] = str(new_id), str(item_id), str(discount)
+        fields[0], fields[1], fields[5], fields[23] = str(new_id), str(item_id), item_name.strip(), str(discount)
         product_lines.append("\t".join(fields))
         product_id = new_id
     elif action == "delete":

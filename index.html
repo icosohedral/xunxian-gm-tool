@@ -1048,6 +1048,7 @@ tbody tr.is-static:hover{background:transparent}
           <div class="segmented" id="item-mode" role="group" aria-label="切换功能">
             <button type="button" class="is-active" data-im="item">发放物品</button>
             <button type="button" data-im="weapon">装备新增</button>
+            <button type="button" data-im="custom">自定义道具</button>
             <button type="button" data-im="shop">商城上架</button>
             <button type="button" data-im="backpack">背包商店</button>
             <button type="button" data-im="point">仙玉充值</button>
@@ -1127,6 +1128,22 @@ tbody tr.is-static:hover{background:transparent}
           </div>
         </div>
 
+        <div id="item-panel-custom" class="is-hidden">
+          <article class="card">
+            <div class="card-head">
+              <h3>自定义道具</h3>
+              <div class="toolbar"><span class="muted" id="custom-item-count">—</span><button type="button" class="btn btn-sm" id="custom-item-refresh">刷新</button><button type="button" class="btn btn-sm btn-danger" id="custom-item-delete" disabled>删除选中</button></div>
+            </div>
+            <div class="card-body">
+              <div id="custom-item-status" class="shop-status" role="status" aria-live="polite"></div>
+            </div>
+            <div class="table-wrap tall"><table>
+              <thead><tr><th>名称</th><th>ID</th><th>类型</th><th>所在包</th><th style="text-align:right">选择</th></tr></thead>
+              <tbody id="custom-item-rows"><tr class="is-static"><td colspan="5" class="muted">切换标签后读取</td></tr></tbody>
+            </table></div>
+          </article>
+        </div>
+
         <div id="item-panel-shop" class="is-hidden">
           <div class="shop-grid">
             <article class="card shop-add-card">
@@ -1201,7 +1218,7 @@ tbody tr.is-static:hover{background:transparent}
             <article class="card shop-catalog-card">
               <div class="card-head"><h3>已保存商品</h3><button type="button" class="btn btn-sm" id="backpack-refresh">刷新</button></div>
               <div class="card-body" style="padding-bottom:10px">
-                <div id="backpack-runtime" class="backpack-runtime" role="status">正在检查游戏内商人列表…</div>
+                <div id="backpack-runtime" class="backpack-runtime" role="status"></div>
                 <div class="toolbar"><div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
                   <input id="backpack-filter" type="search" placeholder="筛选物品名称或 ID" aria-label="筛选背包商品"></div>
                   <span class="muted" id="backpack-count">—</span></div>
@@ -2033,6 +2050,7 @@ function readDefinitionFavorites(){
 }
 const state = { view:'home', cart:[], scenes:null, acctId:null, charId:null, logs:[], logFilter:'all',
                 acctMode:'account', itemMode:'item', logsMode:'server', ratesLoaded:false,
+                customItems:null, customItemRevision:null, customItemLoading:false, customItemDeleting:false, customItemSelectedIds:new Set(),
                 backpackShop:null, backpackLoading:false, backpackSelectedRanges:null,
                 weaponTemplate:null, weaponDraft:[], weaponProposedId:null, weaponTraitNames:new Map(), weaponIconModels:{}, weaponIconChoices:[], weaponReloadItemIds:[],
                 gameConfigMode:'rates', definitions:{base:null,dynamic:null}, fateLocks:null,
@@ -2051,7 +2069,7 @@ const VIEWS = ['home','acct','item','rates','skill-config','pet-config','logs'];
 function syncHash(){
   let h = state.view;
   if (state.view === 'logs') h = state.logsMode === 'config' ? 'config' : state.logsMode === 'log' ? 'logs' : state.logsMode === 'whitelist' ? 'ip-whitelist' : 'ops';
-  if (state.view === 'item') h = state.itemMode === 'point' ? 'point' : state.itemMode === 'mail' ? 'mail' : state.itemMode === 'weapon' ? 'weapon' : state.itemMode === 'backpack' ? 'backpack' : 'item';
+  if (state.view === 'item') h = state.itemMode === 'point' ? 'point' : state.itemMode === 'mail' ? 'mail' : state.itemMode === 'weapon' ? 'weapon' : state.itemMode === 'backpack' ? 'backpack' : state.itemMode === 'custom' ? 'custom' : 'item';
   if (location.hash.slice(1) !== h) history.replaceState(null, '', '#' + h);
 }
 
@@ -2096,10 +2114,11 @@ function ensureAcctList(){
 
 /* 发放物品页：发放物品 / 商城上架 / 仙玉充值 / 发送邮件 */
 function setItemMode(mode, skipLoad){
-  state.itemMode = ['shop','backpack','point','mail','weapon'].includes(mode) ? mode : 'item';
+  state.itemMode = ['shop','backpack','point','mail','weapon','custom'].includes(mode) ? mode : 'item';
   $$('#item-mode button').forEach(b => b.classList.toggle('is-active', b.dataset.im === state.itemMode));
   $('#item-panel-item').classList.toggle('is-hidden', state.itemMode !== 'item');
   $('#item-panel-weapon').classList.toggle('is-hidden', state.itemMode !== 'weapon');
+  $('#item-panel-custom').classList.toggle('is-hidden', state.itemMode !== 'custom');
   $('#item-panel-shop').classList.toggle('is-hidden', state.itemMode !== 'shop');
   $('#item-panel-backpack').classList.toggle('is-hidden', state.itemMode !== 'backpack');
   $('#item-panel-point').classList.toggle('is-hidden', state.itemMode !== 'point');
@@ -2107,6 +2126,7 @@ function setItemMode(mode, skipLoad){
   if (!skipLoad){
     if (state.itemMode === 'item') ensureItemList();
     if (state.itemMode === 'weapon'){ loadWeaponTemplates(); searchWeaponTraits(); }
+    if (state.itemMode === 'custom') loadCustomItems();
     if (state.itemMode === 'shop') loadShop();
     if (state.itemMode === 'backpack') loadBackpackShop();
   }
@@ -2115,6 +2135,118 @@ function setItemMode(mode, skipLoad){
 function ensureItemList(){
   if (state.itemMode === 'item' && !$('#it-rows').children.length) searchItem();
 }
+
+function updateCustomItemSelection(){
+  const blocked = state.customItemLoading || state.customItemDeleting;
+  if (!state.customItemDeleting) $('#custom-item-delete').textContent = state.customItemSelectedIds.size
+    ? '删除选中 (' + state.customItemSelectedIds.size + ')'
+    : '删除选中';
+  $('#custom-item-delete').disabled = !state.customItemSelectedIds.size || blocked;
+  $('#custom-item-refresh').disabled = blocked;
+  $$('#custom-item-rows [data-custom-item-select]').forEach(box => {
+    const active = state.customItemSelectedIds.has(Number(box.dataset.customItemSelect));
+    box.checked = active;
+    box.disabled = blocked;
+    box.closest('tr').classList.toggle('is-selected', active);
+  });
+}
+function renderCustomItems(){
+  const items = state.customItems || [];
+  const available = new Set(items.map(item => item.id));
+  for (const id of state.customItemSelectedIds) if (!available.has(id)) state.customItemSelectedIds.delete(id);
+  $('#custom-item-count').textContent = items.length + ' 件';
+  $('#custom-item-rows').innerHTML = items.length ? items.map(item =>
+    '<tr><td>'+esc(item.name || '（未命名）')+'</td><td>'+esc(item.id)+'</td><td>'+esc(item.type || '—')+'</td>'+
+    '<td>'+esc(item.sources.join('、'))+'</td><td style="text-align:right"><input type="checkbox" data-custom-item-select="'+esc(item.id)+'" aria-label="选择 '+esc(item.name || '未命名道具')+'"></td></tr>'
+  ).join('') : emptyRow(5, '没有自定义道具', '当前物品包中没有 ID 大于 60073 的记录');
+  updateCustomItemSelection();
+}
+async function loadCustomItems(){
+  if (state.customItemLoading) return;
+  state.customItemLoading = true;
+  updateCustomItemSelection();
+  $('#custom-item-rows').innerHTML = skeleton(5);
+  try{
+    const response = await api('/api/custom-items');
+    state.customItems = response.data.items;
+    state.customItemRevision = response.data.revision;
+    renderCustomItems();
+  }catch(error){
+    state.customItems = null;
+    state.customItemRevision = null;
+    state.customItemSelectedIds.clear();
+    $('#custom-item-rows').innerHTML = emptyRow(5, '自定义道具读取失败', error.message);
+    $('#custom-item-count').textContent = '—';
+  }finally{ state.customItemLoading = false; updateCustomItemSelection(); }
+}
+async function deleteCustomItems(){
+  const button = $('#custom-item-delete');
+  if (state.customItemLoading || state.customItemDeleting || !state.customItemRevision) return;
+  const items = (state.customItems || []).filter(row => state.customItemSelectedIds.has(row.id));
+  if (!items.length) return;
+  const ok = await confirmDialog({
+    title:'删除自定义道具',
+    html:items.length === 1
+      ? '确定删除 <b>' + esc(items[0].name || '未命名道具') + '</b>（ID ' + esc(items[0].id) + '）？'
+      : '确定删除选中的 <b>' + items.length + '</b> 件道具？',
+    okText:'确认删除'
+  });
+  if (!ok) return;
+  state.customItemDeleting = true;
+  busy(button, true, '删除中…');
+  updateCustomItemSelection();
+  $('#custom-item-status').textContent = '';
+  $('#custom-item-status').classList.remove('error');
+  let deleted = 0;
+  let reloadError = '';
+  let failure = null;
+  let clientPackageUpdated = false;
+  try{
+    for (const item of items){
+      button.innerHTML = '<span class="spinner"></span>' + esc('删除中 ' + (deleted + 1) + '/' + items.length + '…');
+      const response = await postJSON('/api/custom-items/delete', {item_id:item.id, revision:state.customItemRevision});
+      const result = response.data;
+      deleted++;
+      state.customItemSelectedIds.delete(item.id);
+      clientPackageUpdated = clientPackageUpdated || result.client_package_updated;
+      if (result.reload_error && !reloadError) reloadError = result.reload_error;
+      if (deleted < items.length){
+        const latest = await api('/api/custom-items');
+        state.customItemRevision = latest.data.revision;
+      }
+    }
+  }catch(error){
+    failure = error;
+  }finally{
+    await loadCustomItems();
+    busy(button, false);
+    state.customItemDeleting = false;
+    updateCustomItemSelection();
+  }
+  if (clientPackageUpdated){
+    try{ await downloadFinalClientPackage(); }
+    catch(error){ toast(error.message, true); }
+  }
+  const message = failure
+    ? (deleted ? '已删除 ' + deleted + ' 件，其余未删除：' : '删除失败：') + failure.message +
+      (reloadError ? '；服务端热重载失败：' + reloadError : '')
+    : reloadError
+      ? '服务端热重载失败：' + reloadError + '；请手动重启服务端。'
+      : '';
+  $('#custom-item-status').textContent = message;
+  $('#custom-item-status').classList.toggle('error', !!(failure || reloadError));
+  if (failure || reloadError) toast(message, true);
+}
+$('#custom-item-refresh').addEventListener('click', loadCustomItems);
+$('#custom-item-delete').addEventListener('click', deleteCustomItems);
+$('#custom-item-rows').addEventListener('change', event => {
+  const box = event.target.closest('[data-custom-item-select]');
+  if (!box || state.customItemLoading || state.customItemDeleting) return;
+  const itemId = Number(box.dataset.customItemSelect);
+  if (box.checked) state.customItemSelectedIds.add(itemId);
+  else state.customItemSelectedIds.delete(itemId);
+  updateCustomItemSelection();
+});
 
 const weaponEditableFields = [
   [1,'武器名称','text'],[9,'职业','profession'],[11,'等级','number'],
@@ -2388,6 +2520,7 @@ function goto(target){
   if (target === 'char'){ setAcctMode('char', true); showView('acct'); return; }
   if (target === 'point'){ setItemMode('point', true); showView('item'); return; }
   if (target === 'mail'){ setItemMode('mail', true); showView('item'); return; }
+  if (target === 'custom'){ setItemMode('custom', true); showView('item'); return; }
   if (target === 'backpack'){ setItemMode('backpack', true); showView('item'); loadBackpackShop(); return; }
   if (target === 'acct'){ setAcctMode('account', true); showView('acct'); return; }
   if (target === 'item'){ setItemMode('item', true); showView('item'); return; }
@@ -3138,10 +3271,10 @@ function setBackpackStatus(message, kind=''){
 function renderBackpackRuntime(runtime){
   const node = $('#backpack-runtime');
   const state = runtime?.state;
-  node.classList.toggle('is-warning', state === 'different' || state === 'unavailable');
+  node.classList.toggle('is-warning', state === 'unavailable');
   node.textContent = state === 'matched' ? '已保存配置与游戏内商人商品列表一致。' :
-    state === 'different' ? '部分配置商品未出现在游戏内商人列表中；请检查上架结果或物品配置。' :
-    state === 'unavailable' ? '无法读取游戏内商人列表，请确认服务端状态。' : '正在检查游戏内商人列表…';
+    state === 'different' ? '' :
+    state === 'unavailable' ? '无法读取游戏内商人列表，请确认服务端状态。' : '';
 }
 function renderBackpackMerchants(){
   const data = state.backpackShop;
@@ -3227,11 +3360,11 @@ async function addBackpackItem(){
     $('#backpack-selected').textContent = '请选择一个物品';
     $('#backpack-selected').classList.remove('is-set');
     const cache = response.data.reload.merchant_cache?.state;
-    const prefix = (response.data.reload.purchase_price_initialized ? '已设置服务端购买价并保存 ' : '已保存 ') + response.data.name;
-    setBackpackStatus(cache === 'applied' ? prefix + '，两条线路的商人列表已热重载。' :
-      cache === 'unverified' ? prefix + '，两条线路的商品列表已刷新；游戏内售价尚未核验。' :
-      prefix + '，热重载未通过验证：' + (response.data.reload.merchant_cache?.error || '请检查商品是否已在游戏内生效。'),
-      cache === 'applied' ? 'success' : 'warning');
+    const name = response.data.name;
+    setBackpackStatus(cache === 'applied' || cache === 'unverified'
+      ? name + '已上架背包商店，热重载完成。'
+      : name + '上架未通过热重载验证：' + (response.data.reload.merchant_cache?.error || '请检查商品是否已在游戏内生效。'),
+      cache === 'applied' || cache === 'unverified' ? 'success' : 'warning');
     await loadBackpackShop();
   }catch(error){ setBackpackStatus(error.message, 'error'); }
   finally{ busy(button, false); }
@@ -4955,6 +5088,7 @@ function routeFromHash(){
   if (v === 'point'){ goto('point'); return; }
   if (v === 'mail'){ goto('mail'); return; }
   if (v === 'backpack'){ goto('backpack'); return; }
+  if (v === 'custom'){ goto('custom'); return; }
   if (v === 'config'){ goto('config'); return; }
   if (v === 'ip-whitelist'){ setLogsMode('whitelist', true); showView('logs'); return; }
   if (v === 'ops'){ setLogsMode('server', true); showView('logs'); return; }

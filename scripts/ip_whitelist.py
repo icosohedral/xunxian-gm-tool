@@ -9,7 +9,7 @@ REMOTE_SCRIPT = r'''
 import ipaddress, json, os, pathlib, re, shutil, sys, tempfile
 
 cfg = pathlib.Path('/opt/xxserver/runtime/all/xxsrv.ini')
-active = pathlib.Path('/opt/xxserver/state/active.json')
+run_root = pathlib.Path('/opt/xxserver/runs')
 action = sys.argv[1]
 requested = sys.argv[2] if len(sys.argv) > 2 else ''
 
@@ -33,48 +33,55 @@ def config():
     return raw, text, section, stop, block, match, entries, wan.group(1).strip() if wan else ''
 
 def recent(entries):
-    if not active.is_file():
-        return [], '未找到当前运行目录记录'
-    run = pathlib.Path(json.loads(active.read_text(encoding='utf-8'))['directory'])
-    log = run / 'backend.log'
-    if not log.is_file():
-        return [], '当前运行目录没有 backend.log'
-    with log.open('rb') as handle:
-        size = handle.seek(0, os.SEEK_END)
-        handle.seek(max(0, size - 4 * 1024 * 1024))
-        data = handle.read()
-    if size > len(data):
-        data = data.split(b'\n', 1)[-1]
-    try:
-        decoded = data.decode('utf-8')
-    except UnicodeDecodeError:
-        decoded = data.decode('gb18030', 'replace')
-    lines = decoded.splitlines()
+    if not run_root.is_dir():
+        return [], '未找到服务端运行日志目录'
     networks = [ipaddress.IPv4Network(item, strict=False) for item in entries]
     rows = []
-    for line in reversed(lines):
-        if '[net]' not in line.lower():
+    # Run recovery/start scripts can create a newer run without updating
+    # state/active.json. Use timestamped run directories as the source of order.
+    for run in sorted((item for item in run_root.iterdir() if item.is_dir()),
+                      key=lambda item: item.name, reverse=True):
+        log = run / 'backend.log'
+        if not log.is_file():
             continue
-        # Network log lines that mention a client source, connection or login.
-        if not any(word in line for word in ('来源', '连接', '登录', '客户端', '拒绝', 'source', 'client')):
-            continue
-        found = re.findall(r'(?<![\d.])(?:\d{1,3}\.){3}\d{1,3}(?![\d.])', line)
-        ips = []
-        for value in found:
+        try:
+            with log.open('rb') as handle:
+                size = handle.seek(0, os.SEEK_END)
+                handle.seek(max(0, size - 4 * 1024 * 1024))
+                data = handle.read()
+            if size > len(data):
+                data = data.split(b'\n', 1)[-1]
             try:
-                ips.append(ipaddress.IPv4Address(value))
-            except ValueError:
-                pass
-        if not ips:
+                decoded = data.decode('utf-8')
+            except UnicodeDecodeError:
+                decoded = data.decode('gb18030', 'replace')
+        except OSError:
             continue
-        ip = ips[-1]
-        stamp = re.search(r'(?:\d{4}[-/]\d{1,2}[-/]\d{1,2}[ T])?\d{1,2}:\d{2}:\d{2}', line)
-        rows.append({'time': stamp.group(0) if stamp else '', 'ip': str(ip),
-                     'allowed': any(ip in network for network in networks),
-                     'rejected': '拒绝' in line or 'reject' in line.lower(),
-                     'detail': line[-280:]})
-        if len(rows) == 5:
-            break
+        lines = decoded.splitlines()
+        for line in reversed(lines):
+            if '[net]' not in line.lower():
+                continue
+            if not any(word in line for word in ('来源', '连接', '登录', '客户端', '拒绝', 'source', 'client')):
+                continue
+            source = re.search(r'来源\s*((?:\d{1,3}\.){3}\d{1,3})', line)
+            found = [source.group(1)] if source else re.findall(
+                r'(?<![\d.])(?:\d{1,3}\.){3}\d{1,3}(?![\d.])', line)
+            ip = None
+            for value in reversed(found):
+                try:
+                    ip = ipaddress.IPv4Address(value)
+                    break
+                except ValueError:
+                    pass
+            if ip is None:
+                continue
+            stamp = re.search(r'(?:\d{4}[-/]\d{1,2}[-/]\d{1,2}[ T])?\d{1,2}:\d{2}:\d{2}', line)
+            rows.append({'time': stamp.group(0) if stamp else '', 'ip': str(ip),
+                         'allowed': any(ip in network for network in networks),
+                         'rejected': '拒绝' in line or 'reject' in line.lower(),
+                         'detail': line[-280:]})
+            if len(rows) == 5:
+                return rows, ''
     return rows, ''
 
 try:

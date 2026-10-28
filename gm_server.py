@@ -50,6 +50,8 @@ from scripts.ride_speed import (inspect_archive as inspect_ride_archive,
 from scripts.ip_whitelist import normalize_entry as normalize_ip_whitelist_entry, run as run_ip_whitelist
 from scripts.skill_reload import run as run_skill_reload
 from scripts.item_reload import run as run_item_reload
+from scripts.custom_items import (catalog as custom_item_catalog,
+                                  remove_from_package as remove_custom_item_from_package)
 from scripts.backpack_shop import (PRODUCT_PATH as BACKPACK_PRODUCT_PATH,
                                    MERCHANT_PATH as BACKPACK_MERCHANT_PATH,
                                    catalog as backpack_catalog,
@@ -1295,6 +1297,96 @@ def get_backpack_shop():
     return data
 
 
+def get_custom_items():
+    """List custom item definitions found in the client and server packages."""
+    server_paths = {"主包": MB_DPK_FILE_PATH, "动态包": MB_DPK_DYNAMIC_FILE_PATH}
+    server_packages, signatures = _ensure_server_mb_cache(server_paths)
+    client = None
+    if str(CFG.get("client_mb_dpk") or "").strip():
+        client = _ensure_client_work_package()
+    packages = {"主包": server_packages["主包"], "动态包": server_packages["动态包"]}
+    revision = {name: signatures[name][2] for name in packages}
+    if client:
+        packages["客户端"] = client
+        revision["客户端"] = _file_sha256(client)
+    return {"items": custom_item_catalog(packages), "revision": revision,
+            "client_package_available": bool(client)}
+
+
+def delete_custom_item(body):
+    if not isinstance(body, dict):
+        raise ValueError("自定义道具请求无效")
+    item_id = body.get("item_id")
+    if isinstance(item_id, bool) or not isinstance(item_id, int) or not 60074 <= item_id <= 65535:
+        raise ValueError("只能删除 ID 大于 60073 的自定义道具")
+    revision = body.get("revision")
+    if not isinstance(revision, dict):
+        raise ValueError("物品包版本无效，请刷新列表后重试")
+
+    server_paths = {"主包": MB_DPK_FILE_PATH, "动态包": MB_DPK_DYNAMIC_FILE_PATH}
+    with SERVER_MB_CACHE_LOCK:
+        server_packages, signatures = _ensure_server_mb_cache(server_paths)
+        client = _ensure_client_work_package() if str(CFG.get("client_mb_dpk") or "").strip() else None
+        packages = {"主包": server_packages["主包"], "动态包": server_packages["动态包"]}
+        expected_revision = {name: signatures[name][2] for name in packages}
+        if client:
+            packages["客户端"] = client
+            expected_revision["客户端"] = _file_sha256(client)
+        if revision != expected_revision:
+            raise ValueError("物品包已变化，请刷新列表后重试")
+
+        current = custom_item_catalog(packages)
+        item = next((row for row in current if row["id"] == item_id), None)
+        if item is None:
+            raise ValueError("自定义道具已不存在，请刷新列表")
+
+        # Prevent leaving a live merchant entry that points at a deleted definition.
+        with _lock:
+            shop_files = read_backpack_remote(ssh())
+        active = next((row for row in backpack_catalog(shop_files, {})["rows"]
+                       if row["item_id"] == item_id), None)
+        if active:
+            raise ValueError("该物品仍在背包商店出售，请先下架后再删除")
+
+        with tempfile.TemporaryDirectory(prefix="custom-item-delete-", dir=CACHE_DIR) as work_dir:
+            work = Path(work_dir)
+            server_outputs, changed_labels = {}, []
+            client_output = None
+            for label, package in packages.items():
+                output = work / f"{label}.dpk"
+                changed = remove_custom_item_from_package(package, output, item_id)
+                if not changed:
+                    continue
+                if label == "客户端":
+                    client_output = output
+                else:
+                    server_outputs[label] = output
+                changed_labels.append(label)
+            if not changed_labels:
+                raise ValueError("未找到可删除的物品定义")
+
+            backups = _publish_queue_packages(server_outputs, server_paths, signatures) if server_outputs else {}
+            if server_outputs:
+                _update_server_mb_cache(server_outputs)
+            if client_output:
+                _replace_client_work_package(client_output.read_bytes())
+
+            reload_result = None
+            reload_error = ""
+            if "主包" in server_outputs:
+                try:
+                    with _lock:
+                        reload_result = run_item_reload(ssh(), server_outputs["主包"])
+                except Exception as error:
+                    reload_error = str(error)
+            result = {"id": item_id, "name": item["name"], "removed_from": changed_labels,
+                      "client_package_updated": bool(client_output),
+                      "reload": reload_result, "reload_error": reload_error,
+                      "backups": backups}
+            op_log("删除自定义道具", result, "error" if reload_error else "ok")
+            return result
+
+
 def edit_backpack_shop(body):
     if not isinstance(body, dict):
         raise ValueError("背包商店请求无效")
@@ -1333,7 +1425,8 @@ def edit_backpack_shop(body):
             base_price = int(item["price"] or 0) if item else None
             kwargs = dict(action=action, merchant_ids=body.get("merchants"),
                 ranges=body.get("ranges"), item_id=raw_item_id,
-                product_id=body.get("product_id"), price=body.get("price"), unit=body.get("unit"))
+                product_id=body.get("product_id"), price=body.get("price"), unit=body.get("unit"),
+                item_name=item["name"] if item else None)
             needs_price_change = item is not None and base_price == 0
             if not needs_price_change:
                 try:
@@ -2984,7 +3077,7 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path in {"/api/summons/catalog", "/api/dungeon-limits", "/api/ride-speeds",
                     "/api/skill-limits/inspect", "/api/profession-skills/download",
-                    "/api/client-package/download"}:
+                    "/api/client-package/download", "/api/custom-items"}:
             with _client_package_lock:
                 return self._do_GET()
         return self._do_GET()
@@ -3117,6 +3210,10 @@ class Handler(BaseHTTPRequestHandler):
                 if not self._config_request_allowed():
                     return self._json({"ok": False, "error": "仅允许从本机控制台读取背包商店"}, 403)
                 return self._json({"ok": True, "data": get_backpack_shop()})
+            if p == "/api/custom-items":
+                if not self._config_request_allowed():
+                    return self._json({"ok": False, "error": "仅允许从本机控制台读取自定义道具"}, 403)
+                return self._json({"ok": True, "data": get_custom_items()})
             if p == "/api/shop/restart":
                 return self._json({"ok": True, "data": dict(_shop_restart_state)})
             if p == "/api/server/control":
@@ -3277,7 +3374,8 @@ class Handler(BaseHTTPRequestHandler):
         if path in {"/api/dungeon-limits", "/api/ride-speeds", "/api/skill-limits/inspect",
                     "/api/skill-limits/apply", "/api/profession-skills/inspect",
                     "/api/profession-skills/apply", "/api/summons/apply", "/api/weapon/apply", "/api/skills/reload",
-                    "/api/weapons/reload", "/api/config/reload", "/api/package-queue/apply"}:
+                    "/api/weapons/reload", "/api/config/reload", "/api/package-queue/apply",
+                    "/api/custom-items/delete"}:
             with _client_package_lock:
                 return self._do_POST()
         return self._do_POST()
@@ -3290,7 +3388,8 @@ class Handler(BaseHTTPRequestHandler):
                  "/api/skill-limits/inspect",
                  "/api/skill-limits/apply", "/api/ip-whitelist", "/api/profession-skills/inspect",
                  "/api/profession-skills/apply", "/api/summons/apply", "/api/weapon/apply", "/api/skills/reload",
-                 "/api/weapons/reload", "/api/config/reload", "/api/package-queue/apply"):
+                 "/api/weapons/reload", "/api/config/reload", "/api/package-queue/apply",
+                 "/api/custom-items/delete"):
             if not self._config_request_allowed():
                 return self._json({"ok": False, "error": "仅允许从本机控制台修改配置"}, 403)
             if self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/json":
@@ -3302,6 +3401,12 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             body = {}
         try:
+            if p == "/api/custom-items/delete":
+                try:
+                    result = delete_custom_item(body)
+                except ValueError as error:
+                    return self._json({"ok": False, "error": str(error)}, 400)
+                return self._json({"ok": True, "data": result})
             if p == "/api/backpack-shop/edit":
                 try:
                     result = edit_backpack_shop(body)
