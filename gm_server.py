@@ -31,7 +31,7 @@ from pathlib import Path
 import paramiko
 from scripts.skill_limits import (CAREER_GROUP, CAREER_GROUP_NAMES, inspect_client_dpk,
                                   inspect_dpk_career_groups, inspect_dpk_skills,
-                                  patch_global_skill_limits, touch_client_session,
+                                  patch_dpk_changes, touch_client_session,
                                   SESSIONS as _skill_limit_client_sessions,
                                   SESSION_LAST_USED as _skill_limit_session_last_used,
                                   SESSION_LOCK as _skill_limit_session_lock)
@@ -3560,8 +3560,6 @@ class Handler(BaseHTTPRequestHandler):
                                 if reloaded.get("merchant_cache", {}).get("state") == "pending":
                                     raise RuntimeError(reloaded["merchant_cache"].get("error") or "商人缓存刷新失败")
                                 verified = inspect_backpack_cache(connection, files)
-                                if verified["state"] != "matched":
-                                    raise RuntimeError("游戏内商人列表与已保存配置不一致")
                             result["backpack"] = {"reload": reloaded, "verification": verified}
                         except Exception as error:
                             prefix = "其他所选项目已完成；" if other_scopes else ""
@@ -3899,6 +3897,9 @@ class Handler(BaseHTTPRequestHandler):
                     "shared_skills": len(info["skills"]), "client_path": str(client_path)})
                 return self._json({"ok": True, "data": info})
             if p == "/api/skill-limits/apply":
+                target_profession = int(body.get("target_profession", 0))
+                if target_profession not in CAREER_GROUP:
+                    raise ValueError("请选择有效的目标职业")
                 session_id = str(body.get("session_id", ""))
                 if not touch_client_session(session_id):
                     raise ValueError("技能包会话已过期，请重新读取客户端 mb.dpk")
@@ -3926,19 +3927,19 @@ class Handler(BaseHTTPRequestHandler):
                     source_ids = skill.get("source_professions", [])
                     if not source_ids or int(source_ids[0]) not in CAREER_GROUP:
                         raise ValueError(f"技能 {skill_id} 缺少原职业信息")
-                    if (item["assigned"] and skill.get("unrestricted")) or (not item["assigned"] and not skill.get("modified")):
+                    if (item["assigned"] and skill.get("profession_id") == target_profession) or (not item["assigned"] and (not skill.get("modified") or skill.get("profession_id") != target_profession)):
                         raise ValueError(f"技能 {skill_id} 没有状态变化")
                     changes[skill_id] = item["assigned"]
                     source_professions[skill_id] = int(source_ids[0])
                 client_path = _ensure_client_work_package()
-                result, filename = patch_global_skill_limits(client_path,
+                result, filename = patch_dpk_changes(client_path, target_profession,
                     changes, source_professions, Path(CACHE_DIR))
                 server_outputs = {}
                 for label, source_path in server_session["local_paths"].items():
                     allowed_missing = ({skill_id for skill_id in changes
                         if not inspected_skills[skill_id].get("dynamic_has_learn")}
                         if label == "动态包" else set())
-                    patched, _ = patch_global_skill_limits(Path(source_path),
+                    patched, _ = patch_dpk_changes(Path(source_path), target_profession,
                         changes, source_professions, Path(CACHE_DIR), allowed_missing)
                     output_path = os.path.join(CACHE_DIR, f"skill-limits-{session_id}-{label}-patched.dpk")
                     with open(output_path, "wb") as f:
@@ -4011,9 +4012,10 @@ class Handler(BaseHTTPRequestHandler):
                     _save_skill_limit_provenance(provenance)
                 for skill_id, assigned in changes.items():
                     skill = inspected_skills[skill_id]
-                    skill["unrestricted"] = assigned
+                    skill["profession_id"] = target_profession if assigned else source_professions[skill_id]
+                    skill["unrestricted"] = False
                     skill["modified"] = assigned
-                    skill["legacy_assigned"] = False
+                    skill["legacy_assigned"] = assigned
                 with _skill_limit_server_sessions_lock:
                     server_session["local_paths"] = {
                         label: str(path) for label, path in SERVER_MB_CACHE_PATHS.items()}

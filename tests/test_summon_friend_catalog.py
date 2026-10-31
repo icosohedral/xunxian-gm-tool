@@ -3,10 +3,25 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from scripts.summon_config import load_friend_catalog
+from scripts.summon_config import load_friend_catalog, _patch_levelup, _patch_learn
 
 
 class FriendCatalogTest(unittest.TestCase):
+    def test_summon_learn_preserves_selected_profession(self):
+        data = ('模板\t3046\t1\t1\t4\t0\t56\n'
+                '召唤伙伴\t3126\t1\t1\t1\t0\t56\n').encode('gb18030')
+        rows = _patch_learn(data, '召唤伙伴').decode('gb18030').splitlines()
+        summon = next(row.split('\t') for row in rows if row.split('\t')[1] == '3126')
+        self.assertEqual(summon[4], '1')
+
+    def test_summon_levelup_has_no_mana_cost(self):
+        fields = ['模板', '3046'] + [''] * 9 + ['200']
+        result = _patch_levelup(('\t'.join(fields) + '\n').encode('gb18030'), '召唤伙伴')
+        rows = [row.split('\t') for row in result.decode('gb18030').splitlines()]
+        summon = next(row for row in rows if row[1] == '3126')
+        self.assertEqual(summon[11], '0')
+        self.assertEqual(rows[0][11], '200')
+
     def test_global_skill_uses_original_profession_and_current_cooldown(self):
         learn = "skill/skill_learn.txt"
         data = "skill/skill_data_yx.txt"

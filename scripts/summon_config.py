@@ -445,6 +445,11 @@ def _patch_learn(data: bytes, skill_name: str) -> bytes:
     fields = list(template)
     fields[0] = skill_name
     fields[1] = str(SUMMON_SKILL_ID)
+    if target_index is not None:
+        existing_fields = lines[target_index].rstrip("\r\n").split("\t")
+        if len(existing_fields) < 5:
+            raise ValueError("召唤技能学习记录缺少职业字段")
+        fields[4] = existing_fields[4]
     if target_index is None:
         ending = "\r\n" if lines and lines[-1].endswith("\r\n") else "\n"
         lines.append("\t".join(fields) + ending)
@@ -480,6 +485,9 @@ def _patch_levelup(data: bytes, skill_name: str, *, required: bool = True) -> by
     fields = list(template)
     fields[0] = skill_name
     fields[1] = str(SUMMON_SKILL_ID)
+    if len(fields) <= 11:
+        raise ValueError("skill_levelup.txt 模板缺少法力消耗字段")
+    fields[11] = "0"
     if target_index is None:
         ending = "\r\n" if lines and lines[-1].endswith("\r\n") else "\n"
         lines.append("\t".join(fields) + ending)
@@ -582,6 +590,9 @@ def _patch_method_template(data: bytes, *, required: bool = True) -> bytes:
         fields = list(template_fields)
         fields[0] = str(SUMMON_SKILL_ID)
         fields[1] = SUMMON_METHOD_ID_MAP[fields[1]]
+        if len(fields) <= 39:
+            raise ValueError("召唤技能动作缺少法力消耗字段")
+        fields[39] = "0"
         if len(fields) > 2:
             refs = fields[2].split("*")
             fields[2] = "*".join(SUMMON_TRIGGER_ID if ref == "300498" else ref for ref in refs)

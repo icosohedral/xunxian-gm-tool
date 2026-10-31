@@ -10,7 +10,7 @@ from .backpack_shop import (PriceNotRepresentable, _price_copper as backpack_pri
                             product_entries as backpack_product_entries)
 from .profession_skills import inspect_archive as inspect_profession, has_skill, patch_archive_batch
 from .ride_speed import configuration_rows, prepare_changes, patch_archive as patch_rides
-from .skill_limits import CAREER_GROUP, inspect_dpk_skills, patch_global_skill_limits
+from .skill_limits import CAREER_GROUP, inspect_dpk_skills, patch_dpk_changes
 from .summon_config import SUMMON_SKILL_NAME, load_monster_catalog, load_friend_catalog, patch_summon_dpk
 from .weapon_custom import all_item_ids, append_weapon, verify_weapon
 from .weapon_drafts import search_traits, weapon_catalog
@@ -152,6 +152,12 @@ class PackageQueueBuilder:
         return {}
 
     def _patch_skill_limits(self, payload, outputs):
+        try:
+            target = int(payload['target_profession'])
+        except (KeyError, TypeError, ValueError):
+            raise ValueError('请选择目标职业')
+        if target not in CAREER_GROUP:
+            raise ValueError('目标职业无效')
         raw = payload.get('changes')
         if not isinstance(raw, list) or not raw:
             raise ValueError('技能修改内容无效')
@@ -177,11 +183,11 @@ class PackageQueueBuilder:
             changes[sid], origins[sid] = item['assigned'], origin
         for label, source in self.packages.items():
             missing = set(changes) - skills[label].keys() if label == '动态包' else set()
-            data, _ = patch_global_skill_limits(source, changes, origins, self.directory, missing)
+            data, _ = patch_dpk_changes(source, target, changes, origins, self.directory, missing)
             outputs[label].write_bytes(data)
             verified = {row['id']: row for row in inspect_dpk_skills(outputs[label])[1]}
             for sid, assigned in changes.items():
-                if sid not in missing and (sid not in verified or verified[sid]['profession_id'] != (0 if assigned else origins[sid])):
+                if sid not in missing and (sid not in verified or verified[sid]['profession_id'] != (target if assigned else origins[sid])):
                     raise ValueError(f'{label}技能 {sid} 职业限制写入校验失败')
         for sid, assigned in changes.items():
             if assigned:

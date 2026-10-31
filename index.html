@@ -323,7 +323,7 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .definition-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 .skill-limits-loading{display:inline-flex;align-items:center;gap:7px;color:var(--ink-soft);font-size:11px;font-weight:650}
 .skill-limits-loading[hidden]{display:none}
-.skill-limits-toolbar{display:grid;grid-template-columns:minmax(190px,1fr) auto;align-items:end;gap:9px;margin:14px 0 8px}
+.skill-limits-toolbar{display:grid;grid-template-columns:minmax(140px,.6fr) minmax(190px,1fr) auto;align-items:end;gap:9px;margin:14px 0 8px}
 .skill-limits-toolbar .field{min-width:0;margin:0}
 .skill-limits-toolbar input[type=search]{min-width:0;height:34px}
 .skill-limits-profession-filter{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:2px 0 8px}
@@ -1447,6 +1447,7 @@ tbody tr.is-static:hover{background:transparent}
             <div class="card-head"><h3>跨职业技能</h3><span class="skill-limits-loading" id="skill-limits-loading" role="status" hidden><span class="spinner" aria-hidden="true"></span>读取中</span></div>
             <div class="card-body">
               <div class="skill-limits-toolbar">
+                <label class="field" for="skill-limits-target"><span>目标职业</span><select id="skill-limits-target" disabled></select></label>
                 <input id="skill-limits-search" type="search" placeholder="搜索技能名称或 ID" aria-label="搜索技能名称或 ID" disabled>
                 <button class="btn btn-primary" id="skill-limits-build" type="button" disabled>加入修改队列</button>
               </div>
@@ -3783,15 +3784,19 @@ async function confirmSkillHotReload(button, scopes, status=null){
         const response = await postJSON('/api/config/reload',
           {scopes,item_ids:hasWeapon?state.weaponReloadItemIds:[]});
         const commandCount=Object.values(response.data.commands||{}).reduce((count,commands)=>count+commands.length,0);
-        let message = scopes.length===1&&scopes[0]==='backpack'
+        const backpackVerification = response.data.backpack?.verification;
+        const backpackMessage = backpackVerification?.state === 'matched'
           ? '背包商店热重载完成，两条线路的商人列表已核对。'
+          : '背包商店已执行热重载，但游戏内商人列表与已保存配置不一致，请在游戏内确认商品。';
+        let message = scopes.length===1&&scopes[0]==='backpack'
+          ? backpackMessage
           : scopes.length===1&&scopes[0]==='shop'
           ? '商城热重载完成，普通线和交易线共执行 '+commandCount+' 条命令。'
           : '热重载完成，已校验两条线路的 '+response.data.tables+' 张配置表，共执行 '+commandCount+' 条线路命令。';
-        if (scopes.includes('backpack') && scopes.length > 1) message += ' 背包商店两条线路的商人列表已核对。';
+        if (scopes.includes('backpack') && scopes.length > 1) message += ' ' + backpackMessage;
         if (status){
           status.textContent = message;
-          status.classList.add('is-success');
+          status.classList.add(backpackVerification?.state === 'different' ? 'is-error' : 'is-success');
         }else toast(message);
       }catch(error){
         if (status){
@@ -4029,8 +4034,15 @@ const skillProfessionName = id => {
   return profession?.name || ('职业 ' + id);
 };
 function skillLimitPendingChanges(){
+  const target = Number($('#skill-limits-target').value);
   return (state.skillLimits?.skills || []).map(skill => ({skill, assigned:state.skillLimitSelection.has(skill.id)}))
-    .filter(item => item.assigned ? !item.skill.unrestricted : item.skill.modified);
+    .filter(item => item.assigned ? Number(item.skill.profession_id) !== target :
+      item.skill.modified && Number(item.skill.profession_id) === target);
+}
+function resetSkillLimitTargetSelection(){
+  const target = Number($('#skill-limits-target').value);
+  state.skillLimitSelection = new Set((state.skillLimits?.skills || [])
+    .filter(skill => skill.modified && Number(skill.profession_id) === target).map(skill => skill.id));
 }
 function groupSkillChanges(changes){
   const groups = new Map();
@@ -4087,7 +4099,7 @@ function renderSkillLimitRows(){
   $('#skill-limits-all').indeterminate = groups.some(group => group.skills.some(s => state.skillLimitSelection.has(s.id))) &&
     !$('#skill-limits-all').checked;
   const selectedGroups = skillVariantGroups().filter(group => group.skills.some(s => state.skillLimitSelection.has(s.id))).length;
-  $('#skill-limits-hint').textContent = '已选择 ' + selectedGroups + ' 项，所选技能不限制职业';
+  $('#skill-limits-hint').textContent = '已选择 ' + selectedGroups + ' 项，所选技能将改为目标职业';
   $('#skill-limits-build').disabled = state.skillLimitsLoading ||
     skillLimitPendingChanges().length === 0;
 }
@@ -4104,8 +4116,9 @@ async function loadSkillLimits(){
     state.skillLimits = j.data; state.skillLimitSelection = new Set();
     state.skillLimitSourceFilter = 'all';
     state.skillLimitsPath = j.data.client_path || $('#cfg-client_mb_dpk').value.trim();
-    state.skillLimitSelection = new Set(j.data.skills
-      .filter(skill => skill.unrestricted || skill.legacy_assigned).map(skill => skill.id));
+    $('#skill-limits-target').innerHTML = j.data.professions.map(p => '<option value="' + Number(p.id) + '">' + esc(p.name) + '</option>').join('');
+    $('#skill-limits-target').disabled = false;
+    resetSkillLimitTargetSelection();
     $('#skill-limits-search').disabled = false; $('#skill-limits-build').disabled = false;
     $('#skill-limits-all').disabled = false;
     renderSkillLimitProfessionFilter();
@@ -4400,6 +4413,7 @@ $('#skill-limits-profession-filter').addEventListener('click', e => {
   renderSkillLimitRows();
 });
 $('#skill-limits-search').addEventListener('input', renderSkillLimitRows);
+$('#skill-limits-target').addEventListener('change', () => { resetSkillLimitTargetSelection(); renderSkillLimitRows(); });
 $('#skill-limits-rows').addEventListener('change', e => {
   const input = e.target.closest('[data-skill-group]'); if (!input) return;
   const group = state.skillLimitVisibleGroups[Number(input.dataset.skillGroup)];
@@ -4422,9 +4436,10 @@ $('#skill-limits-build').addEventListener('click', async e => {
   if (!changes.length) return;
   status.textContent = ''; status.classList.remove('is-bad');
   const payloadChanges=changes.map(({skill,assigned})=>({id:skill.id,assigned,name:skill.name}));
-  queueDpkChange({key:'skill-limits',signature:JSON.stringify({changes:payloadChanges.map(({id,assigned})=>({id,assigned})).sort((a,b)=>a.id-b.id)}),label:'跨职业技能',summary:payloadChanges.length+' 项技能调整',reloadable:true,reloadScope:'skill-learn',
-    operation:{kind:'skill-limits',payload:{changes:payloadChanges.map(({id,assigned})=>({id,assigned}))}},
-    jump:()=>{showView('skill-config');setSkillConfigMode('cross-career');setTimeout(()=>{state.skillLimitSelection=new Set((state.skillLimits?.skills||[]).filter(skill=>skill.unrestricted||skill.legacy_assigned).map(skill=>skill.id));for(const item of payloadChanges){if(item.assigned)state.skillLimitSelection.add(item.id);else state.skillLimitSelection.delete(item.id);}$('#skill-limits-search').value=payloadChanges[0].name;renderSkillLimitRows();$('#skill-limits-rows').scrollIntoView({behavior:'smooth',block:'center'});},100);},
+  const target=Number($('#skill-limits-target').value);
+  queueDpkChange({key:'skill-limits',signature:JSON.stringify({target,changes:payloadChanges.map(({id,assigned})=>({id,assigned})).sort((a,b)=>a.id-b.id)}),label:'跨职业技能',summary:skillProfessionName(target)+' · '+payloadChanges.length+' 项技能调整',reloadable:true,reloadScope:'skill-learn',
+    operation:{kind:'skill-limits',payload:{target_profession:target,changes:payloadChanges.map(({id,assigned})=>({id,assigned}))}},
+    jump:()=>{showView('skill-config');setSkillConfigMode('cross-career');setTimeout(()=>{$('#skill-limits-target').value=String(target);resetSkillLimitTargetSelection();for(const item of payloadChanges){if(item.assigned)state.skillLimitSelection.add(item.id);else state.skillLimitSelection.delete(item.id);}$('#skill-limits-search').value=payloadChanges[0].name;renderSkillLimitRows();$('#skill-limits-rows').scrollIntoView({behavior:'smooth',block:'center'});},100);},
   });
 });
 

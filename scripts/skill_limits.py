@@ -249,7 +249,7 @@ def patch_dpk_changes(source: Path, target_profession: int, changes: dict[int, b
             if fields[2] != b"1":
                 raise ValueError(f"技能 {sid} 当前标记为不可学习")
             if desired[sid]:
-                fields[4] = b"0"
+                fields[4] = str(target_profession).encode("ascii")
             else:
                 source_profession = source_professions.get(sid)
                 if source_profession not in CAREER_GROUP:
@@ -284,7 +284,7 @@ def patch_dpk_changes(source: Path, target_profession: int, changes: dict[int, b
             replace_resource(current, entry, None, output,
                 line_edit=None, line_edits=None, replacement_data=data,
                 compression_level=6, zlib_mem_level=8, zlib_strategy="default",
-                auto_zlib_parameters=True, allow_chain_shrink=False,
+                auto_zlib_parameters=True, allow_chain_shrink=True, allow_chain_growth=True,
                 overwrite_output=False, overwrite_report=False,
                 max_input_size=2 * 1024 * 1024 * 1024, report_path=None)
             current = output
