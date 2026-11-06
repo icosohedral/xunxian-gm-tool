@@ -67,6 +67,8 @@ def build_selected_bundle(package, selected, scope='combined'):
                     columns.add(10)  # Method distance.
                 if position in samples:
                     columns.update(range(min(len(row), 200)))
+                if number == 42 and row[index_column] in {'2841', '3361', '7073'}:
+                    columns.update(range(min(len(row), 4)))
                 if number in EXTRA_TABLES and (number != 82 or row[index_column] in {
                         '37236', '37252', *map(str, range(37643, 37653))}):
                     columns.update(range(min(len(row), len(types), 200)))

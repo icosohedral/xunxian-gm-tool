@@ -151,7 +151,6 @@ try:
         gate_path = (ROOT / "state/gmtool-merchant-refresh" /
                      ("tracer-gate-" + hashlib.sha256(gate_source).hexdigest()[:24] + ".py"))
         _write_source(gate_path, gate_source)
-        before = merchant_cache_snapshot(runtime)
         calls = {}
         for line in (1, 9):
             calls[str(line)] = _gdb_refresh(line, runtime.processes[line], module_path, gate_path)
@@ -160,9 +159,7 @@ try:
             raise RuntimeError("刷新期间游戏线路进程发生变化")
         after = merchant_cache_snapshot(after_runtime)
         effect = merchant_cache_effect(after, request["merchant_changes"], bool(request["price_changed"]))
-        print(json.dumps({"ok": True, "data": {"calls": calls, "cache": effect,
-            "before_counts": {line: {key: len(ids) for key, ids in shops.items()}
-                for line, shops in before.items()},
+        print(json.dumps({"ok": True, "data": {"calls": calls, "cache": effect, "snapshot": after,
             "after_counts": {line: {key: len(ids) for key, ids in shops.items()}
                 for line, shops in after.items()}}}, ensure_ascii=False))
 except Exception as error:

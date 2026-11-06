@@ -1,0 +1,12 @@
+[Unit]
+Description=Restore Xunxian test-server weapon effects after game processes start
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/xxserver/state/gmtool-persistent-effects/effect_restore_agent.py --watch
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

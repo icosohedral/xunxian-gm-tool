@@ -33,6 +33,23 @@ ITEMS = {100: {"name": "甲", "price": "100000"},
 
 
 class BackpackShopTest(unittest.TestCase):
+    def test_new_products_are_first_for_selected_merchants(self):
+        original = fixture()
+        first, first_change = prepare(original, action="add", item_id=102,
+                                      ranges=["VIP"], price="5", unit="金",
+                                      base_price=100000, item_name="丙")
+        second, second_change = prepare(first, action="add", item_id=103,
+                                        ranges=["VIP"], price="5", unit="金",
+                                        base_price=100000, item_name="丁")
+        from scripts.backpack_shop import _merchant_ids
+        before_ids = _merchant_ids(original)
+        after_ids = _merchant_ids(second)
+        for merchant in ("238", "239"):
+            self.assertEqual(after_ids[merchant], [second_change["product_id"],
+                                                  first_change["product_id"]] + before_ids[merchant])
+        for merchant in ("283", "284", "285"):
+            self.assertEqual(after_ids[merchant], before_ids[merchant])
+
     def test_add_to_vip_group_with_exact_gold_price(self):
         original = fixture()
         changed, operation = prepare(original, action="add", item_id=102,

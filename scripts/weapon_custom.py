@@ -136,3 +136,41 @@ def verify_weapon(archive: Path, weapon_id: int, expected: list[str]) -> dict:
     if mismatches:
         raise ValueError("写入后字段回读不一致：" + "、".join(mismatches[:8]))
     return {"resource": resource, "columns": len(fields)}
+
+
+WEAPON_EDIT_COLUMNS = (1, 4, 5, 7, 35, 9, 11, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 53)
+
+
+def edit_weapon(archive: Path, output: Path, weapon_id: int, changes: dict[int, str], *, category: str = "100") -> None:
+    """Change selected fields on one existing weapon, retaining all other fields."""
+    resource, header, record = _template_record(archive, weapon_id)
+    if category not in {'100', '200', '201', '203', '205', '206', '207', '208'} or len(record) != len(header) or record[2] != category:
+        raise ValueError(f'物品 {weapon_id} 的装备类型不匹配')
+    names = client_header_names()
+    aliases = {'天赋限制': '天赋系限制'}
+    target = list(record)
+    for index, value in changes.items():
+        if index not in WEAPON_EDIT_COLUMNS:
+            raise ValueError('包含不可编辑字段')
+        name = names[index]
+        target_name = name if name in header else aliases.get(name, name)
+        if target_name in header:
+            target[header.index(target_name)] = value
+    with DpkReader(archive) as reader:
+        entry = next(e for e in reader.read_entries() if e.path.lower() == resource.lower())
+        raw = reader.extract(entry).decode('gb18030')
+    lines = raw.splitlines(keepends=True)
+    matches = [i for i, line in enumerate(lines[1:], 1) if line.split('\t', 1)[0] == str(weapon_id)]
+    if len(matches) != 1:
+        raise ValueError('武器记录数量异常')
+    i = matches[0]
+    ending = '\r\n' if lines[i].endswith('\r\n') else '\n' if lines[i].endswith('\n') else ''
+    lines[i] = '\t'.join(target) + ending
+    replace_resource(archive, resource, None, output, line_edit=None,
+        replacement_data=''.join(lines).encode('gb18030'), compression_level=6,
+        zlib_mem_level=8, zlib_strategy='default', auto_zlib_parameters=True,
+        allow_chain_growth=True, allow_chain_shrink=True, overwrite_output=False,
+        overwrite_report=False, max_input_size=2 * 1024 * 1024 * 1024, report_path=None)
+    _, actual_header, actual = _template_record(output, weapon_id)
+    if actual_header != header or actual != target:
+        raise ValueError('武器编辑后回读不一致')

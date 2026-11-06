@@ -12,14 +12,14 @@ from .profession_skills import inspect_archive as inspect_profession, has_skill,
 from .ride_speed import configuration_rows, prepare_changes, patch_archive as patch_rides
 from .skill_limits import CAREER_GROUP, inspect_dpk_skills, patch_dpk_changes
 from .summon_config import SUMMON_SKILL_NAME, load_monster_catalog, load_friend_catalog, patch_summon_dpk
-from .weapon_custom import all_item_ids, append_weapon, verify_weapon
+from .weapon_custom import all_item_ids, append_weapon, verify_weapon, edit_weapon, WEAPON_EDIT_COLUMNS
 from .weapon_drafts import search_traits, weapon_catalog
 from .repack import batch_repacking
 
 
-KINDS = {'weapon', 'profession-skills', 'skill-limits', 'summon', 'ride-speed', 'backpack'}
+KINDS = {'weapon-edit', 'weapon', 'profession-skills', 'skill-limits', 'summon', 'ride-speed', 'backpack'}
 # 每项都作用于不同物品，允许在同一队列里重复出现。
-REPEATABLE_KINDS = {'weapon', 'backpack'}
+REPEATABLE_KINDS = {'weapon-edit', 'weapon', 'backpack'}
 
 
 def validate_items(items):
@@ -57,6 +57,8 @@ class PackageQueueBuilder:
         self.backpack_prices = {}
         self.backpack_price_change = None
         self._backpack_catalog = None
+        self._pending_backpack_entries = []
+        self._pending_backpack_prices = {}
 
     def build(self, items):
         with batch_repacking():
@@ -65,6 +67,10 @@ class PackageQueueBuilder:
     def _build(self, items):
         validate_items(items)
         for index, item in enumerate(items):
+            if item['kind'] != 'backpack':
+                self._flush_backpack_client()
+                # Earlier queue items may have changed the server item tables.
+                self._backpack_catalog = None
             outputs = {label: self.directory / f'step-{index}-{label}.dpk'
                        for label in self.packages}
             try:
@@ -78,6 +84,7 @@ class PackageQueueBuilder:
                 self.results.append({'id': item['id'], 'kind': item['kind'], **result})
             except Exception as error:
                 raise ValueError(f'第 {index + 1} 项修改失败：{error}') from error
+        self._flush_backpack_client()
         # A later edit must not remove a weapon allocated earlier in this batch.
         for result in self.results:
             if result['kind'] == 'weapon':
@@ -89,13 +96,13 @@ class PackageQueueBuilder:
         fields = payload.get('fields')
         if not isinstance(fields, list) or len(fields) != 55 or any(not isinstance(v, str) for v in fields):
             raise ValueError('武器草稿字段数或格式无效')
-        if not fields[1].strip() or fields[2] != '100' or fields[7] != '10' or fields[18] != '300':
+        if not fields[1].strip() or fields[2] not in {'100', '200', '201', '203', '205', '206', '207', '208'} or fields[7] != '15' or fields[18] != '300':
             raise ValueError('武器名称、类型、品质或耐久值无效')
         if fields[9] not in {'', '1', '2', '3', '4'}:
             raise ValueError('职业限制值无效')
         if any(fields[i] and not fields[i].isdigit() for i in (11, 19, 20, 21, 22, 23, 24, 53)):
             raise ValueError('武器等级与属性必须为非负整数')
-        if not fields[4].strip() or not fields[5].isdigit():
+        if not fields[4].strip() or (not fields[5].isdigit() and not (fields[2] in {'201', '208'} and fields[5] == '')):
             raise ValueError('道具图片或模型 ID 无效')
         if any(v and not v.isdigit() for v in fields[25:30]):
             raise ValueError('装备属性 ID 无效')
@@ -107,8 +114,9 @@ class PackageQueueBuilder:
             raise ValueError('部分装备属性 ID 不存在于客户端词条表')
         template_id = int(payload['template_id'])
         icon = fields[4].strip().lower()
-        models = weapon_catalog(client, item_id=template_id)['icon_models']
-        if not models.get(icon) or models[icon] != fields[5]:
+        catalog = weapon_catalog(client, item_id=template_id, category=fields[2])
+        models = catalog['icon_models']
+        if icon not in models or models[icon] != fields[5]:
             raise ValueError('模型 ID 与道具图片不匹配，请重新选择图片')
         used = set()
         for package in self.packages.values():
@@ -117,12 +125,50 @@ class PackageQueueBuilder:
         if weapon_id > 65535:
             raise ValueError('没有可分配的物品 ID（最大值 65535）')
         fields = list(fields)
-        fields[0], fields[4] = str(weapon_id), icon
+        fields[0], fields[4], fields[35], fields[42] = str(weapon_id), icon, '2', '2'
         for label, source in self.packages.items():
             append_weapon(source, outputs[label], template_id, weapon_id, fields,
                           fallback_fields=fields if label == '动态包' else None)
             verify_weapon(outputs[label], weapon_id, fields)
         return {'weapon_id': weapon_id, 'fields': fields}
+
+    def _patch_weapon_edit(self, payload, outputs):
+        weapon_id = payload.get('weapon_id')
+        fields, baseline = payload.get('fields'), payload.get('baseline')
+        if type(weapon_id) is not int or not 60074 <= weapon_id <= 65535:
+            raise ValueError('武器 ID 无效')
+        if any(not isinstance(row, list) or len(row) != 55 or any(not isinstance(v, str) for v in row) for row in (fields, baseline)):
+            raise ValueError('武器草稿格式无效')
+        fields = list(fields)
+        fields[7], fields[35] = '15', '2'
+        category = baseline[2]
+        current = weapon_catalog(self.packages['客户端'], item_id=weapon_id, category=category)['template']['fields']
+        if current != baseline:
+            raise ValueError('武器数据已变化，请重新打开编辑')
+        if any(fields[i] != baseline[i] for i in range(55) if i not in WEAPON_EDIT_COLUMNS):
+            raise ValueError('不能修改未开放的武器字段')
+        if not fields[1].strip() or fields[9] not in {'', '1', '2', '3', '4'}:
+            raise ValueError('装备名称或职业无效')
+        if fields[7] != baseline[7] and fields[7] not in {str(i) for i in range(1, 16)}:
+            raise ValueError('装备品质必须为 1 至 15')
+        if fields[35] != baseline[35] and fields[35] not in {'', '0', '1', '2'}:
+            raise ValueError('耐久类型无效')
+        if any(fields[i] and not fields[i].isdigit() for i in (11, 19, 20, 21, 22, 23, 24, 53, 25, 26, 27, 28, 29)):
+            raise ValueError('武器属性必须为非负整数')
+        traits = [int(v) for v in fields[25:30] if v]
+        if len(set(traits)) != len(traits) or (traits and {r['id'] for r in search_traits(self.packages['客户端'], ids=set(traits))['rows']} != set(traits)):
+            raise ValueError('装备词条重复或不存在')
+        if fields[4:6] != baseline[4:6]:
+            models = weapon_catalog(self.packages['客户端'], item_id=weapon_id, category=category)['icon_models']
+            icon = fields[4].strip().lower()
+            if icon not in models or models[icon] != fields[5]:
+                raise ValueError('模型 ID 与道具图片不匹配')
+        changes = {i: fields[i] for i in WEAPON_EDIT_COLUMNS if fields[i] != baseline[i]}
+        if not changes:
+            raise ValueError('装备没有修改')
+        for label, source in self.packages.items():
+            edit_weapon(source, outputs[label], weapon_id, changes, category=category)
+        return {'weapon_id': weapon_id, 'changes': changes}
 
     def _patch_profession_skills(self, payload, outputs):
         profession_id = int(payload['profession_id'])
@@ -238,6 +284,18 @@ class PackageQueueBuilder:
             self._backpack_catalog = backpack_items(self.packages['主包'])
         return self._backpack_catalog
 
+    def _flush_backpack_client(self):
+        if not self._pending_backpack_entries:
+            return
+        output = self.directory / 'backpack-client-batch.dpk'
+        result = apply_client_shop(self.packages['客户端'], output,
+                                   self._pending_backpack_entries, self._pending_backpack_prices)
+        if result['changed']:
+            verify_client_shop(output, result['added'], self._pending_backpack_prices)
+        output.replace(self.packages['客户端'])
+        self._pending_backpack_entries.clear()
+        self._pending_backpack_prices.clear()
+
     def _patch_backpack(self, payload, outputs):
         """Sell an existing item in the backpack shop without touching the server package.
 
@@ -286,9 +344,8 @@ class PackageQueueBuilder:
             effective = copper or base_price
             if effective > 0:
                 prices[item_id] = effective
-        client = apply_client_shop(self.packages['客户端'], outputs['客户端'], entries, prices)
-        if client['changed']:
-            verify_client_shop(outputs['客户端'], client['added'], prices)
+        self._pending_backpack_entries.extend(entries)
+        self._pending_backpack_prices.update(prices)
         self.backpack_files = after
         self.backpack_changes.append(change)
         return {'product_id': change['product_id'], 'item_id': item_id, 'name': item['name'],

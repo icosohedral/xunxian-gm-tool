@@ -318,7 +318,7 @@ def prepare(files: dict[str, bytes], *, action: str, merchant_ids=None, ranges=N
         line_index, fields = merchants[merchant_id]
         ids = list(filter(None, fields[2].split("*")))
         if action == "add":
-            ids.append(str(product_id))
+            ids.insert(0, str(product_id))
         else:
             ids.remove(str(product_id))
         fields[2] = "*".join(ids)
@@ -424,9 +424,14 @@ except Exception as error:
         raise RuntimeError(error or output or "无法读取运行中的商人列表") from exc
     if status or not result.get("ok"):
         raise RuntimeError(result.get("error") or error or "无法读取运行中的商人列表")
+    return compare_merchant_cache(result["data"], files)
+
+
+def compare_merchant_cache(snapshot, files):
+    """Compare a freshly captured native merchant snapshot with saved files."""
     desired = _merchant_ids(files)
     differences = []
-    for line, merchants in result["data"].items():
+    for line, merchants in snapshot.items():
         for key, ids in desired.items():
             actual = set(merchants[key])
             missing, extra = sorted(set(ids) - actual), sorted(actual - set(ids))
@@ -490,6 +495,7 @@ def reload_remote(connection, before: dict[str, bytes], after: dict[str, bytes],
                                           bool(price_change) or bool(price_changed))
             data["merchant_cache"] = native["cache"]
             data["native_refresh"] = native["calls"]
+            data["verification"] = compare_merchant_cache(native["snapshot"], after)
         except Exception as exc:
             data["merchant_cache"] = {"state": "pending", "error": str(exc)}
         return data
@@ -667,10 +673,9 @@ try:
         owner = package_path.stat()
         save_only = bool(request.get("save_only"))
         runtime = None if save_only else RuntimeInspector()
-        if runtime:
+        if runtime and not request.get("reload_saved"):
             before = runtime.snapshot(before_specs)
-            if not request.get("reload_saved"):
-                check_snapshot(before, before_specs, "运行中的配置与当前文件不一致")
+            check_snapshot(before, before_specs, "运行中的配置与当前文件不一致")
         originals = {}
         for key, path in paths.items():
             if path.is_symlink() or path.resolve() != path or (path.exists() and not path.is_file()):
@@ -690,7 +695,7 @@ try:
         stamp = str(int(time.time())) + "-" + secrets.token_hex(4)
         backups = {}
         for key, path in paths.items():
-            if originals[key] is None:
+            if originals[key] is None or request.get("reload_saved"):
                 continue
             backup = path.with_name(path.name + ".bak.backpack-" + stamp)
             shutil.copy2(path, backup)
@@ -712,6 +717,8 @@ try:
                 if sha256(package_path) != package["after_sha256"]:
                     raise RuntimeError("服务端主包写后校验失败")
             for key, path in paths.items():
+                if request.get("reload_saved"):
+                    continue
                 changed.append(key)
                 write_atomic(path, after[key], owner)
                 if path.read_bytes() != after[key]:
@@ -729,7 +736,7 @@ try:
             expected_hash = package["after_sha256"] if package else source_hash
             if expected_hash and sha256(package_path) != expected_hash:
                 raise RuntimeError("热重载期间服务端主包发生变化")
-            if not save_only:
+            if not save_only and not request.get("reload_saved"):
                 try:
                     cache = merchant_cache_effect(merchant_cache_snapshot(runtime),
                                                   request.get("merchant_changes", {}), bool(package))

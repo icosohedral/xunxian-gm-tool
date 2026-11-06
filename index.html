@@ -101,8 +101,8 @@ body.has-modal{overflow:hidden}
    ============================================================ */
 .view-actions{display:flex;align-items:center;justify-content:flex-start;gap:8px;margin-bottom:7px}
 .view-actions .muted{font-size:11px}
-.weapon-layout{display:grid;grid-template-columns:minmax(230px,.75fr) minmax(400px,1.25fr) minmax(260px,.85fr);gap:14px;align-items:start}
-.weapon-filter{display:flex;gap:8px;align-items:center}.weapon-filter select{width:108px;flex:none}.weapon-filter input{min-width:0;flex:1}
+.weapon-layout{display:grid;grid-template-columns:minmax(320px,1fr) minmax(400px,1.25fr) minmax(260px,.85fr);gap:14px;align-items:start}
+.weapon-filter{display:flex;gap:8px;align-items:center}.weapon-filter select{width:88px;flex:none}.weapon-filter input{min-width:0;flex:1}
 .weapon-template-row{cursor:pointer}.weapon-template-row.is-active{background:var(--mint)}
 .weapon-editor-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 .weapon-editor-grid .field{margin:0}.weapon-editor-grid .field.wide{grid-column:span 2}
@@ -124,7 +124,7 @@ body.has-modal{overflow:hidden}
 .weapon-icon-options{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));align-content:start;gap:8px;padding:12px;overflow:auto}
 .weapon-icon-option{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0;padding:9px 5px;border:1px solid var(--line);border-radius:9px;background:#f8fbfa;color:var(--ink);font-size:11px;cursor:pointer}
 .weapon-icon-option img{width:44px;height:44px;object-fit:contain;image-rendering:pixelated}.weapon-icon-option:hover,.weapon-icon-option:focus-visible{border-color:var(--jade);background:var(--mint);outline:none}.weapon-icon-option.is-selected{border-color:var(--jade);background:var(--mint);color:var(--pine);font-weight:750}
-@media(max-width:1180px){.weapon-layout{grid-template-columns:minmax(260px,.8fr) minmax(0,1.2fr)}.weapon-trait-panel,.weapon-icon-panel{grid-column:2}}
+@media(max-width:1180px){.weapon-layout{grid-template-columns:minmax(320px,1fr) minmax(0,1.2fr)}.weapon-trait-panel,.weapon-icon-panel{grid-column:2}}
 @media(max-width:900px){.weapon-layout{grid-template-columns:1fr}.weapon-trait-panel,.weapon-icon-panel{grid-column:auto}}@media(max-width:560px){.weapon-editor-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 /* ============================================================
@@ -522,6 +522,7 @@ tbody tr.is-static:hover{background:transparent}
 .tag.ok{background:#e6f4ee;color:var(--ok)}
 .tag.warn{background:#fdf3e6;color:var(--warn)}
 .tag.bad{background:#fbecea;color:var(--danger)}
+.tag.gm{background:#f0eafa;color:#7545a4}
 .tag.plain::before{display:none}
 .pager{min-height:44px;padding:6px 14px;display:flex;align-items:center;justify-content:space-between;
   border-top:1px solid var(--line);background:#f8fbfa;color:var(--ink-soft);font-size:11px}
@@ -607,6 +608,8 @@ tbody tr.is-static:hover{background:transparent}
   background:#fff;color:var(--pine);font-size:11.5px;font-weight:750;box-shadow:0 2px 5px rgba(20,61,56,.04)}
 .account-actions .account-action-btn:hover{border-color:var(--jade);background:#e8f6ef;color:#08775f;
   box-shadow:0 3px 9px rgba(20,61,56,.08)}
+.account-actions .account-action-btn.is-primary{grid-column:1/-1;border-color:var(--jade);background:var(--jade);color:#fff}
+.account-actions .account-action-btn.is-primary:hover{background:#008b73;border-color:#008b73;color:#fff}
 .account-actions .account-action-btn svg{width:15px;height:15px;stroke:currentColor;stroke-width:1.8;
   fill:none;stroke-linecap:round;stroke-linejoin:round}
 .account-copy{width:30px;height:30px;display:grid;place-items:center;padding:0;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--pine)}
@@ -1128,7 +1131,7 @@ tbody tr.is-static:hover{background:transparent}
             <button type="button" class="is-active" data-im="item">发放物品</button>
             <button type="button" data-im="shop">商城上架</button>
             <button type="button" data-im="backpack">背包商店</button>
-            <button type="button" data-im="weapon">新建武器</button>
+            <button type="button" data-im="weapon">新建装备</button>
             <button type="button" data-im="custom">道具管理</button>
           </div>
         </div>
@@ -1143,7 +1146,6 @@ tbody tr.is-static:hover{background:transparent}
                   <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
                   <input id="it-q" type="search" placeholder="物品名 / 物品ID" autocomplete="off">
                 </div>
-                <button class="btn btn-primary" id="it-search">搜索</button>
               </div>
             </div>
             <div class="table-wrap tall" id="it-wrap">
@@ -1173,17 +1175,17 @@ tbody tr.is-static:hover{background:transparent}
         <div id="item-panel-weapon" class="is-hidden">
           <div class="weapon-layout" id="weapon-layout">
             <article class="card">
-              <div class="card-head"><h3>武器模板</h3><span class="muted" id="weapon-count">—</span></div>
+              <div class="card-head"><h3>装备模板</h3><span class="muted" id="weapon-count">—</span></div>
               <div class="card-body item-list-search"><div class="weapon-filter">
-                <input id="weapon-search" type="search" placeholder="搜索武器名称或 ID" autocomplete="off" aria-label="搜索武器名称或 ID">
+                <select id="weapon-category" aria-label="装备类别"><option value="100">武器</option><option value="200">帽子</option><option value="203">衣服</option><option value="205">腰带</option><option value="206">裤子</option><option value="207">鞋子</option><option value="201">项链</option><option value="208">饰品</option></select><input id="weapon-search" type="search" placeholder="搜索装备名称或 ID" autocomplete="off" aria-label="搜索装备名称或 ID">
                 <select id="weapon-profession" aria-label="按职业筛选武器"><option value="all">全部职业</option><option value="1">游侠</option><option value="2">力士</option><option value="3">符咒师</option><option value="4">法师</option><option value="">未限制</option></select>
               </div></div>
               <div class="table-wrap tall"><table><thead><tr><th>武器</th><th>ID</th><th>等级</th></tr></thead><tbody id="weapon-rows"><tr class="is-static"><td colspan="3">切换标签后读取</td></tr></tbody></table></div>
             </article>
             <article class="card">
-              <div class="card-head"><h3>武器草稿</h3><span class="tag plain" id="weapon-proposed-id">选择模板</span></div>
+              <div class="card-head"><h3>装备草稿</h3><span class="tag plain" id="weapon-proposed-id">选择模板</span></div>
               <div class="card-body">
-                <div id="weapon-editor-empty" class="muted">从左侧选择一把武器，载入完整记录。</div>
+                <div id="weapon-editor-empty" class="muted">从左侧选择装备模板，载入完整记录。</div>
                 <div id="weapon-editor" class="is-hidden">
                   <div class="weapon-editor-grid" id="weapon-fields"></div>
                   <section class="weapon-trait-picker" id="weapon-trait-picker" tabindex="0" aria-label="已选属性词条，点击打开词条列表" aria-controls="weapon-trait-panel">
@@ -1203,7 +1205,7 @@ tbody tr.is-static:hover{background:transparent}
               <div class="table-wrap tall"><table><thead><tr><th>属性词条</th><th style="text-align:right">数值</th></tr></thead><tbody id="weapon-trait-results"><tr class="is-static"><td colspan="2">读取中…</td></tr></tbody></table></div>
             </article>
             <article class="card weapon-icon-panel is-hidden" id="weapon-icon-panel">
-              <div class="card-head"><h3>选择武器模型</h3><span class="muted" id="weapon-icon-count">—</span></div>
+              <div class="card-head"><h3>选择装备模型</h3><span class="muted" id="weapon-icon-count">—</span></div>
               <div class="card-body item-list-search"><div class="search weapon-trait-search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><input id="weapon-icon-query" type="search" placeholder="搜索图片名称或模型 ID" autocomplete="off" aria-label="搜索道具图片"></div></div>
               <div class="table-wrap tall weapon-icon-options" id="weapon-icon-options"></div>
             </article>
@@ -1220,8 +1222,8 @@ tbody tr.is-static:hover{background:transparent}
               <div id="custom-item-status" class="shop-status" role="status" aria-live="polite"></div>
             </div>
             <div class="table-wrap tall"><table>
-              <thead><tr><th>名称</th><th>ID</th><th>类型</th><th>所在包</th><th style="text-align:right">选择</th></tr></thead>
-              <tbody id="custom-item-rows"><tr class="is-static"><td colspan="5" class="muted">切换标签后读取</td></tr></tbody>
+              <thead><tr><th>名称</th><th>ID</th><th>类型</th><th>所在包</th><th>操作</th><th style="text-align:right">选择</th></tr></thead>
+              <tbody id="custom-item-rows"><tr class="is-static"><td colspan="6" class="muted">切换标签后读取</td></tr></tbody>
             </table></div>
           </article>
         </div>
@@ -1312,7 +1314,7 @@ tbody tr.is-static:hover{background:transparent}
                 </div>
               </div>
               <div class="table-wrap backpack-table-wrap"><table><thead><tr><th>物品</th><th>商品 ID</th><th>售价</th><th>售卖范围</th><th style="text-align:right"><input type="checkbox" id="backpack-select-all" aria-label="选择当前列表"></th></tr></thead>
-                <tbody id="backpack-rows"><tr class="is-static"><td colspan="5" class="muted">切换标签后读取</td></tr></tbody></table></div>
+                <tbody id="backpack-rows"><tr class="is-static"><td colspan="6" class="muted">切换标签后读取</td></tr></tbody></table></div>
             </article>
           </div>
         </div>
@@ -1540,7 +1542,7 @@ tbody tr.is-static:hover{background:transparent}
                 <button class="reload-scope-tag" type="button" data-reload-scope="rides" aria-pressed="false">骑宠设置<svg class="reload-scope-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4.5 4.5L19 7"/></svg></button>
                 <button class="reload-scope-tag" type="button" data-reload-scope="shop" aria-pressed="false">商城<svg class="reload-scope-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4.5 4.5L19 7"/></svg></button>
                 <button class="reload-scope-tag" type="button" data-reload-scope="backpack" aria-pressed="false">背包商店<svg class="reload-scope-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4.5 4.5L19 7"/></svg></button>
-                <button class="reload-scope-tag" type="button" data-reload-scope="weapon" aria-pressed="false">新增武器<svg class="reload-scope-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4.5 4.5L19 7"/></svg></button>
+                <button class="reload-scope-tag" type="button" data-reload-scope="weapon" aria-pressed="false">武器配置<svg class="reload-scope-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4.5 4.5L19 7"/></svg></button>
               </div>
               <div class="toolbar" style="gap:9px;flex-wrap:wrap;margin-top:12px">
                 <button class="btn btn-primary" id="server-skill-hot-reload" type="button" disabled>重新载入</button>
@@ -1744,7 +1746,11 @@ function queueDpkChange(item){
       updateDpkQueueCount(); return true;
     }else dpkQueueEditingId=null;
   }
-  if(family!=='weapon' && family!=='backpack'){
+  if(family==='weapon-edit'){
+    const index=dpkQueue.findIndex(row=>row.operation.kind==='weapon-edit' && row.operation.payload.weapon_id===item.operation.payload.weapon_id);
+    if(index>=0){entry.id=dpkQueue[index].id;dpkQueue[index]=entry;notify('已更新队列中的武器编辑');updateDpkQueueCount();return true;}
+  }
+  if(family!=='weapon' && family!=='weapon-edit' && family!=='backpack'){
     const index=dpkQueue.findIndex(row=>String(row.key).split(':')[0]===family);
     if(index>=0){
       if(dpkQueue[index].signature===item.signature){notify('相同修改已在队列中');return false;}
@@ -1825,10 +1831,10 @@ $('#modal-root').addEventListener('click', async event => {
       updateDpkQueueCount();
       const resultById=new Map(response.data.items.map(item=>[item.id,item]));
       for(const item of submitted){
-        if(item.operation.kind==='weapon'){
+        if(['weapon','weapon-edit'].includes(item.operation.kind)){
           const id=resultById.get(item.id).weapon_id;
           if(!state.weaponReloadItemIds.includes(id))state.weaponReloadItemIds.push(id);
-          $('#weapon-proposed-id').textContent='新物品 ID '+id;
+          $('#weapon-proposed-id').textContent=(item.operation.kind==='weapon-edit'?'物品 ID ':'新物品 ID ')+id;
         }
         if(item.operation.kind==='profession-skills')state.professionSkillPending.clear();
         if(item.operation.kind==='summon')state.summonConfig=item.operation.payload;
@@ -1855,7 +1861,7 @@ $('#modal-root').addEventListener('click', async event => {
     }
     const reloadScopes=[...new Set(applied.filter(item=>item.reloadable).map(item=>item.reloadScope).filter(Boolean))];
     const restart = applied.some(item => item.requiresRestart);
-    const reloadNames={definitions:'职业技能配置', 'skill-learn':'跨职业技能', summon:'召唤物', 'cross-career':'跨职业技能', all:'召唤物', rides:'骑宠设置', weapon:'新增武器', backpack:'背包商店'};
+    const reloadNames={definitions:'职业技能配置', 'skill-learn':'跨职业技能', summon:'召唤物', 'cross-career':'跨职业技能', all:'召唤物', rides:'骑宠设置', weapon:'武器配置', backpack:'背包商店'};
     const shop=queueResult?.backpack;
     const shopNote = !submitted.some(item=>item.operation.kind==='backpack') ? '' :
       shop ? '<p>背包商店已保存 '+esc(String((shop.changes||[]).length))+' 件商品，热重载后生效。</p>'
@@ -2161,7 +2167,7 @@ function ensureItemList(){
 }
 
 function updateCustomItemSelection(){
-  const blocked = state.customItemLoading || state.customItemDeleting;
+  const blocked = state.customItemLoading || state.customItemDeleting || !state.customItemRevision;
   if (!state.customItemDeleting) $('#custom-item-delete').textContent = state.customItemSelectedIds.size
     ? '删除选中 (' + state.customItemSelectedIds.size + ')'
     : '删除选中';
@@ -2180,26 +2186,32 @@ function renderCustomItems(){
   $('#custom-item-count').textContent = items.length + ' 件';
   $('#custom-item-rows').innerHTML = items.length ? items.map(item =>
     '<tr><td>'+esc(item.name || '（未命名）')+'</td><td>'+esc(item.id)+'</td><td>'+esc(item.type || '—')+'</td>'+
-    '<td>'+esc(item.sources.join('、'))+'</td><td style="text-align:right"><input type="checkbox" data-custom-item-select="'+esc(item.id)+'" aria-label="选择 '+esc(item.name || '未命名道具')+'"></td></tr>'
-  ).join('') : emptyRow(5, '没有自定义道具', '当前物品包中没有 ID 大于 60073 的记录');
+    '<td>'+esc(item.sources.join('、'))+'</td><td>'+(['100','200','201','203','205','206','207','208'].includes(String(item.type)) ? '<button type="button" class="btn btn-sm" data-edit-custom-weapon="'+item.id+'" data-equipment-type="'+esc(item.type)+'">编辑</button>' : '—')+'</td><td style="text-align:right"><input type="checkbox" data-custom-item-select="'+esc(item.id)+'" aria-label="选择 '+esc(item.name || '未命名道具')+'"></td></tr>'
+  ).join('') : emptyRow(6, '没有自定义道具', '当前物品包中没有 ID 大于 60073 的记录');
   updateCustomItemSelection();
 }
 async function loadCustomItems(){
   if (state.customItemLoading) return;
   state.customItemLoading = true;
   updateCustomItemSelection();
-  $('#custom-item-rows').innerHTML = skeleton(5);
+  if (state.customItems) renderCustomItems();
+  else $('#custom-item-rows').innerHTML = skeleton(6);
   try{
     const response = await api('/api/custom-items');
     state.customItems = response.data.items;
     state.customItemRevision = response.data.revision;
+    $('#custom-item-status').textContent = '';
+    $('#custom-item-status').classList.remove('error');
     renderCustomItems();
   }catch(error){
-    state.customItems = null;
     state.customItemRevision = null;
     state.customItemSelectedIds.clear();
-    $('#custom-item-rows').innerHTML = emptyRow(5, '自定义道具读取失败', error.message);
-    $('#custom-item-count').textContent = '—';
+    if (!state.customItems){
+      $('#custom-item-rows').innerHTML = emptyRow(6, '自定义道具读取失败', error.message);
+      $('#custom-item-count').textContent = '—';
+    }
+    $('#custom-item-status').textContent = '刷新失败，请重新进入道具管理：' + error.message;
+    $('#custom-item-status').classList.add('error');
   }finally{ state.customItemLoading = false; updateCustomItemSelection(); }
 }
 async function deleteCustomItems(){
@@ -2280,7 +2292,7 @@ async function loadWeaponTemplates(){
   const request = ++weaponListRequest;
   $('#weapon-rows').innerHTML = '<tr class="is-static"><td colspan="3">读取中…</td></tr>';
   try{
-    const query = new URLSearchParams({profession:$('#weapon-profession').value,q:$('#weapon-search').value.trim()});
+    const query = new URLSearchParams({category:$('#weapon-category').value,profession:$('#weapon-profession').value,q:$('#weapon-search').value.trim()});
     const j = await api('/api/weapon_templates?' + query);
     if (request !== weaponListRequest) return;
     const data = j.data;
@@ -2339,18 +2351,20 @@ function updateWeaponIconPreview(){
   empty.classList.remove('is-hidden');
   image.onload = () => { image.classList.remove('is-hidden'); empty.classList.add('is-hidden'); };
   image.onerror = () => { image.classList.add('is-hidden'); empty.classList.remove('is-hidden'); };
-  if (!/^wq[0-9a-z]{1,16}$/.test(icon)){
+  if (!/^[0-9a-z]{1,32}$/.test(icon)){
     image.removeAttribute('src');
     return;
   }
-  image.src = '/logos/icons/wq/' + icon + '.png';
+  image.src = weaponIconUrl(icon);
 }
+function weaponIconUrl(icon){ const category = state.weaponDraft[2] || '100'; return category === '100' ? '/logos/icons/wq/' + icon + '.png' : '/equipment-icons/' + category + '/' + icon + '.png'; }
+$('#weapon-category').addEventListener('change', () => { state.weaponTemplate = null; state.weaponDraft = []; $('#weapon-editor').classList.add('is-hidden'); $('#weapon-editor-empty').classList.remove('is-hidden'); $('#weapon-icon-panel').classList.add('is-hidden'); loadWeaponTemplates(); });
 function assignWeaponModel(){
   const icon = String(state.weaponDraft[4] || '').trim().toLowerCase();
   state.weaponDraft[5] = state.weaponIconModels[icon] || '';
 }
 function openWeaponIconPicker(){
-  if (!state.weaponIconChoices.length){ toast('没有可选的武器图片', true); return; }
+  if (!state.weaponIconChoices.length){ toast('没有可选的装备图片', true); return; }
   $('#weapon-trait-panel').classList.add('is-hidden');
   $('#weapon-icon-panel').classList.remove('is-hidden');
   $('#weapon-layout').classList.add('traits-open');
@@ -2362,7 +2376,7 @@ function renderWeaponIconOptions(){
   $('#weapon-icon-count').textContent = '共 ' + visible.length + ' 个';
   $('#weapon-icon-options').innerHTML = visible.length ? visible.map(icon =>
     '<button type="button" class="weapon-icon-option' + (icon === String(state.weaponDraft[4] || '').toLowerCase() ? ' is-selected' : '') +
-    '" data-icon="' + esc(icon) + '" aria-label="选择 ' + esc(icon) + '"><img src="/logos/icons/wq/' + esc(icon) + '.png" alt="" loading="lazy"><span>' + esc(icon) + '</span></button>').join('') :
+    '" data-icon="' + esc(icon) + '" aria-label="选择 ' + esc(icon) + '"><img src="' + weaponIconUrl(esc(icon)) + '" alt="" loading="lazy"><span>' + esc(icon) + '</span></button>').join('') :
     '<div class="muted">没有匹配的图片</div>';
 }
 $('#weapon-icon-query').addEventListener('input', renderWeaponIconOptions);
@@ -2377,20 +2391,20 @@ $('#weapon-icon-options').addEventListener('click', event => {
 $('#weapon-fields').addEventListener('click', event => {
   if (event.target.closest('#weapon-icon-trigger')) openWeaponIconPicker();
 });
-async function selectWeaponTemplate(id){
+async function selectWeaponTemplate(id, editMode=false){
   $('#weapon-status').textContent = '读取中…';
   try{
-    const j = await api('/api/weapon_templates?id=' + encodeURIComponent(id));
+    const j = await api('/api/weapon_templates?category=' + encodeURIComponent($('#weapon-category').value) + '&id=' + encodeURIComponent(id));
     state.weaponTemplate = j.data.template;
     state.weaponDraft = [...state.weaponTemplate.fields];
     state.weaponIconModels = j.data.icon_models || {};
     state.weaponIconChoices = j.data.icon_choices || [];
-    assignWeaponModel();
-    state.weaponDraft[7] = '10';
-    state.weaponDraft[18] = '300';
-    compactWeaponTraits();
+    state.weaponEditMode = editMode;
+    state.weaponEditBaseline = editMode ? [...state.weaponDraft] : null;
+    state.weaponDraft[7] = '15'; state.weaponDraft[35] = '2';
+    if (!editMode){ assignWeaponModel(); state.weaponDraft[18] = '300'; state.weaponDraft[42] = '2'; compactWeaponTraits(); }
     state.weaponProposedId = j.data.proposed_id;
-    $('#weapon-proposed-id').textContent = state.weaponProposedId ? '新物品 ID ' + state.weaponProposedId : '无可用 ID';
+    $('#weapon-proposed-id').textContent = editMode ? '编辑物品 ID ' + id : (state.weaponProposedId ? '新物品 ID ' + state.weaponProposedId : '无可用 ID');
     const traitIds = state.weaponDraft.slice(25,30).filter(value => /^\d+$/.test(value));
     if (traitIds.length){
       const traits = await api('/api/weapon_traits?ids=' + encodeURIComponent(traitIds.join(',')));
@@ -2407,7 +2421,7 @@ async function selectWeaponTemplate(id){
         (type === 'number' ? ' step="1"' : '') + ' value="' + esc(value) + '">';
       const field = '<label class="field' + (index === 1 ? ' wide' : index === 22 ? ' stat-start' : '') + '"><span>' + label + '</span>' + input + '</label>';
       return field + (index === 53 ?
-        '<div class="field"><span>武器模型</span><button type="button" class="weapon-icon-trigger" id="weapon-icon-trigger" aria-label="选择武器模型"><img id="weapon-icon-image" alt="" class="is-hidden"><span id="weapon-icon-empty">无图标</span></button></div>' : '');
+        '<div class="field"><span>武器模型</span><button type="button" class="weapon-icon-trigger" id="weapon-icon-trigger" aria-label="选择装备模型"><img id="weapon-icon-image" alt="" class="is-hidden"><span id="weapon-icon-empty">无图标</span></button></div>' : '');
     }).join('');
     updateWeaponIconPreview();
     renderWeaponTraitSlots();
@@ -2416,12 +2430,14 @@ async function selectWeaponTemplate(id){
     $$('#weapon-rows [data-weapon-id]').forEach(row => row.classList.toggle('is-active', Number(row.dataset.weaponId) === id));
   }catch(err){ $('#weapon-status').textContent = err.message; }
 }
-async function restoreQueuedWeaponDraft(templateId, fields){
-  await selectWeaponTemplate(templateId);
+async function restoreQueuedWeaponDraft(templateId, fields, editMode=false){
+  $('#weapon-category').value = fields[2];
+  await selectWeaponTemplate(templateId, editMode);
   if (Number(state.weaponTemplate?.id) !== Number(templateId)){
     throw new Error('武器模板载入失败，队列中的草稿仍保留');
   }
   state.weaponDraft=[...fields];
+  state.weaponDraft[7] = '15'; state.weaponDraft[35] = '2';
   const traitIds=state.weaponDraft.slice(25,30).filter(value=>/^\d+$/.test(value));
   if(traitIds.length){
     const traits=await api('/api/weapon_traits?ids='+encodeURIComponent(traitIds.join(',')));
@@ -2504,12 +2520,21 @@ $('#weapon-trait-results').addEventListener('keydown', e => {
     if (row){ e.preventDefault(); row.click(); }
   }
 });
+$('#custom-item-rows').addEventListener('click', async event => {
+  const button=event.target.closest('[data-edit-custom-weapon]');
+  if (!button) return;
+  const id=Number(button.dataset.editCustomWeapon);
+  showView('item'); setItemMode('weapon');
+  $('#weapon-category').value = button.dataset.equipmentType;
+  await selectWeaponTemplate(id, true);
+});
 $('#weapon-apply').addEventListener('click', async () => {
   if (!state.weaponTemplate || !state.weaponDraft.length){ toast('请先选择武器模板', true); return; }
-  const templateId=state.weaponTemplate.id,fields=[...state.weaponDraft];
-  queueDpkChange({key:'weapon:'+templateId+':'+fields[1],signature:JSON.stringify({templateId,fields}),label:'新建武器：'+(fields[1]||'自定义武器'),summary:'重新校验并分配物品 ID',reloadable:true,reloadScope:'weapon',
-    operation:{kind:'weapon',payload:{template_id:templateId,fields}},
-    jump:async()=>{showView('item');setItemMode('weapon');try{await restoreQueuedWeaponDraft(templateId,fields);setTimeout(()=>$('#weapon-editor')?.scrollIntoView({behavior:'smooth',block:'center'}),80);}catch(error){toast(error.message,true);}},
+  const templateId=state.weaponTemplate.id, fields=[...state.weaponDraft], editMode=!!state.weaponEditMode;
+  const baseline=editMode ? [...state.weaponEditBaseline] : null;
+  queueDpkChange({key:(editMode?'weapon-edit:':'weapon:')+templateId+':'+fields[1],signature:JSON.stringify({templateId,fields,editMode}),label:(editMode?'编辑装备：':'新建装备：')+(fields[1]||'自定义武器'),summary:editMode?'保留物品 ID '+templateId:'重新校验并分配物品 ID',reloadable:true,reloadScope:'weapon',
+    operation:{kind:editMode?'weapon-edit':'weapon',payload:editMode?{weapon_id:templateId,fields,baseline}:{template_id:templateId,fields}},
+    jump:async()=>{showView('item');setItemMode('weapon');try{await restoreQueuedWeaponDraft(templateId,fields,editMode);if(editMode)state.weaponEditBaseline=[...baseline];setTimeout(()=>$('#weapon-editor')?.scrollIntoView({behavior:'smooth',block:'center'}),80);}catch(error){toast(error.message,true);}},
   });
 });
 
@@ -2710,7 +2735,7 @@ async function searchAcct(){
       '<tr data-id="' + esc(r.account_id) + '">' +
         '<td>' + esc(r.name) + '</td>' +
         '<td class="num">' + esc(r.account_id) + '</td>' +
-        '<td>' + (r.status ? '<span class="tag bad">受限</span>' : '<span class="tag ok">正常</span>') + '</td>' +
+        '<td>' + (r.status ? '<span class="tag bad">受限</span>' : r.property === 15 ? '<span class="tag gm">GM</span>' : '<span class="tag ok">正常</span>') + '</td>' +
         '<td class="num">' + esc(r.max_level) + '</td>' +
         '<td class="num">' + esc(r.char_count) + '</td>' +
         '<td class="num">' + ts(r.last_login_time) + '</td>' +
@@ -2755,13 +2780,16 @@ async function openAcct(id){
           (Number(d.point_frozen) > 0 ? '<span class="account-frozen">（冻结 ' + fmt(d.point_frozen) + '）</span>' : '') + '</dd>' +
         '<dt>封禁状态</dt><dd>' + (banned
           ? '<span class="tag bad">封禁中</span><span class="account-ban-date">至 ' + ts(d.ban_endtime) + '</span>'
-          : '<span class="tag ok">正常</span>') + '</dd>' +
+          : (d.property === 15 ? '<span class="tag gm">GM</span>' : '<span class="tag ok">正常</span>')) + '</dd>' +
       '</dl>' +
       '<div class="detail-sub"><h4>角色（' + d.chars.length + '）</h4>' +
         '<div class="table-wrap"><table><thead><tr><th>角色名</th><th>场景</th><th>状态</th></tr></thead>' +
         '<tbody>' + chars + '</tbody></table></div>' +
       '</div>' +
       '<div class="account-actions"><b>账号操作</b><div class="toolbar">' +
+        '<button class="btn account-action-btn is-primary" type="button" data-account-action="set-gm" data-gm-enabled="' + (d.property === 15 ? 'true' : 'false') + '">' +
+          '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8 4.5 6v5.6c0 4.6 3 8 7.5 9.6 4.5-1.6 7.5-5 7.5-9.6V6L12 2.8Z"/><path d="m9 12 2 2 4-4"/></svg>' +
+          (d.property === 15 ? '取消GM权限' : '设为GM') + '</button>' +
         '<button class="btn account-action-btn" type="button" data-account-action="ban">' +
           '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8 4.5 6v5.6c0 4.6 3 8 7.5 9.6 4.5-1.6 7.5-5 7.5-9.6V6L12 2.8Z"/>' +
           '<path d="M9.2 12h5.6"/></svg>封禁设置</button>' +
@@ -2794,7 +2822,17 @@ $('#acct-detail').addEventListener('click', async e => {
   if (action){
     const acctId = state.acctId;
     const acctName = $('#acct-detail-title').textContent;
-    if (action.dataset.accountAction === 'ban'){
+    if (action.dataset.accountAction === 'set-gm'){
+      const enabled = action.dataset.gmEnabled !== 'true';
+      await confirmDialog({title:enabled ? '设为GM' : '取消GM权限', danger:false, okText:'确认设置', loadingText:'设置中…',
+        html:'<p>将账号 <b>' + esc(acctName) + '</b> 的属性设置为 ' + (enabled ? '15' : '0') + '。</p><p>如账号在线，请重新登录后检查权限。</p>',
+        onConfirm:async () => {
+          await postJSON('/api/account/set-gm', {account_id:acctId, enabled});
+          toast(enabled ? '账号属性已设为 15' : '账号属性已设为 0');
+          openAcct(acctId);
+          searchAcct();
+        }});
+    } else if (action.dataset.accountAction === 'ban'){
       accountFormDialog({
         title: '封禁设置', account: acctName, kind: 'ban', loadingText: '设置中…',
         html: '<label class="field"><span>操作与时长</span><select id="account-ban-hours">' +
@@ -2810,7 +2848,7 @@ $('#acct-detail').addEventListener('click', async e => {
           searchAcct();
         }
       });
-    } else {
+    } else if (action.dataset.accountAction === 'password'){
       accountFormDialog({
         title: '密码重置', account: acctName, kind: 'password', loadingText: '重置中…',
         html: '<label class="field"><span>新密码</span><input id="account-new-password" type="password" autocomplete="new-password" required minlength="6" maxlength="32"></label>' +
@@ -3097,12 +3135,15 @@ $('#pt-submit').addEventListener('click', async e => {
 /* ============================================================
    物品 / 待发放清单
    ============================================================ */
+let itemSearchTimer = 0, itemSearchRequest = 0;
 async function searchItem(){
+  const request = ++itemSearchRequest;
   const tb = $('#it-rows');
   tb.innerHTML = skeleton(5);
   try{
     const q = $('#it-q').value.trim();
     const j = await api('/api/items?q=' + encodeURIComponent(q));
+    if (request !== itemSearchRequest) return;
     $('#item-count').textContent = '共 ' + (q ? j.rows.length : j.total) + ' 条';
     if (!j.rows.length){ tb.innerHTML = emptyRow(5, '没有匹配的物品', '换个物品名或物品 ID 试试'); return; }
     tb.innerHTML = j.rows.map(r => (
@@ -3117,6 +3158,7 @@ async function searchItem(){
       '</tr>'
     )).join('');
   } catch(e){
+    if (request !== itemSearchRequest) return;
     tb.innerHTML = emptyRow(5, '搜索失败', e.message);
     toast(e.message, true);
   }
@@ -3355,17 +3397,22 @@ async function loadBackpackShop(){
   state.backpackLoading = true;
   $('#backpack-batch-delete').disabled = true;
   $('#backpack-select-all').disabled = true;
-  $('#backpack-rows').innerHTML = skeleton(5);
+  if (state.backpackShop) renderBackpackRows();
+  else $('#backpack-rows').innerHTML = skeleton(5);
   renderBackpackRuntime(null);
   try{
     const response = await api('/api/backpack-shop');
     state.backpackShop = response.data;
     renderBackpackRows();
-    renderBackpackRuntime(response.data.runtime);
+    const catalog = response.data;
+    api('/api/backpack-shop/runtime').then(result => {
+      if (state.backpackShop !== catalog) return;
+      const revision = result.data.revision;
+      if (Object.keys(revision).some(key => revision[key] !== catalog.revision[key])) return;
+      renderBackpackRuntime(result.data.runtime);
+    }).catch(() => { if (state.backpackShop === catalog) renderBackpackRuntime({state:'unavailable'}); });
   }catch(error){
-    state.backpackShop = null;
-    state.backpackSelectedProducts.clear();
-    $('#backpack-rows').innerHTML = emptyRow(5, '商店配置读取失败', error.message);
+    if (!state.backpackShop) $('#backpack-rows').innerHTML = emptyRow(5, '商店配置读取失败', error.message);
     renderBackpackRuntime({state:'unavailable'});
     setBackpackStatus(error.message, 'error');
   }finally{ state.backpackLoading = false; if (state.backpackShop) renderBackpackRows(); }
@@ -3592,8 +3639,15 @@ document.addEventListener('focusout', e => {
   if (q && state.cart[+q.dataset.qty]) q.value = state.cart[+q.dataset.qty].num;
 });
 
-$('#it-search').addEventListener('click', searchItem);
-$('#it-q').addEventListener('keydown', e => { if (e.key === 'Enter') searchItem(); });
+$('#it-q').addEventListener('input', e => {
+  ++itemSearchRequest;
+  clearTimeout(itemSearchTimer);
+  if (!e.isComposing) itemSearchTimer = setTimeout(searchItem, 200);
+});
+$('#it-q').addEventListener('compositionend', () => {
+  clearTimeout(itemSearchTimer);
+  itemSearchTimer = setTimeout(searchItem, 200);
+});
 
 async function resolveChar(v){
   v = String(v || '').trim();
@@ -3739,28 +3793,26 @@ $('#game-config-mode').addEventListener('click', e => {
 async function confirmSkillHotReload(button, scopes, status=null){
   if (button.disabled || !scopes.length) return;
   const notes = {
-    'skill-learn':'重载导师技能列表（表 210）和学习条件（表 211）。替换客户端包并重新登录，再打开导师窗口；取消学习资格不会删除已学会的技能。',
+    'skill-learn':'重载导师技能列表和学习条件。替换客户端包并重新登录，再打开导师窗口；取消学习资格不会删除已学会的技能。',
     'definitions':'重载职业技能定义。正在运行的技能效果会被清理；替换客户端包并重新登录。',
     'summon':'重载技能定义和召唤物配置。正在运行的技能效果会被清理；替换客户端包、重新登录并重新召唤。',
     'all':'重载跨职业技能、职业技能和召唤物配置。正在运行的技能效果会被清理；替换客户端包并重新登录，召唤物修改后重新召唤。',
-    'rides':'重载骑宠列表（表 85）和乘骑连接（表 84），应用服务端当前主包中的骑宠设置。两条线路会依次处理；已经骑乘的角色建议先下坐骑再重新骑乘。',
-    'shop':'重新载入商城商品文件，并通过 reloadxyshopitem 刷新商城配置和在线商城数据。',
+    'rides':'重载骑宠配置。已经骑乘的角色建议先下坐骑，再重新骑乘。',
+    'shop':'重载商城商品配置。在线商城数据会同步刷新。',
     'backpack':'重载已保存的背包商店配置，刷新并核对两条线路的商人列表。',
-    'weapon':'重载物品列表表 41（三个 item_list 文件），让新武器定义供服务端后续发放。失败时不回滚运行中的旧表，也不自动重启；如果状态异常，可由你决定是否手动重启。客户端仍需替换 mb.dpk 并重新登录。'
+    'weapon':'重载武器定义。替换客户端包并重新登录；已装备的武器请重新装备。'
   };
-  const names={definitions:'职业技能配置','skill-learn':'跨职业技能',all:'召唤物',rides:'骑宠设置',shop:'商城',backpack:'背包商店',weapon:'新增武器'};
+  const names={definitions:'职业技能配置','skill-learn':'跨职业技能',all:'召唤物',rides:'骑宠设置',shop:'商城',backpack:'背包商店',weapon:'武器配置'};
   const hasWeapon=scopes.includes('weapon');
   const title=scopes.length===1&&scopes[0]==='rides'?'确认热重载骑宠设置':
     scopes.length===1&&scopes[0]==='shop'?'确认热重载商城':
     scopes.length===1&&scopes[0]==='backpack'?'确认热重载背包商店':
-    scopes.length===1&&hasWeapon?'确认热重载新增武器':
+    scopes.length===1&&hasWeapon?'确认热重载武器配置':
     scopes.length===1?'确认热重载技能':'确认热重载 '+scopes.length+' 项配置';
   const detail=[
     '<p>本次选择：'+scopes.map(scope=>esc(names[scope]||scope)).join('、')+'。</p>',
     scopes.map(scope=>'<p>'+notes[scope]+'</p>').join(''),
     scopes.some(scope=>scope!=='backpack')?'<p>其他配置的相同表会合并；若包含职业技能定义，只执行一次 reloadskill。</p>':'',
-    scopes.includes('rides')&&!hasWeapon?'<p>已有骑乘的角色建议先下坐骑，再重新骑乘。</p>':'',
-    scopes.includes('weapon')?'<p>客户端包仍需替换游戏目录中的 mb.dpk 并重新登录。</p>':'',
     '<p class="server-action-timer" hidden>已用时 <span>00:00</span></p>'
   ].join('');
   await confirmDialog({title, danger:false, okText:'热重载', loadingText:'热重载中…',

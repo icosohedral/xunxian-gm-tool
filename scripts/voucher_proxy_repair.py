@@ -7,7 +7,7 @@ _ORIGINAL = '''      else:
 '''
 _PATCHED = '''      else:
        after=before-amount;success=1
-     elif (ext & 0xffff)==0x60 and payload[-2:]==bytes([0x43,0]):
+     elif amount in (-10000,-100000) and payload[-2:]==bytes([0x43,0]):
       # Effect-98 item rewards are negative point requests, not purchase refunds.
       after=before-amount;success=1
     reply=bytes([6])+payload[1:5]+struct.pack("<Bi",success,after)

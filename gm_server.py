@@ -69,7 +69,7 @@ from scripts.backpack_client import (apply as apply_client_shop,
                                      verify as verify_client_shop)
 from scripts.config_reload import run as run_config_reload
 from scripts.package_queue import PackageQueueBuilder, validate_items as validate_package_queue
-from scripts.weapon_drafts import weapon_catalog, search_traits
+from scripts.weapon_drafts import weapon_catalog, search_traits, equipment_attribute_choices
 from scripts.weapon_custom import all_item_ids as weapon_item_ids, append_weapon, verify_weapon
 from scripts.unpack import DpkReader
 
@@ -1280,6 +1280,9 @@ def _shop_hot_reload_result():
         return {"ok": False, "error": str(error)}
 
 
+_backpack_items_cache = {"hash": None, "items": None}
+
+
 def get_backpack_shop():
     packages, signatures = _ensure_server_mb_cache({
         "主包": MB_DPK_FILE_PATH, "动态包": MB_DPK_DYNAMIC_FILE_PATH})
@@ -1287,18 +1290,28 @@ def get_backpack_shop():
     with SERVER_MB_CACHE_LOCK:
         if hashlib.sha256(packages["主包"].read_bytes()).hexdigest() != source_hash:
             raise ValueError("服务端物品表已变化，请刷新后重试")
-        items = backpack_package_items(packages["主包"])
+        if _backpack_items_cache["hash"] != source_hash:
+            _backpack_items_cache.update(hash=source_hash, items=backpack_package_items(packages["主包"]))
+        items = _backpack_items_cache["items"]
     with _lock:
         connection = ssh()
         files = read_backpack_remote(connection)
-        try:
-            runtime = inspect_backpack_cache(connection, files)
-        except Exception as error:
-            runtime = {"state": "unavailable", "error": str(error)}
     data = backpack_catalog(files, items)
     data["revision"]["server_mb"] = source_hash
-    data["runtime"] = runtime
     return data
+
+
+def get_backpack_runtime():
+    with _lock:
+        connection = ssh()
+        files = read_backpack_remote(connection)
+        runtime = inspect_backpack_cache(connection, files)
+    return {"runtime": runtime, "revision": {
+        name: hashlib.sha256(data).hexdigest() for name, data in files.items()}}
+
+
+_custom_items_cache = {"revision": None, "items": None}
+_custom_items_cache_lock = threading.Lock()
 
 
 def get_custom_items():
@@ -1313,7 +1326,11 @@ def get_custom_items():
     if client:
         packages["客户端"] = client
         revision["客户端"] = _file_sha256(client)
-    return {"items": custom_item_catalog(packages), "revision": revision,
+    with _custom_items_cache_lock:
+        if _custom_items_cache["revision"] != revision:
+            _custom_items_cache.update(revision=dict(revision), items=custom_item_catalog(packages))
+        items = _custom_items_cache["items"]
+    return {"items": items, "revision": revision,
             "client_package_available": bool(client)}
 
 
@@ -1921,14 +1938,14 @@ def account_rows(where="", limit=100):
     query = ("SELECT a.account_id,a.name,a.status,a.max_level,a.create_time,"
              "a.last_login_time,a.last_ip,(SELECT COUNT(*) FROM "
              f"{DB_CHAR}.common_characters c WHERE c.account_id=a.account_id "
-             f"AND c.mark_delete=0) FROM {DB_CHAR}.common_accounts a "
+             f"AND c.mark_delete=0),a.property FROM {DB_CHAR}.common_accounts a "
              f"{where} ORDER BY a.last_login_time DESC LIMIT {limit};")
     out = []
     for r in sql(query):
         out.append(dict(zip(("account_id", "name", "status", "max_level",
-                             "create_time", "last_login_time", "last_ip", "char_count"),
+                             "create_time", "last_login_time", "last_ip", "char_count", "property"),
                             (r[0], r[1], qint(r[2]), r[3], qint(r[4]),
-                             qint(r[5]), r[6], qint(r[7])))))
+                             qint(r[5]), r[6], qint(r[7]), qint(r[8])))))
     return out
 
 
@@ -2586,7 +2603,7 @@ def _apply_custom_weapon(template_id, fields, defer_download=False):
         raise ValueError("请输入武器名称")
     if fields[2] != "100":
         raise ValueError("物品类必须为武器（100）")
-    if fields[7] != "10" or fields[18] != "300":
+    if fields[7] != "15" or fields[18] != "300":
         raise ValueError("物品品质或耐久值异常")
     if fields[9] not in {"", "1", "2", "3", "4"}:
         raise ValueError("职业限制值无效")
@@ -2619,6 +2636,8 @@ def _apply_custom_weapon(template_id, fields, defer_download=False):
         raise ValueError("新物品 ID 冲突，请重新读取后再试")
     fields = list(fields)
     fields[0] = str(weapon_id)
+    fields[35] = '2'
+    fields[42] = '2'
     fields[4] = fields[4].strip().lower()
     client_data = weapon_catalog(client, item_id=template_id)
     model_id = client_data["icon_models"].get(fields[4])
@@ -2715,7 +2734,7 @@ def _file_sha256(path):
         return hashlib.file_digest(source, "sha256").hexdigest()
 
 
-def _publish_queue_packages(outputs, paths, signatures):
+def _publish_queue_packages(outputs, paths, signatures, *, keep_backups=True):
     """Upload each final server package once, verifying before completing replacement."""
     with _lock:
         connection = ssh()
@@ -2762,6 +2781,11 @@ def _publish_queue_packages(outputs, paths, signatures):
             err = stderr.read().decode("utf-8", "replace").strip()
             if stdout.channel.recv_exit_status() != 0:
                 raise RuntimeError("队列服务端包同步失败：" + (err or out))
+            if not keep_backups:
+                _, cleanup, _ = connection.exec_command("sudo -n rm -f -- " + " ".join(shlex.quote(path) for path in backups.values()), timeout=20)
+                if cleanup.channel.recv_exit_status() != 0:
+                    raise RuntimeError("配置已同步，但临时回滚文件清理失败")
+                return {}
             return backups
         finally:
             try:
@@ -2827,7 +2851,9 @@ def apply_package_queue(items):
                        for result in builder.results]
             # All local data is already prepared on the same filesystem. Publish
             # final server packages once, then atomically rename the local files.
-            backups = _publish_queue_packages(server_outputs, paths, signatures)
+            backups = (_publish_queue_packages(server_outputs, paths, signatures, keep_backups=False)
+                if any(item["kind"] == "weapon-edit" for item in items)
+                else _publish_queue_packages(server_outputs, paths, signatures))
             warnings = []
             backpack_result = None
             if builder.backpack_changes:
@@ -3202,6 +3228,14 @@ class Handler(BaseHTTPRequestHandler):
                 if not os.path.exists(image):
                     image = os.path.join(APP_DIR, "logos", filename)
                 return self._file(image, "image/png")
+            icon_match = re.fullmatch(r"/equipment-icons/(200|201|203|205|206|207|208)/([0-9a-z]{1,32})\.png", p)
+            if icon_match:
+                folders = {"200": "帽子", "201": "首饰", "203": "衣服", "205": "腰带", "206": "裤子", "207": "鞋子", "208": "首饰"}
+                folder, filename = folders[icon_match.group(1)], icon_match.group(2) + ".png"
+                image = os.path.join(RES_DIR, "logos", "icons", folder, filename)
+                if not os.path.isfile(image):
+                    image = os.path.join(APP_DIR, "logos", "icons", folder, filename)
+                return self._file(image, "image/png")
             if re.fullmatch(r"/logos/icons/wq/wq[0-9a-z]{1,16}\.png", p):
                 filename = p.rsplit("/", 1)[-1]
                 image = os.path.join(RES_DIR, "logos", "icons", "wq", filename)
@@ -3324,6 +3358,10 @@ class Handler(BaseHTTPRequestHandler):
                 if not self._config_request_allowed():
                     return self._json({"ok": False, "error": "仅允许从本机控制台读取背包商店"}, 403)
                 return self._json({"ok": True, "data": get_backpack_shop()})
+            if p == "/api/backpack-shop/runtime":
+                if not self._config_request_allowed():
+                    return self._json({"ok": False, "error": "仅允许从本机控制台读取背包商店"}, 403)
+                return self._json({"ok": True, "data": get_backpack_runtime()})
             if p == "/api/custom-items":
                 if not self._config_request_allowed():
                     return self._json({"ok": False, "error": "仅允许从本机控制台读取自定义道具"}, 403)
@@ -3403,17 +3441,23 @@ class Handler(BaseHTTPRequestHandler):
                 if profession not in {"all", "1", "2", "3", "4", ""}:
                     raise ValueError("职业筛选无效")
                 template_id = qs.get("id", [""])[0]
+                category = qs.get("category", ["100"])[0]
+                folders = {"100": "wq", "200": "帽子", "201": "首饰", "203": "衣服", "205": "腰带", "206": "裤子", "207": "鞋子", "208": "首饰"}
+                if category not in folders:
+                    raise ValueError("装备类别无效")
                 data = weapon_catalog(_ensure_client_work_package(),
-                    profession=profession, query=qs.get("q", [""])[0].strip(),
+                    category=category, profession=profession, query=qs.get("q", [""])[0].strip(),
                     item_id=int(template_id) if template_id.isdigit() else None,
                     other_packages=tuple(SERVER_MB_CACHE_PATHS.values()))
                 if template_id.isdigit():
                     data["icon_choices"] = sorted(
                         icon for icon in data["icon_models"]
-                        if re.fullmatch(r"wq[0-9a-z]{1,16}", icon) and any(
-                            (Path(root) / "logos" / "icons" / "wq" / f"{icon}.png").is_file()
+                        if re.fullmatch(r"[0-9a-z]{1,32}", icon) and any(
+                            (Path(root) / "logos" / "icons" / folders[category] / f"{icon}.png").is_file()
                             for root in (RES_DIR, APP_DIR)))
                 return self._json({"ok": True, "data": data})
+            if p == "/api/equipment_attribute_choices":
+                return self._json({"ok": True, "data": equipment_attribute_choices(_ensure_client_work_package())})
             if p == "/api/weapon_traits":
                 ids_text = qs.get("ids", [""])[0]
                 ids = {int(value) for value in ids_text.split(",") if value.isdigit()} if ids_text else None
@@ -3455,7 +3499,7 @@ class Handler(BaseHTTPRequestHandler):
                     "c.total_play_time,c.silence_time,c.mark_delete,c.family_name,"
                     "c.guild_name,c.dead_area_id,c.gzs_idx,a.name,"
                     f"EXISTS(SELECT 1 FROM {DB_CHAR}.lock_characters l "
-                    "WHERE l.char_id=c.char_id) "
+                    "WHERE l.char_id=c.char_id),a.property "
                     f"FROM {DB_CHAR}.common_accounts a "
                     f"LEFT JOIN {DB_IMS}.point_partition_0 p ON p.account=a.name "
                     f"LEFT JOIN {DB_CHAR}.common_characters c "
@@ -3478,7 +3522,7 @@ class Handler(BaseHTTPRequestHandler):
                     "account": name, "account_id": str(account_id),
                     "point_table": "point_partition_0" if rows[0][2] != "NULL" else "",
                     "point_available": avail, "point_frozen": frozen,
-                    "ban_endtime": ban_endtime, "chars": chars}})
+                    "ban_endtime": ban_endtime, "property": qint(rows[0][23]), "chars": chars}})
             return self._json({"ok": False, "error": "unknown api"}, 404)
         except Exception as e:
             traceback.print_exc()
@@ -3504,7 +3548,7 @@ class Handler(BaseHTTPRequestHandler):
                  "/api/skill-limits/apply", "/api/ip-whitelist", "/api/profession-skills/inspect",
                  "/api/profession-skills/apply", "/api/summons/apply", "/api/weapon/apply", "/api/skills/reload",
                  "/api/weapons/reload", "/api/config/reload", "/api/package-queue/apply",
-                 "/api/custom-items/delete"):
+                 "/api/custom-items/delete", "/api/account/set-gm"):
             if not self._config_request_allowed():
                 return self._json({"ok": False, "error": "仅允许从本机控制台修改配置"}, 403)
             if self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/json":
@@ -3559,7 +3603,7 @@ class Handler(BaseHTTPRequestHandler):
                                     source_sha256=signatures["主包"][2], reload_saved=True)
                                 if reloaded.get("merchant_cache", {}).get("state") == "pending":
                                     raise RuntimeError(reloaded["merchant_cache"].get("error") or "商人缓存刷新失败")
-                                verified = inspect_backpack_cache(connection, files)
+                                verified = reloaded["verification"]
                             result["backpack"] = {"reload": reloaded, "verification": verified}
                         except Exception as error:
                             prefix = "其他所选项目已完成；" if other_scopes else ""
@@ -4292,6 +4336,30 @@ class Handler(BaseHTTPRequestHandler):
                 sql(f"UPDATE {DB_CHAR}.common_characters SET silence_time={until} WHERE char_id={cid};")
                 op_log("禁言" if sec > 0 else "解除禁言", {"char_id": cid, "seconds": sec})
                 return self._json({"ok": True, "data": {"until": until}})
+            if p == "/api/account/set-gm":
+                account_id = str(body.get("account_id", "")).strip()
+                enabled = body.get("enabled")
+                if not isinstance(enabled, bool):
+                    return self._json({"ok": False, "error": "GM 设置无效"}, 400)
+                if not account_id.isascii() or not account_id.isdecimal() or int(account_id) <= 0:
+                    return self._json({"ok": False, "error": "账号 ID 无效"}, 400)
+                account_id = int(account_id)
+                rows = sql(f"SELECT name,property FROM {DB_CHAR}.common_accounts WHERE account_id={account_id} LIMIT 1;")
+                if not rows:
+                    return self._json({"ok": False, "error": "账号不存在"}, 404)
+                old_property = qint(rows[0][1])
+                if (old_property == 15) == enabled:
+                    return self._json({"ok": False, "error": "账号状态已变化，请刷新后重试"}, 409)
+                target_property = 15 if enabled else 0
+                sql(f"UPDATE {DB_CHAR}.common_accounts SET property={target_property} "
+                    f"WHERE account_id={account_id} AND property={old_property};")
+                confirmed = sql(f"SELECT property FROM {DB_CHAR}.common_accounts WHERE account_id={account_id} LIMIT 1;")
+                if not confirmed or qint(confirmed[0][0]) != target_property:
+                    raise RuntimeError("账号属性写入后校验失败")
+                op_log("设为GM" if enabled else "取消GM权限",
+                       {"account_id": str(account_id), "account": rows[0][0],
+                        "old_property": old_property, "property": target_property})
+                return self._json({"ok": True, "data": {"property": target_property}})
             if p == "/api/ban":
                 acct = str(body.get("account", "")).strip()
                 name = resolve_account_name(acct)

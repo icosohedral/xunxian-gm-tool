@@ -33,6 +33,30 @@ def search_traits(path: Path, query: str = "", limit: int = 200,
         return {"rows": rows[:limit], "total": len(rows)}
 
 
+
+def equipment_attribute_choices(path: Path) -> dict:
+    """Expose existing absolute and percent combat attributes as trait choices."""
+    categories = {"45": "ignore_defense", "46": "ignore_resistance",
+                  "17": "physical_crit", "18": "magic_crit",
+                  "19": "physical_crit_cap", "20": "magic_crit_cap"}
+    result = {key: [] for key in categories.values()}
+    with DpkReader(path) as reader:
+        entry = next((e for e in reader.read_entries() if e.path.lower() == ITEM_TRAIT), None)
+        if entry is None:
+            raise ValueError("客户端包缺少 item/item_trait.txt")
+        for line in reader.extract(entry).decode("gb18030").splitlines():
+            f = line.split("\t")
+            if len(f) < 6 or not f[0].isdigit() or f[1] not in categories or not f[2].isdigit():
+                continue
+            key = categories[f[1]]
+            expected_mode = "0" if f[1] in {"45", "46"} else "1"
+            if f[3] != expected_mode or int(f[2]) == 0 or not f[5].strip():
+                continue
+            result[key].append({"id": int(f[0]), "value": int(f[2]), "name": f[5].strip()})
+    for rows in result.values():
+        rows.sort(key=lambda row: (row["value"], row["id"]))
+    return result
+
 def read_items(path: Path, *, weapons: bool = True) -> tuple[list[str], list[dict]]:
     records = []
     header = []
@@ -59,8 +83,11 @@ def read_items(path: Path, *, weapons: bool = True) -> tuple[list[str], list[dic
 
 
 def weapon_catalog(path: Path, *, profession: str = "all", query: str = "",
-                   item_id: int | None = None, other_packages: tuple[Path, ...] = ()) -> dict:
-    header, weapons = read_items(path)
+                   item_id: int | None = None, other_packages: tuple[Path, ...] = (), category: str = "100") -> dict:
+    if category not in {"100", "200", "201", "203", "205", "206", "207", "208"}:
+        raise ValueError("装备类别无效")
+    header, records = read_items(path, weapons=False)
+    weapons = [item for item in records if item["fields"][2] == category]
     if not header:
         raise ValueError("客户端包缺少物品列表")
     used = {item["id"] for item in weapons}
@@ -85,7 +112,7 @@ def weapon_catalog(path: Path, *, profession: str = "all", query: str = "",
         for item in weapons:
             icon = item["fields"][4].strip().lower()
             model = item["fields"][5].strip()
-            if icon and model.isdigit():
+            if icon and (model.isdigit() or (category in {"201", "208"} and not model)):
                 icon_models.setdefault(icon, model)
         return {"template": selected, "headers": header,
                 "proposed_id": candidate, "counts": counts,
@@ -94,5 +121,5 @@ def weapon_catalog(path: Path, *, profession: str = "all", query: str = "",
                 (profession == "all" or item["profession"] == profession) and
                 (not query or query.casefold() in item["name"].casefold() or query in str(item["id"]))]
     return {"rows": [{key: item[key] for key in ("id", "name", "profession", "level", "source")}
-                     for item in filtered[:60]], "total": len(filtered),
+                     for item in filtered], "total": len(filtered),
             "counts": counts, "proposed_id": candidate}

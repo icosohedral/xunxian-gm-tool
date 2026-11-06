@@ -17,12 +17,39 @@ from scripts.ride_speed import prepare_changes
 class QueueBuilderTests(unittest.TestCase):
     def test_weapon_magic_resistance_rejects_invalid_values(self):
         fields = [''] * 55
-        fields[1], fields[2], fields[7], fields[18], fields[53] = '武器', '100', '10', '300', '-1'
+        fields[1], fields[2], fields[7], fields[18], fields[53] = '武器', '100', '15', '300', '-1'
         builder = object.__new__(PackageQueueBuilder)
         with self.assertRaisesRegex(ValueError, '非负整数'):
             builder._patch_weapon({'fields': fields}, {})
         with self.assertRaisesRegex(ValueError, '法术抗性必须是非负整数'):
             server._apply_custom_weapon(1, fields)
+
+    def test_new_equipment_forces_bind_on_acquisition(self):
+        fields = [''] * 55
+        fields[1], fields[2], fields[4], fields[7], fields[18] = '饰品', '208', 'ring', '15', '300'
+        builder = object.__new__(PackageQueueBuilder)
+        builder.packages = {'客户端': Path('client.dpk'), '主包': Path('server.dpk'), '动态包': Path('dynamic.dpk')}
+        outputs = {key: Path('out-' + key) for key in builder.packages}
+        with patch.object(queue_module, 'weapon_catalog', return_value={'icon_models': {'ring': ''}}), \
+             patch.object(queue_module, 'all_item_ids', return_value={60075}), \
+             patch.object(queue_module, 'append_weapon') as append, \
+             patch.object(queue_module, 'verify_weapon'):
+            result = builder._patch_weapon({'template_id': 42, 'fields': fields}, outputs)
+        self.assertEqual(result['fields'][42], '2')
+        self.assertTrue(all(call.args[4][42] == '2' for call in append.call_args_list))
+
+    def test_equipment_edit_applies_default_quality_and_durability(self):
+        baseline = [''] * 55
+        baseline[0], baseline[1], baseline[2], baseline[7], baseline[35] = '60076', '测试饰品', '208', '10', ''
+        builder = object.__new__(PackageQueueBuilder)
+        builder.packages = {'客户端': Path('client.dpk'), '主包': Path('server.dpk')}
+        outputs = {'客户端': Path('out-client.dpk'), '主包': Path('out-server.dpk')}
+        with patch.object(queue_module, 'weapon_catalog', return_value={'template': {'fields': baseline}}), \
+             patch.object(queue_module, 'edit_weapon') as edit:
+            result = builder._patch_weapon_edit({'weapon_id': 60076, 'fields': list(baseline), 'baseline': baseline}, outputs)
+        self.assertEqual(result['changes'], {7: '15', 35: '2'})
+        self.assertEqual(edit.call_count, 2)
+        self.assertEqual(edit.call_args.kwargs['category'], '208')
 
     def test_later_item_reads_previous_changes_without_publishing_sources(self):
         with tempfile.TemporaryDirectory() as directory:

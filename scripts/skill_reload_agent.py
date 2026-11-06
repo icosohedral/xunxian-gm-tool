@@ -57,13 +57,15 @@ EXTRA_TABLES = {
     500: 'object/cha_skill_choose.txt', 1351: 'summon/summon_skill.txt',
     1352: 'summon/summon_skill_index.txt',
 }
+TRAIT_TABLES = {42: 'item/item_trait.txt'}
+LEGEND_TABLES = {1570: 'life/legend_equip/legend_equip_list.txt'}
 RIDE_TABLES = {84: 'object/ride_connection.txt', 85: 'object/ride_list.txt'}
 ITEM_TABLE_ID = 41
 ITEM_PATHS = ('item/item_list.txt', 'item/item_list2.txt', 'item/item_list3.txt')
 ALL_TABLES = dict(TABLES)
 ALL_TABLES.update(EXTRA_TABLES)
-RELOADABLE_FILES = {**ALL_TABLES, **RIDE_TABLES}
-EXCEL_RELOAD_TABLE_IDS = {*EXTRA_TABLES, *RIDE_TABLES, ITEM_TABLE_ID, 50, 95}
+RELOADABLE_FILES = {**ALL_TABLES, **RIDE_TABLES, **LEGEND_TABLES, **TRAIT_TABLES}
+EXCEL_RELOAD_TABLE_IDS = {*EXTRA_TABLES, *RIDE_TABLES, *LEGEND_TABLES, *TRAIT_TABLES, ITEM_TABLE_ID, 50, 95}
 RELOADABLE_PATHS = {*RELOADABLE_FILES.values(), *ITEM_PATHS}
 
 
@@ -76,6 +78,10 @@ def scoped_tables(scope):
         return {key: EXTRA_TABLES[key] for key in (210, 211)}
     if scope in ('summon', 'all'):
         return dict(ALL_TABLES)
+    if scope == 'item-traits':
+        return dict(TRAIT_TABLES)
+    if scope == 'legend':
+        return dict(LEGEND_TABLES)
     if scope == 'rides':
         return dict(RIDE_TABLES)
     raise ValueError('未知的技能热重载范围')

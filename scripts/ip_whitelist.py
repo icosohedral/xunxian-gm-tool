@@ -51,14 +51,15 @@ def recent(entries):
                 data = handle.read()
             if size > len(data):
                 data = data.split(b'\n', 1)[-1]
-            try:
-                decoded = data.decode('utf-8')
-            except UnicodeDecodeError:
-                decoded = data.decode('gb18030', 'replace')
         except OSError:
             continue
-        lines = decoded.splitlines()
-        for line in reversed(lines):
+        # A backend log may contain mixed encodings. Decode each line separately
+        # so one malformed entry does not corrupt otherwise valid UTF-8 lines.
+        for raw_line in reversed(data.splitlines()):
+            try:
+                line = raw_line.decode('utf-8')
+            except UnicodeDecodeError:
+                line = raw_line.decode('gb18030', 'replace')
             if '[net]' not in line.lower():
                 continue
             if not any(word in line for word in ('来源', '连接', '登录', '客户端', '拒绝', 'source', 'client')):
