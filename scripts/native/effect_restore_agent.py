@@ -132,6 +132,9 @@ GATE = STATE / 'tracer_gate.py'
 SOURCES = STATE / 'sources'
 INHERIT = (0xad76dd,0xad76f5,0xad770d,0xad7725,0xad77a3,0xad77bb,0xad77d3,0xad77eb,0xad7803,0xad781b,0xad787c,0xad78f0,0xad7908,0xad7920,0xad7938,0xad7950,0xad7968)
 SPECS = (
+ ('sign_search_enemy_test.c','gmtool_sign_search_hook',((0x950504,0x651f50),)),
+ ('sign_search_enemy_test.c','gmtool_sign_activation_hook',((0x91d7fa,0x62b110),)),
+ ('sign_search_enemy_test.c','gmtool_sign_distance_hook',((0x94acff,0x619000),(0x94afe2,0x619000))),
  ('summon_three_signs_test.c','gmtool_three_sign_hook',((0xabc48d,0x5ff420),)),
  ('summon_inherit_weapon_test.c','gmtool_inherit_hook',tuple((x,0x5df580) for x in INHERIT)+((0x929e3e,0x5e3480),)),
  ('giant_slayer_merged.c','gmtool_weapon_hook',((0x926bf8,0x653b60),(0x926c2e,0x653b60))),

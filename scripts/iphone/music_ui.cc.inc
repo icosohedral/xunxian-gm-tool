@@ -1,0 +1,123 @@
+void phone_music_recv(const wchar_t* text)
+{
+    variant parts = variant(ui_string(text)).split_to_array(L'|');
+    if (parts.size() != 2) return;
+    int music_id = parts.get(1).to_int();
+    if (music_id == 1) { G_PlayMusic("xx_zy_day", true, true); return; }
+    if (music_id == 2) { G_PlayMusic("xx_zy_night", true, true); return; }
+    if (music_id == 3) { G_PlayMusic("world_bf_bingchuan01", true, true); return; }
+    if (music_id == 4) { G_PlayMusic("world_bf_bingchuan02", true, true); return; }
+    if (music_id == 5) { G_PlayMusic("world_bf_dongtu01", true, true); return; }
+    if (music_id == 6) { G_PlayMusic("world_bf_dongtu02", true, true); return; }
+    if (music_id == 7) { G_PlayMusic("world_bf_hanling01", true, true); return; }
+    if (music_id == 8) { G_PlayMusic("world_bf_hanling02", true, true); return; }
+    if (music_id == 9) { G_PlayMusic("world_bf_maoshanzhenyaota", true, true); return; }
+    if (music_id == 10) { G_PlayMusic("world_bf_xueyuan01", true, true); return; }
+    if (music_id == 11) { G_PlayMusic("world_bf_xueyuan02", true, true); return; }
+    if (music_id == 12) { G_PlayMusic("world_fb_banghui01", true, true); return; }
+    if (music_id == 13) { G_PlayMusic("world_fb_banghui02", true, true); return; }
+    if (music_id == 14) { G_PlayMusic("world_fb_huangling02", true, true); return; }
+    if (music_id == 15) { G_PlayMusic("world_hj_shenmi", true, true); return; }
+    if (music_id == 16) { G_PlayMusic("world_hj_xiane", true, true); return; }
+    if (music_id == 17) { G_PlayMusic("world_shd_qingliu01", true, true); return; }
+    if (music_id == 18) { G_PlayMusic("world_shd_qingliu02", true, true); return; }
+    if (music_id == 19) { G_PlayMusic("world_theme_fly", true, true); return; }
+    if (music_id == 20) { G_PlayMusic("world_theme_start", true, true); return; }
+    if (music_id == 21) { G_PlayMusic("world_theme_village", true, true); return; }
+    if (music_id == 22) { G_PlayMusic("world_yj_guimen", true, true); return; }
+    if (music_id == 23) { G_PlayMusic("world_yj_huangquan", true, true); return; }
+    if (music_id == 24) { G_PlayMusic("world_yj_naihe", true, true); return; }
+    if (music_id == 25) { G_PlayMusic("world_yj_qunyaohui", true, true); return; }
+    if (music_id == 26) { G_PlayMusic("world_zy_caodi01", true, true); return; }
+    if (music_id == 27) { G_PlayMusic("world_zy_caodi02", true, true); return; }
+    if (music_id == 28) { G_PlayMusic("world_zy_haihe", true, true); return; }
+    if (music_id == 29) { G_PlayMusic("world_zy_haihe01", true, true); return; }
+    if (music_id == 30) { G_PlayMusic("world_zy_haihe02", true, true); return; }
+    if (music_id == 31) { G_PlayMusic("world_zy_shadi", true, true); return; }
+    if (music_id == 32) { G_PlayMusic("world_zy_shandi01", true, true); return; }
+    if (music_id == 33) { G_PlayMusic("world_zy_shandi02", true, true); return; }
+    if (music_id == 34) { G_PlayMusic("world_zy_shulin01", true, true); return; }
+    if (music_id == 35) { G_PlayMusic("world_zy_shulin02", true, true); return; }
+    if (music_id == 36) { G_PlayMusic("world_zy_yewai01", true, true); return; }
+    if (music_id == 37) { G_PlayMusic("xx_bailipo_01", true, true); return; }
+    if (music_id == 38) { G_PlayMusic("xx_baiyunguan_01", true, true); return; }
+    if (music_id == 39) { G_PlayMusic("xx_baiyunguan_02", true, true); return; }
+    if (music_id == 40) { G_PlayMusic("xx_bajiaodong_01", true, true); return; }
+    if (music_id == 41) { G_PlayMusic("xx_bf_day", true, true); return; }
+    if (music_id == 42) { G_PlayMusic("xx_bf_main", true, true); return; }
+    if (music_id == 43) { G_PlayMusic("xx_bf_night", true, true); return; }
+    if (music_id == 44) { G_PlayMusic("xx_bzs_01", true, true); return; }
+    if (music_id == 45) { G_PlayMusic("xx_capital_day", true, true); return; }
+    if (music_id == 46) { G_PlayMusic("xx_capital_intro", true, true); return; }
+    if (music_id == 47) { G_PlayMusic("xx_capital_main", true, true); return; }
+    if (music_id == 48) { G_PlayMusic("xx_capital_night", true, true); return; }
+    if (music_id == 49) { G_PlayMusic("xx_capital_palace", true, true); return; }
+    if (music_id == 50) { G_PlayMusic("xx_csg_day", true, true); return; }
+    if (music_id == 51) { G_PlayMusic("xx_fengchantai_01", true, true); return; }
+    if (music_id == 52) { G_PlayMusic("xx_field00", true, true); return; }
+    if (music_id == 53) { G_PlayMusic("xx_field00_sf", true, true); return; }
+    if (music_id == 54) { G_PlayMusic("xx_field01", true, true); return; }
+    if (music_id == 55) { G_PlayMusic("xx_field01_sf", true, true); return; }
+    if (music_id == 56) { G_PlayMusic("xx_field02", true, true); return; }
+    if (music_id == 57) { G_PlayMusic("xx_field02_sf", true, true); return; }
+    if (music_id == 58) { G_PlayMusic("xx_field03", true, true); return; }
+    if (music_id == 59) { G_PlayMusic("xx_field03_sf", true, true); return; }
+    if (music_id == 60) { G_PlayMusic("xx_field04", true, true); return; }
+    if (music_id == 61) { G_PlayMusic("xx_field04_sf", true, true); return; }
+    if (music_id == 62) { G_PlayMusic("xx_field_chg01", true, true); return; }
+    if (music_id == 63) { G_PlayMusic("xx_field_gxt01", true, true); return; }
+    if (music_id == 64) { G_PlayMusic("xx_field_htzd01", true, true); return; }
+    if (music_id == 65) { G_PlayMusic("xx_field_lg01", true, true); return; }
+    if (music_id == 66) { G_PlayMusic("xx_field_lg02", true, true); return; }
+    if (music_id == 67) { G_PlayMusic("xx_field_main", true, true); return; }
+    if (music_id == 68) { G_PlayMusic("xx_field_night01", true, true); return; }
+    if (music_id == 69) { G_PlayMusic("xx_field_night02", true, true); return; }
+    if (music_id == 70) { G_PlayMusic("xx_fight_envir07", true, true); return; }
+    if (music_id == 71) { G_PlayMusic("xx_fight_envir08", true, true); return; }
+    if (music_id == 72) { G_PlayMusic("xx_fight_envir09", true, true); return; }
+    if (music_id == 73) { G_PlayMusic("xx_fight_folk04", true, true); return; }
+    if (music_id == 74) { G_PlayMusic("xx_fight_folk05", true, true); return; }
+    if (music_id == 75) { G_PlayMusic("xx_fight_folk06", true, true); return; }
+    if (music_id == 76) { G_PlayMusic("xx_fight_perc01", true, true); return; }
+    if (music_id == 77) { G_PlayMusic("xx_fight_perc02", true, true); return; }
+    if (music_id == 78) { G_PlayMusic("xx_fight_perc03", true, true); return; }
+    if (music_id == 79) { G_PlayMusic("xx_fight_theme10", true, true); return; }
+    if (music_id == 80) { G_PlayMusic("xx_fight_xmzc01", true, true); return; }
+    if (music_id == 81) { G_PlayMusic("xx_football", true, true); return; }
+    if (music_id == 82) { G_PlayMusic("xx_fulingshan_01", true, true); return; }
+    if (music_id == 83) { G_PlayMusic("xx_fyxiang_01", true, true); return; }
+    if (music_id == 84) { G_PlayMusic("xx_gaojiazhuang_01", true, true); return; }
+    if (music_id == 85) { G_PlayMusic("xx_gaolaozhuang_01", true, true); return; }
+    if (music_id == 86) { G_PlayMusic("xx_gjzxgfb_01", true, true); return; }
+    if (music_id == 87) { G_PlayMusic("xx_gjzxgfb_02", true, true); return; }
+    if (music_id == 88) { G_PlayMusic("xx_gjzxgfb_03", true, true); return; }
+    if (music_id == 89) { G_PlayMusic("xx_hongshuiyan_01", true, true); return; }
+    if (music_id == 90) { G_PlayMusic("xx_hunpo_01", true, true); return; }
+    if (music_id == 91) { G_PlayMusic("xx_linggu_01", true, true); return; }
+    if (music_id == 92) { G_PlayMusic("xx_linggu_02", true, true); return; }
+    if (music_id == 93) { G_PlayMusic("xx_longgong_01", true, true); return; }
+    if (music_id == 94) { G_PlayMusic("xx_main", true, true); return; }
+    if (music_id == 95) { G_PlayMusic("xx_pdh_01", true, true); return; }
+    if (music_id == 96) { G_PlayMusic("xx_pdh_02", true, true); return; }
+    if (music_id == 97) { G_PlayMusic("xx_pingyuanxian_01", true, true); return; }
+    if (music_id == 98) { G_PlayMusic("xx_scene_beaming", true, true); return; }
+    if (music_id == 99) { G_PlayMusic("xx_scene_spring", true, true); return; }
+    if (music_id == 100) { G_PlayMusic("xx_scene_wedding", true, true); return; }
+    if (music_id == 101) { G_PlayMusic("xx_taihaoshan_01", true, true); return; }
+    if (music_id == 102) { G_PlayMusic("xx_temple_day", true, true); return; }
+    if (music_id == 103) { G_PlayMusic("xx_temple_main", true, true); return; }
+    if (music_id == 104) { G_PlayMusic("xx_temple_night", true, true); return; }
+    if (music_id == 105) { G_PlayMusic("xx_xiaofz_01", true, true); return; }
+    if (music_id == 106) { G_PlayMusic("xx_xiaoyuegu_01", true, true); return; }
+    if (music_id == 107) { G_PlayMusic("xx_yamen_01", true, true); return; }
+    if (music_id == 108) { G_PlayMusic("xx_yunzhaidong_01", true, true); return; }
+    if (music_id == 109) { G_PlayMusic("xx_zdcjcb_01", true, true); return; }
+    if (music_id == 110) { G_PlayMusic("xx_zdcjcb_02", true, true); return; }
+    if (music_id == 111) { G_PlayMusic("xx_zhuyaodong_01", true, true); return; }
+    if (music_id == 112) { G_PlayMusic("xx_zy_main", true, true); return; }
+}
+
+void phone_music_stop()
+{
+    G_StopMusic(true);
+}

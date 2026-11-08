@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<skin>
+  <import uri="shop_c.xml"/>
+  <reference>
+    <stock_row size="0,82" align="y1" margin="0,0,0,5"/>
+    <stock_name font_size="18" font_face="art" text_color="#FFFFDD88"/>
+    <stock_value font_size="15" text_color="#FFFFFFFF"/>
+    <stock_action reference="btn_buy_2"/>
+  </reference>
+  <control name="group:shop:stock" reg_global="true" isolate_align="true" align="xy" size="860,520" visible="false">
+    <panel reference="page_b"/>
+    <panel reference="page_l"/>
+    <panel reference="page_r"/>
+    <panel align="xy" margin="8,4,8,4">
+      <panel size="0,38" align="y1">
+        <label text="股票交易" align="pin_xy" font_size="22" font_face="art" text_color="#FFE8B17B"/>
+        <picture_frame align="xy" isolate_align="true" fill_repeat="true" fill_center="true" padding="20,19,20,19" image="/image/shop/frm_deal_title.png|0,0,121,43"/>
+      </panel>
+      <label text="每5分钟更新报价" size="0,27" align="y1" font_size="14" text_color="#FFFFDD88"/>
+      <panel size="0,34" align="y1">
+        <label text="每笔股数：" align="x1" size="85,26" font_size="15" text_color="#FFFFDD88"/>
+        <image_button name="1" text="1 股" align="x1" reference="btn_x1_2" on_click="shop.on_stock_qty_click"/>
+        <image_button name="10" text="10 股" align="x1" reference="btn_x1_2" on_click="shop.on_stock_qty_click"/>
+        <image_button name="100" text="100 股" align="x1" reference="btn_x1_2" on_click="shop.on_stock_qty_click"/>
+        <image_button text="刷新报价" align="x2" size="96,28" reference="btn_x1_4" on_click="shop.on_stock_refresh_click"/>
+      </panel>
+      <label name="stock_qty_display" text="当前选择：1 股" size="0,23" align="y1" font_size="14" text_color="#FFFFDD88"/>
+      <panel name="1" reference="stock_row">
+        <label text="腾讯科技" area="12,8,135,30" reference="stock_name"/>
+        <label name="price_1" text="报价：读取中" area="140,8,475,30" reference="stock_value"/>
+        <label name="shares_1" text="持有：-- 股" area="12,45,180,69" reference="stock_value"/>
+        <image_button text="买入" align="pin_x1y1" margin="270,44,0,0" size="54,24" reference="stock_action" on_click="shop.on_stock_buy_click"/>
+        <image_button text="卖出" align="pin_x1y1" margin="350,44,0,0" size="54,24" reference="stock_action" on_click="shop.on_stock_sell_click"/>
+        <picture_frame align="xy" isolate_align="true" reference="frm_digit"/>
+      </panel>
+      <panel name="2" reference="stock_row">
+        <label text="英伟达" area="12,8,135,30" reference="stock_name"/>
+        <label name="price_2" text="报价：读取中" area="140,8,475,30" reference="stock_value"/>
+        <label name="shares_2" text="持有：-- 股" area="12,45,180,69" reference="stock_value"/>
+        <image_button text="买入" align="pin_x1y1" margin="270,44,0,0" size="54,24" reference="stock_action" on_click="shop.on_stock_buy_click"/>
+        <image_button text="卖出" align="pin_x1y1" margin="350,44,0,0" size="54,24" reference="stock_action" on_click="shop.on_stock_sell_click"/>
+        <picture_frame align="xy" isolate_align="true" reference="frm_digit"/>
+      </panel>
+      <panel name="3" reference="stock_row">
+        <label text="Anthropic" area="12,8,135,30" reference="stock_name"/>
+        <label name="price_3" text="报价：读取中" area="140,8,475,30" reference="stock_value"/>
+        <label name="shares_3" text="持有：-- 股" area="12,45,180,69" reference="stock_value"/>
+        <image_button text="买入" align="pin_x1y1" margin="270,44,0,0" size="54,24" reference="stock_action" on_click="shop.on_stock_buy_click"/>
+        <image_button text="卖出" align="pin_x1y1" margin="350,44,0,0" size="54,24" reference="stock_action" on_click="shop.on_stock_sell_click"/>
+        <picture_frame align="xy" isolate_align="true" reference="frm_digit"/>
+      </panel>
+      <label name="stock_balance" text="流通金：读取中" size="0,27" align="y1" font_size="16" text_color="#FFFFDD88"/>
+      <label name="stock_status" text="" size="0,26" align="y1" font_size="15" text_color="#FFE8B17B"/>
+    </panel>
+  </control>
+</skin>

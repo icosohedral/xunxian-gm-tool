@@ -1,0 +1,24 @@
+    <panel name="phone_delivery" align="xy" margin="28,91,28,61" visible="false" isolate_align="true" top_most_lv="103">
+      <color_panel align="xy" color="#EE1B1713"/>
+      <picture_frame align="xy" reference="cmn_frm_lace_2"/>
+      <panel align="xy" margin="12,10,12,10">
+        <panel align="y1" size="0,32">
+          <picture_frame align="xy" margin="0,0,61,0" reference="cmn_frm_edit">
+            <text_box name="phone_search" align="xy" margin="8,4,8,3" limit="24" reference="cmn_box_plain" on_key="quest.phone_delivery_key"/>
+          </picture_frame>
+          <image_button text="搜索" align="x2" size="56,27" reference="cmn_btn_fill" on_click="quest.phone_delivery_search"/>
+        </panel>
+        <label text="游戏物品" align="y1" size="0,25" font_size="14" text_color="#FFE8B17B"/>
+        <label name="phone_item_0" align="y1" size="0,29" font_size="14" text_color="#FFFFFFFF"/>
+        <label name="phone_item_1" align="y1" size="0,29" font_size="14" text_color="#FFFFFFFF"/>
+        <label name="phone_item_2" align="y1" size="0,29" font_size="14" text_color="#FFFFFFFF"/>
+        <label name="phone_item_3" align="y1" size="0,29" font_size="14" text_color="#FFFFFFFF"/>
+        <label name="phone_item_4" align="y1" size="0,29" font_size="14" text_color="#FFFFFFFF"/>
+        <label name="phone_item_5" align="y1" size="0,29" font_size="14" text_color="#FFFFFFFF"/>
+        <panel align="y1" size="0,28">
+          <image_button text="上一页" align="x1" size="68,25" reference="cmn_btn_fill" on_click="quest.phone_delivery_prev"/>
+          <label name="phone_page" text="" align="x1" size="125,25" font_size="13" text_color="#FFFFDD88"/>
+          <image_button text="下一页" align="x2" size="68,25" reference="cmn_btn_fill" on_click="quest.phone_delivery_next"/>
+        </panel>
+      </panel>
+    </panel>

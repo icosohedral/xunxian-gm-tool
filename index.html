@@ -2100,6 +2100,7 @@ function syncHash(){
 function showView(v){
   if (v === 'mail' || v === 'point') { setAcctMode(v, true); v = 'acct'; }
   if (VIEWS.indexOf(v) < 0) v = 'home';
+  const enteringView = state.view !== v;
   state.view = v;
   $$('.rail-item').forEach(b => b.classList.toggle('is-active', b.dataset.view === v));
   VIEWS.forEach(k => $('#view-' + k).classList.toggle('is-hidden', k !== v));
@@ -2113,7 +2114,7 @@ function showView(v){
     if (['base','dynamic'].includes(state.gameConfigMode) && !state.definitions[state.gameConfigMode]) loadDefinitions(state.gameConfigMode);
   }
   if (v === 'skill-config'){
-    setSkillConfigMode(state.skillConfigMode);
+    setSkillConfigMode(state.skillConfigMode, enteringView);
   }
   if (v === 'pet-config' && !state.rideSpeeds) loadRideSpeeds();
   syncHash();
@@ -3882,7 +3883,8 @@ $('#server-skill-hot-reload').addEventListener('click',async event=>{
   const scopes=$$('#server-reload-scopes [aria-pressed="true"]').map(button=>button.dataset.reloadScope);
   await confirmSkillHotReload(event.currentTarget,scopes,$('#server-skill-hot-reload-message'));
 });
-function setSkillConfigMode(mode){
+function setSkillConfigMode(mode, enteringView=false){
+  const previousMode = state.skillConfigMode;
   state.skillConfigMode = ['profession','summon'].includes(mode) ? mode : 'cross-career';
   $$('#skill-config-mode button').forEach(button => {
     const active = button.dataset.scm === state.skillConfigMode;
@@ -3899,6 +3901,12 @@ function setSkillConfigMode(mode){
   } else if (state.skillConfigMode === 'profession'){
     if (!state.professionSkillData && !state.professionSkillLoading) loadProfessionSkills();
   } else if (!state.summonCatalog && !state.summonLoading) loadSummonCatalog();
+  if (state.view === 'skill-config' && state.skillConfigMode === 'summon' &&
+      (enteringView || previousMode !== 'summon')){
+    confirmDialog({title:'召唤物功能提醒',
+      html:'<p>这个功能目前不太完善，可能导致怪物仇恨设置出错，谨慎使用。</p>',
+      infoOnly:true, danger:false, okText:'我已知晓'});
+  }
 }
 $('#skill-config-mode').addEventListener('click', e => {
   const button = e.target.closest('[data-scm]');

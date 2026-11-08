@@ -758,6 +758,8 @@ def verify_output(
         raise RepackError("输出 DPK 的文件大小发生了变化")
 
     with DpkReader(path) as reader:
+        if read_u32(reader.header, 28) != path.stat().st_size // BLOCK_SIZE:
+            raise RepackError("输出 DPK 包头块数与实际文件大小不一致")
         entries = reader.read_entries()
         before = [
             (entry.path, entry.root_block)
@@ -923,6 +925,13 @@ def replace_resource(
     archive_size = archive.stat().st_size
 
     with DpkReader(archive) as reader:
+        recorded_blocks = read_u32(reader.header, 28)
+        physical_blocks = reader.file_size // BLOCK_SIZE
+        if recorded_blocks > physical_blocks:
+            raise RepackError(
+                f"输入 DPK 包头总块数 {recorded_blocks} 与实际文件块数 "
+                f"{physical_blocks} 不一致；文件可能被截断，拒绝调整块链"
+            )
         entries = reader.read_entries()
         target = find_unique_entry(entries, archive_path)
         chain = check_target_chain_ownership(reader, entries, target)
@@ -1036,6 +1045,12 @@ def replace_resource(
                 allow_chain_shrink=allow_chain_shrink,
                 allow_chain_growth=allow_chain_growth,
             )
+            fp.seek(0, os.SEEK_END)
+            actual_size = fp.tell()
+            if actual_size % BLOCK_SIZE:
+                raise RepackError("输出 DPK 文件大小不是块大小的整数倍")
+            fp.seek(28)
+            fp.write(struct.pack("<I", actual_size // BLOCK_SIZE))
             fp.flush()
             os.fsync(fp.fileno())
 
