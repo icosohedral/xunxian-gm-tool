@@ -216,11 +216,21 @@ def signature():
         except (OSError,IndexError):pass
     return tuple(sorted(entries))
 
+def stack_ready():
+    try:
+        active=json.loads((ROOT/'state/active.json').read_text())
+        status=json.loads((Path(active['directory'])/'status.json').read_text())
+        return (status.get('status')=='ready_waiting_manual_client'
+                and status.get('world_ready') is True
+                and status.get('trade_ready') is True)
+    except (OSError,ValueError,KeyError,TypeError):
+        return False
+
 def watch():
     last=None;last_error=0
     while True:
         sig=signature()
-        if len(sig)==2 and sig!=last and time.monotonic()-last_error>=30:
+        if len(sig)==2 and stack_ready() and sig!=last and time.monotonic()-last_error>=30:
             try:restore();last=sig;last_error=0
             except Exception as exc:
                 print('恢复失败：'+str(exc),file=sys.stderr,flush=True);last_error=time.monotonic()

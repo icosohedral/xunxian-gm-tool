@@ -1755,6 +1755,8 @@ def read_logs(n=200):
 
 _items = None
 _items_source = None
+_item_types = None
+_item_types_source = None
 _scenes = None
 _partitions = None
 
@@ -1794,6 +1796,65 @@ def _parse_item_list_text(text):
 def _parse_item_list(path):
     with open(path, "rb") as f:
         return _parse_item_list_text(f.read().decode("gb18030", "replace"))
+
+
+def _parse_item_type_text(text):
+    """The client item_type table maps column 0 (ID) to column 1 (name)."""
+    names = {}
+    for line in text.splitlines():
+        fields = line.split("\t")
+        if len(fields) < 2:
+            continue
+        ident, name = fields[0].strip(), fields[1].strip()
+        if ident.isdigit() and name:
+            names.setdefault(str(int(ident)), name)
+    return names
+
+
+def load_item_types():
+    global _item_types, _item_types_source
+    path = (CLIENT_WORK_PACKAGE_PATH if CLIENT_WORK_PACKAGE_PATH.is_file()
+            else Path(str(CFG.get("client_mb_dpk") or "")).expanduser())
+    stat = path.stat() if path.is_file() else None
+    source = (str(path), stat.st_mtime_ns, stat.st_size) if stat else None
+    if _item_types is not None and source == _item_types_source:
+        return _item_types
+    names = {}
+    if stat:
+        try:
+            with DpkReader(path) as reader:
+                entries = {entry.path.lower(): entry for entry in reader.read_entries()}
+                if "item/item_type.txt" in entries:
+                    names = _parse_item_type_text(
+                        reader.extract(entries["item/item_type.txt"]).decode("gb18030", "replace"))
+        except Exception:
+            traceback.print_exc()
+    _item_types, _item_types_source = names, source
+    return names
+
+
+def search_item_catalog(items, names, query="", category="", limit=60, offset=0):
+    def label(item):
+        ident = str(item.get("type") or "").strip()
+        if not ident:
+            return "未分类"
+        ident = str(int(ident)) if ident.isdigit() else ident
+        return names.get(ident, "未知类型")
+
+    categories = sorted({label(item) for item in items})
+    candidates = [item for item in items if not category or label(item) == category]
+    if query.isdigit():
+        prefix = [item for item in candidates if str(item["id"]).startswith(query)]
+        name_matches = [item for item in candidates if not str(item["id"]).startswith(query)
+                        and query in item["name"]]
+        matches = prefix + name_matches
+    elif query:
+        matches = [item for item in candidates if query in item["name"]]
+    else:
+        matches = candidates
+    rows = [{**item, "type_name": label(item)} for item in matches[offset:offset + limit]]
+    return {"rows": rows, "total": len(items), "matched_total": len(matches),
+            "types": categories, "limit": limit, "offset": offset}
 
 
 def _parse_client_item_lists(path):
@@ -3222,7 +3283,7 @@ class Handler(BaseHTTPRequestHandler):
                     page = os.path.join(APP_DIR, "index.html")
                 return self._file(page, "text/html; charset=utf-8")
             if p in {f"/logos/{name}.png" for name in
-                     ("logo", "status", "account", "item", "mail", "logs", "rate", "skill", "pet")}:
+                     ("logo", "logo_spritssheet", "status", "account", "item", "mail", "logs", "rate", "skill", "pet")}:
                 filename = p.rsplit("/", 1)[-1]
                 image = os.path.join(RES_DIR, "logos", filename)
                 if not os.path.exists(image):
@@ -3408,6 +3469,7 @@ class Handler(BaseHTTPRequestHandler):
                     "listen": f"{CFG['listen_host']}:{CFG['listen_port']}",
                     "ssh": f"{CFG['ssh_user']}@{CFG['ssh_host']}:{CFG['ssh_port']}",
                     "db_char": DB_CHAR, "db_ims": DB_IMS, "frozen": FROZEN,
+                    "client_resource_status": ("configured" if Path(os.path.expanduser(str(CFG.get("client_mb_dpk") or "").strip())).is_file() else "invalid") if str(CFG.get("client_mb_dpk") or "").strip() else "unconfigured",
                     "settings": public_config()}})
             if p == "/api/accounts":
                 q = qs.get("q", [""])[0].strip()
@@ -3467,17 +3529,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": True, "data": data})
             if p == "/api/items":
                 q = qs.get("q", [""])[0].strip()
-                limit = min(200, qint(qs.get("limit", ["60"])[0], 60))
+                category = qs.get("category", [""])[0].strip()
+                limit = max(1, min(200, qint(qs.get("limit", ["60"])[0], 60)))
+                offset = max(0, qint(qs.get("offset", ["0"])[0], 0))
                 data = load_items()
-                if q.isdigit():
-                    res = [x for x in data if str(x["id"]).startswith(q)][:limit]
-                    if len(res) < limit:
-                        res += [x for x in data if q in x["name"]][:limit-len(res)]
-                elif q:
-                    res = [x for x in data if q in x["name"]][:limit]
-                else:
-                    res = data[:limit]
-                return self._json({"ok": True, "rows": res, "total": len(data)})
+                return self._json({"ok": True, **search_item_catalog(
+                    data, load_item_types(), q, category, limit, offset)})
             if p == "/api/scenes":
                 return self._json({"ok": True, "rows": [
                     {"id": k, "name": v} for k, v in sorted(load_scenes().items())]})

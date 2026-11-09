@@ -38,6 +38,7 @@ void OpenPhone(int iPlayerGID, int iScnID, int iExcelID, int iUnused)
     g_pScriptMng->AddSelDlg(PHONE_STOCKS, 0, "SelStocks");
     g_pScriptMng->AddSelDlg(PHONE_DELIVERY, 0, "SelDelivery");
     g_pScriptMng->AddSelDlg(50065, 0, "SelMusic");
+    g_pScriptMng->AddSelDlg(50075, 0, "SelLoan");
     g_pScriptMng->EndDlg(iPlayerGID, 0);
 }
 
@@ -66,10 +67,11 @@ string PhoneStockValue(int stock, int shares)
     int gold = (price / 10000) * shares + remainder / 10000;
     remainder = remainder % 10000;
     string result;
-    result += gold / 100; result += "砖";
-    result += gold % 100; result += "金";
-    result += remainder / 100; result += "银";
-    result += remainder % 100; result += "铜";
+    if (gold / 100 > 0) { result += gold / 100; result += "<img:/image/item/money3.png>"; }
+    if (gold % 100 > 0) { result += gold % 100; result += "<img:/image/item/money2.png>"; }
+    if (remainder / 100 > 0) { result += remainder / 100; result += "<img:/image/item/money1.png>"; }
+    if (remainder % 100 > 0) { result += remainder % 100; result += "<img:/image/item/money0.png>"; }
+    if (gold == 0 && remainder == 0) result += "0<img:/image/item/money0.png>";
     return result;
 }
 
@@ -113,7 +115,7 @@ void SelDelivery(int iPar, int iScnID, int iExcelID, int iPlayerGID)
 void DeliveryShop(int iPar, int iScnID, int iExcelID, int iPlayerGID)
 {
     if (G_GetPlayer(iPlayerGID) == NULL || iPar < 1 || iPar > 3) return;
-    g_pScriptMng->BeginDlg(50056 + iPar, -PHONE_ITEM_ID);
+    g_pScriptMng->BeginDlg(50089 + iPar, -PHONE_ITEM_ID);
     if (iPar == 1) {
         g_pScriptMng->AddSelDlg(50049, 1, "BuyDelivery");
         g_pScriptMng->AddSelDlg(50050, 2, "BuyDelivery");
@@ -379,5 +381,93 @@ void PlayPhoneMusic(int iPar, int iScnID, int iExcelID, int iPlayerGID)
     } else if (iPar >= 1000 && iPar < 1014) {
         g_pScriptMng->OutputMsg(50072, 0, SENDMODE_TO_ONEPLAYER, iPlayerGID);
         SelMusic(iPar - 1000, iScnID, iExcelID, iPlayerGID);
+    }
+}
+
+void LoanResult(int textId, int iPlayerGID)
+{
+    g_pScriptMng->BeginDlg(textId, -PHONE_ITEM_ID);
+    g_pScriptMng->AddSelDlg(50075, 0, "SelLoan");
+    g_pScriptMng->AddSelDlg(PHONE_BACK, 0, "SelBack");
+    g_pScriptMng->EndDlg(iPlayerGID, 0);
+}
+
+void SelLoan(int iPar, int iScnID, int iExcelID, int iPlayerGID)
+{
+    if (G_GetPlayer(iPlayerGID) == NULL) return;
+    HideDelivery(iPlayerGID);
+    g_pScriptMng->BeginDlg(50076, -PHONE_ITEM_ID);
+    g_pScriptMng->AddSelDlg(50077, 1, "LoanRequest");
+    g_pScriptMng->AddSelDlg(50078, 2, "LoanRequest");
+    g_pScriptMng->AddSelDlg(PHONE_BACK, 0, "SelBack");
+    g_pScriptMng->EndDlg(iPlayerGID, 0);
+}
+
+void LoanRequest(int iPar, int iScnID, int iExcelID, int iPlayerGID)
+{
+    CPlayerUnitS* unit = G_GetPlayer(iPlayerGID);
+    if (unit == NULL || unit->GetDataMng() == NULL) return;
+    int state = unit->GetDataMng()->GetDWordFlag(203);
+    if (state != 0 && state != 1) { LoanResult(50089, iPlayerGID); return; }
+    if (iPar == 1) {
+        if (state == 1) { LoanResult(50082, iPlayerGID); return; }
+        g_pScriptMng->BeginDlg(50079, -PHONE_ITEM_ID);
+    } else if (iPar == 2) {
+        if (state == 0) { LoanResult(50083, iPlayerGID); return; }
+        g_pScriptMng->BeginDlg(50080, -PHONE_ITEM_ID, 13000000, 3000000);
+    } else return;
+    g_pScriptMng->AddSelDlg(50081, iPar, "LoanConfirm");
+    g_pScriptMng->AddSelDlg(PHONE_BACK, 0, "SelLoan");
+    g_pScriptMng->EndDlg(iPlayerGID, 0);
+}
+
+void LoanConfirm(int iPar, int iScnID, int iExcelID, int iPlayerGID)
+{
+    CPlayerUnitS* unit = G_GetPlayer(iPlayerGID);
+    if (unit == NULL || unit->GetDataMng() == NULL) return;
+    CPlayerDataMngS* player = unit->GetDataMng();
+    int state = player->GetDWordFlag(203);
+    if (state != 0 && state != 1) { LoanResult(50089, iPlayerGID); return; }
+    if (iPar == 1) {
+        if (state != 0) { LoanResult(50082, iPlayerGID); return; }
+        int exp = player->GetAtb(PlayerAtb_Exp);
+        int level = player->GetAtb(ChaAtb_Level);
+        SExcelLine* levelRow = G_GetExcelLine(32, level);
+        if (levelRow == NULL) { LoanResult(50088, iPlayerGID); return; }
+        int nextExp = levelRow->SafeGetInt(1, false);
+        int cost = nextExp / 4;
+        if (cost <= 0 || exp < cost) { LoanResult(50087, iPlayerGID); return; }
+        int balance = player->GetAtb(PlayerAtb_Money);
+        if (balance < 0 || balance > 2137483647 || !player->TryAddMoney(10000000, 0, EBOUNDMONEY_TRADE)) { LoanResult(50086, iPlayerGID); return; }
+        if (!player->SetDWordFlag(203, 2)) { LoanResult(50088, iPlayerGID); return; }
+        if (!player->SubExp(cost, player->GetOnlyID(), 0, 0, level)) {
+            player->SetDWordFlag(203, 0);
+            LoanResult(50088, iPlayerGID); return;
+        }
+        if (!player->AddMoney(10000000, G_IntToInt64(0), 0, 0, "iphone_loan", EBOUNDMONEY_TRADE)) {
+            if (player->AddExp(cost, G_IntToInt64(0), 0, 0)) player->SetDWordFlag(203, 0);
+            G_Printf("iphone_loan credit_failed player=%d exp=%d\n", iPlayerGID, cost);
+            LoanResult(50088, iPlayerGID); return;
+        }
+        if (!player->SetDWordFlag(203, 1)) {
+            G_Printf("iphone_loan debt_record_failed player=%d exp=%d\n", iPlayerGID, cost);
+            LoanResult(50089, iPlayerGID); return;
+        }
+        G_Printf("iphone_loan borrowed player=%d exp=%d\n", iPlayerGID, cost);
+        LoanResult(50084, iPlayerGID);
+    } else if (iPar == 2) {
+        if (state != 1) { LoanResult(50083, iPlayerGID); return; }
+        if (player->GetAtb(PlayerAtb_Money) < 13000000 || !player->TrySubMoney(-13000000, EBOUNDMONEY_TRADE)) { LoanResult(50086, iPlayerGID); return; }
+        if (!player->SetDWordFlag(203, 2)) { LoanResult(50088, iPlayerGID); return; }
+        if (!player->SubMoney(-13000000, G_IntToInt64(0), Log_MnyLost_Script, 0, NULL, EBOUNDMONEY_TRADE)) {
+            player->SetDWordFlag(203, 1);
+            LoanResult(50088, iPlayerGID); return;
+        }
+        if (!player->SetDWordFlag(203, 0)) {
+            G_Printf("iphone_loan repayment_record_failed player=%d\n", iPlayerGID);
+            LoanResult(50089, iPlayerGID); return;
+        }
+        G_Printf("iphone_loan repaid player=%d\n", iPlayerGID);
+        LoanResult(50085, iPlayerGID);
     }
 }

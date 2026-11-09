@@ -6,6 +6,9 @@
 <link rel="icon" type="image/png" href="/logos/logo.png">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
+<script>
+try { if (localStorage.getItem('gm-color-theme') === 'orange') document.documentElement.dataset.theme = 'orange'; } catch (_) {}
+</script>
 <style>
 /* ============================================================
    1. 设计令牌
@@ -22,6 +25,28 @@
   --font-display:"Avenir Next","PingFang SC","Microsoft YaHei",sans-serif;
   --font-body:Inter,"SF Pro Text","PingFang SC","Microsoft YaHei",sans-serif;
 }
+
+:root[data-theme="orange"]{
+  --ink:#382720; --ink-soft:#806b62; --ink-faint:#a6958c;
+  --pine:#873f29; --jade:#d97757; --mint:#fae9e2; --mint-deep:#f2d5c8;
+  --paper:#faf9f5; --rail:#f5eeea; --line:#e9dcd5; --line-strong:#d8c0b3;
+  --ok:#667557;
+  --shadow:0 10px 30px rgba(80,45,30,.06); --shadow-lg:0 24px 70px rgba(70,40,28,.22);
+}
+/* 控件底色采用浅暖色，白色选中项保留清晰层次。 */
+:root[data-theme="orange"] .segmented{background:#f2e5de}
+:root[data-theme="orange"] .segmented button:not(.is-active):hover{background:#faeee8;color:var(--pine)}
+:root[data-theme="orange"] .segmented button.is-active{box-shadow:0 3px 10px rgba(80,45,30,.12)}
+:root[data-theme="orange"] .reload-scope-tag[aria-pressed="true"]{border-color:#e7bda9;background:#fae9e2;color:#873f29}
+:root[data-theme="orange"] .account-actions{border-color:#e8cabb;background:#fcf2ed}
+:root[data-theme="orange"] .stage{background:#faf9f5}
+:root[data-theme="orange"] .rail-item:hover{background:#fbf1ec}
+.rail-footer{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:auto}
+.theme-picker{display:flex;align-items:center;gap:6px;padding:8px 10px 1px}
+.theme-swatch{width:13px;height:13px;padding:0;border:1px solid rgba(0,0,0,.15);border-radius:3px}
+.theme-swatch[data-theme-value="green"]{background:#009b80}
+.theme-swatch[data-theme-value="orange"]{background:#d97757}
+.theme-swatch[aria-pressed="true"]{outline:2px solid var(--ink-soft);outline-offset:2px}
 
 /* ============================================================
    2. 基础
@@ -45,7 +70,15 @@ body.has-modal{overflow:hidden}
   border-radius:16px;box-shadow:var(--shadow);backdrop-filter:blur(18px)}
 .brand{display:flex;align-items:center;gap:11px;min-width:0}
 .brand-mark{width:40px;height:40px;flex:0 0 40px;display:grid;place-items:center;background:transparent}
-.brand-mark img{display:block;width:100%;height:100%;object-fit:contain;background:transparent}
+.brand-sprite{display:block;width:40px;height:40px;background-image:url('/logos/logo_spritssheet.png');background-size:400% 200%;background-repeat:no-repeat;animation:brand-animate 5s steps(1,end) infinite}
+@keyframes brand-animate{
+  0%{background-position:0 0} 4%{background-position:33.333% 0}
+  8%{background-position:66.667% 0} 12%{background-position:100% 0}
+  16%{background-position:0 100%} 20%{background-position:33.333% 100%}
+  24%{background-position:66.667% 100%} 28%{background-position:100% 100%}
+  32%,100%{background-position:0 0}
+}
+@media (prefers-reduced-motion:reduce){.brand-sprite{animation:none}}
 .brand-text h1{font:700 18px/1.2 var(--font-display);margin:0;letter-spacing:-.02em;white-space:nowrap}
 .topbar-actions{display:flex;align-items:center;gap:8px}
 .dpk-queue-button{position:relative;width:38px;height:38px;display:grid;place-items:center;border:0;border-radius:11px;
@@ -87,7 +120,7 @@ body.has-modal{overflow:hidden}
   border-radius:99px;background:var(--mint-deep);color:var(--pine);font-size:10px;font-weight:800}
 .rail-item.is-active .badge{background:#fff}
 .rail-sep{height:1px;margin:9px 9px;background:var(--line)}
-.rail-version{display:block;margin-top:auto;padding:8px 10px 1px;color:var(--ink-faint);
+.rail-version{display:block;padding:8px 10px 1px;color:var(--ink-faint);
   font-size:10px;font-weight:550;letter-spacing:.02em;text-align:left;text-decoration:none}
 .rail-version:hover{color:var(--pine)}
 .rail-version:focus-visible{outline:2px solid var(--jade);outline-offset:2px;border-radius:3px}
@@ -188,6 +221,8 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .toolbar .search{width:250px}
 .toolbar input,.toolbar select{min-width:0}
+.item-type-filter{width:150px;max-width:100%}
+.item-page-controls{display:flex;align-items:center;gap:8px}
 .item-list-search{padding:12px 16px;border-bottom:1px solid var(--line)}
 .muted{color:var(--ink-faint);font-size:11px}
 .hint-text{margin:10px 0 0;color:var(--ink-faint);font-size:11px;line-height:1.7}
@@ -463,9 +498,13 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .ride-config-item small{color:var(--ink-faint);font-size:10px}
 .ride-config-item span{grid-column:1/-1;color:var(--ink-soft);font-size:11px}
 .ride-config-editor-card .card-body{padding:18px}
+.ride-config-editor-card .card-head h3{min-width:0;overflow-wrap:anywhere}
+.ride-config-editor-card .card-head{gap:10px}
+.ride-config-editor-card .card-head .tag{flex:none}
+#ride-config-id[hidden],#ride-speed-count[hidden]{display:none}
 .ride-config-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 12px}
 .ride-config-fields .field{min-width:0;margin:0}
-.ride-config-fields input,.ride-config-fields select{height:38px;background:#fbfdfc}
+.ride-config-fields input,.ride-config-fields select{height:38px;background-color:#fbfdfc}
 .ride-config-shared{grid-column:1/-1;color:var(--ink-faint);font-size:11px;line-height:1.5}
 .ride-config-shared-link{border:0;padding:0;background:none;color:var(--jade);font:inherit;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
 .ride-config-shared-link:hover{color:var(--pine)}
@@ -490,13 +529,15 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
   #acct-panel-char .cols-main>.card:last-child{height:calc(100vh - 214px);min-height:376px;display:flex;flex-direction:column}
   #char-detail{flex:1;min-height:0;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--line-strong) transparent}
 }
-.btn-icon-add{width:28px;padding:0;justify-content:center}
+.btn-icon-add{width:28px;padding:0;justify-content:center;border-color:transparent;background:var(--mint);color:var(--pine)}
+.btn-icon-add:hover{border-color:var(--jade);background:var(--mint-deep);color:var(--pine)}
 .btn-icon-add svg{width:15px;height:15px}
 table{width:100%;border-collapse:collapse;font-size:12px}
 th{position:sticky;top:0;z-index:2;padding:9px 14px;text-align:left;color:#718783;background:#f5f9f7;
   border-bottom:1px solid var(--line);font-size:10px;font-weight:700;letter-spacing:.05em;white-space:nowrap}
 td{padding:10px 14px;border-bottom:1px solid #edf2f0;white-space:nowrap;color:var(--ink)}
 td.num{font-variant-numeric:tabular-nums;color:var(--ink-soft)}
+td.item-type{color:var(--ink-soft)}
 td.wrap{white-space:normal;line-height:1.6}
 tbody tr{cursor:pointer;transition:background .12s ease}
 tbody tr:hover{background:#f2faf7}
@@ -679,7 +720,6 @@ tbody tr.is-static:hover{background:transparent}
 .backpack-range span{padding:3px 6px;border-radius:6px;background:#eef4f1;color:var(--pine);font-size:10px;white-space:nowrap}
 .backpack-runtime{padding:0 0 8px;font-size:11px;line-height:1.5;color:var(--ink-soft)}
 .backpack-runtime:empty{display:none}
-.backpack-head-actions{display:flex;align-items:center;gap:6px}
 .backpack-runtime.is-warning{color:#855a1c}
 #item-panel-backpack .shop-grid{align-items:stretch}
 .backpack-add-column{display:flex;flex-direction:column;gap:7px}
@@ -806,7 +846,9 @@ tbody tr.is-static:hover{background:transparent}
     border-radius:14px;padding:7px;margin-bottom:7px}
   .rail-item{min-width:44px;width:auto}
   .rail-sep{display:none}
+  .rail-footer{flex:none;margin:0 4px 0 auto}
   .rail-version{display:none}
+  .theme-picker{padding:0}
   .stage{padding:9px;border-radius:14px;min-height:0}
   .stat-grid{grid-template-columns:1fr 1fr}
   .view-actions{justify-content:flex-start;flex-wrap:wrap}
@@ -822,6 +864,46 @@ tbody tr.is-static:hover{background:transparent}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}
 }
+/* 原生下拉框及选项使用温暖的深棕色。 */
+:root[data-theme="orange"] select{color:#684a3d;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23684a3d' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E")}
+:root[data-theme="orange"] select option{color:#684a3d;background:#faf9f5}
+:root[data-theme="orange"] select:disabled{color:var(--ink-faint)}
+/* 正常状态用低饱和鼠尾草绿，与暖色界面协调。 */
+:root[data-theme="orange"] .pill:not(.is-warn):not(.is-bad) .dot{box-shadow:0 0 0 3px rgba(102,117,87,.14)}
+:root[data-theme="orange"] .tag.ok{background:#edf0e8;color:var(--ok)}
+/* 橙色主题的中性色表面、交互状态和焦点。 */
+:root[data-theme="orange"] :is(.dpk-queue-item,.weapon-trait-picker,.weapon-icon-trigger,.weapon-icon-option,.quick,.profession-skill-pending-item,.summon-attributes-section,.summon-order-section,.chip,.shop-selected:not(.is-set),#char-detail .char-section){background:#fcf9f7}
+:root[data-theme="orange"] :is(input,select,textarea,.definition-search,.profession-skill-editor input,.ride-config-fields input,.ride-config-fields select){background-color:#fcf9f7}
+:root[data-theme="orange"] :is(input,select,textarea):focus{background:#fff;box-shadow:0 0 0 3px rgba(217,119,87,.18)}
+:root[data-theme="orange"] :is(button,input,select,textarea):focus-visible{outline-color:rgba(169,71,42,.45)}
+:root[data-theme="orange"] :is(input,textarea)::placeholder{color:#aa9990}
+:root[data-theme="orange"] :is(.card-foot,.pager,.modal-foot,.account-form .modal-foot){background:#fcf8f5}
+:root[data-theme="orange"] :is(.btn:not(.btn-primary):not(.btn-danger):hover,.shop-suggestion:hover,.definition-table tbody tr:hover,tbody tr:hover){background:#fbf0ea}
+:root[data-theme="orange"] .btn:not(.btn-primary):not(.btn-danger):hover{border-color:#d9ae9b}
+:root[data-theme="orange"] .definition-table tbody tr.is-changed{background:#faeee6}
+:root[data-theme="orange"] th{background:#f8f1ed;color:#806b62}
+:root[data-theme="orange"] td{border-bottom-color:#f1e8e3}
+:root[data-theme="orange"] :is(#char-detail .char-action-btn,.account-actions .account-action-btn){border-color:#e2c3b4}
+:root[data-theme="orange"] :is(#char-detail .char-action-btn:not(.is-primary):hover,.account-actions .account-action-btn:not(.is-primary):hover){border-color:var(--jade);background:#fae9e2;color:var(--pine)}
+:root[data-theme="orange"] .account-form .modal-head i{background:#fae9e2}
+:root[data-theme="orange"] .profession-skill-editor{border-color:var(--line);box-shadow:0 5px 18px rgba(80,45,30,.055)}
+:root[data-theme="orange"] .ride-config-item:hover{border-color:#e2b9a6;background:#fcf5f1}
+:root[data-theme="orange"] .shop-selected.is-set{border-color:#e7bda9}
+:root[data-theme="orange"] .backpack-range span{background:#f5e9e2}
+:root[data-theme="orange"] .skeleton{background:linear-gradient(90deg,#f3eae5 25%,#fcf9f7 37%,#f3eae5 63%)}
+/* 物品添加按钮保持低调，同时清晰显示交互状态。 */
+:root[data-theme="orange"] .btn-icon-add{border-color:transparent;background:var(--mint);color:var(--pine)}
+:root[data-theme="orange"] .btn-icon-add:hover{border-color:var(--jade);background:var(--mint-deep);color:var(--pine)}
+/* 橙色主题的实心操作按钮使用较深的橙色，保证白字清晰。 */
+:root[data-theme="orange"] .btn-primary,
+:root[data-theme="orange"] .dpk-queue-button,
+:root[data-theme="orange"] #char-detail .char-action-btn.is-primary,
+:root[data-theme="orange"] .account-actions .account-action-btn.is-primary,
+:root[data-theme="orange"] .weapon-trait-entry{background:#a9472a;border-color:#a9472a;color:#fff}
+:root[data-theme="orange"] .btn-primary:hover,
+:root[data-theme="orange"] .dpk-queue-button:hover,
+:root[data-theme="orange"] #char-detail .char-action-btn.is-primary:hover,
+:root[data-theme="orange"] .account-actions .account-action-btn.is-primary:hover{background:#873f29;border-color:#873f29;color:#fff}
 </style>
 </head>
 <body>
@@ -832,7 +914,7 @@ tbody tr.is-static:hover{background:transparent}
     <div class="brand">
       <div class="brand-mark">
 
-        <img src="/logos/logo.png" alt="寻仙GM工作台">
+        <span class="brand-sprite" role="img" aria-label="寻仙GM工作台"></span>
       </div>
       <div class="brand-text">
         <h1>寻仙GM工作台</h1>
@@ -882,7 +964,13 @@ tbody tr.is-static:hover{background:transparent}
         <img src="/logos/logs.png" alt="" aria-hidden="true">
         <span>运维管理</span>
       </button>
-      <a class="rail-version" href="https://github.com/icosohedral/xunxian-gm-tool" target="_blank" rel="noopener noreferrer" aria-label="项目仓库，版本 1.0.0">v1.0.0</a>
+      <div class="rail-footer">
+      <a class="rail-version" href="https://github.com/icosohedral/xunxian-gm-tool" target="_blank" rel="noopener noreferrer" aria-label="项目仓库，版本 1.2.0">v1.2.0</a>
+        <div class="theme-picker" role="group" aria-label="颜色主题">
+          <button type="button" class="theme-swatch" data-theme-value="green" aria-label="绿色主题" aria-pressed="true" title="绿色主题"></button>
+          <button type="button" class="theme-swatch" data-theme-value="orange" aria-label="陶土橙主题" aria-pressed="false" title="陶土橙主题"></button>
+        </div>
+      </div>
     </aside>
 
     <main class="stage"><div class="stage-inner">
@@ -925,7 +1013,7 @@ tbody tr.is-static:hover{background:transparent}
 
         <div class="cols-2 mb-7">
           <article class="card">
-            <div class="card-head"><h3>连接状态</h3><span class="tag ok" id="health-tag">检测中</span></div>
+            <div class="card-head"><h3>服务状态</h3><span class="tag ok" id="health-tag">检测中</span></div>
             <div class="card-body" style="padding-top:6px">
               <div class="health-row">
                 <div class="health-key"><i><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8"/></svg></i>SSH 通道</div>
@@ -936,12 +1024,12 @@ tbody tr.is-static:hover{background:transparent}
                 <div class="health-val" id="health-mysql">—</div>
               </div>
               <div class="health-row">
-                <div class="health-key"><i><svg viewBox="0 0 24 24"><path d="M12 3v18"/><path d="m5 8 7-5 7 5"/></svg></i>点券库</div>
-                <div class="health-val" id="health-point">—</div>
+                <div class="health-key"><i><svg viewBox="0 0 24 24"><path d="M12 3v18"/><path d="m5 8 7-5 7 5"/></svg></i>客户端资源</div>
+                <div class="health-val" id="health-client">—</div>
               </div>
               <div class="health-row">
-                <div class="health-key"><i><svg viewBox="0 0 24 24"><path d="m12 3 8 4.2v9.6L12 21l-8-4.2V7.2L12 3Z"/></svg></i>角色／物品库</div>
-                <div class="health-val" id="health-db">—</div>
+                <div class="health-key"><i><svg viewBox="0 0 24 24"><path d="m12 3 8 4.2v9.6L12 21l-8-4.2V7.2L12 3Z"/></svg></i>IP 白名单</div>
+                <div class="health-val" id="health-whitelist">—</div>
               </div>
             </div>
           </article>
@@ -1146,13 +1234,18 @@ tbody tr.is-static:hover{background:transparent}
                   <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
                   <input id="it-q" type="search" placeholder="物品名 / 物品ID" autocomplete="off">
                 </div>
+                <select id="it-type" class="item-type-filter" aria-label="筛选物品类型"><option value="">全部类型</option></select>
               </div>
             </div>
-            <div class="table-wrap tall" id="it-wrap">
+            <div class="table-wrap" id="it-wrap" style="max-height:calc(100vh - 310px);min-height:260px">
               <table>
                 <thead><tr><th>名称</th><th>ID</th><th>类型</th><th>等级</th><th style="text-align:right">操作</th></tr></thead>
                 <tbody id="it-rows"></tbody>
               </table>
+            </div>
+            <div class="card-foot">
+              <span id="it-page-info">第 1 / 1 页</span>
+              <div class="item-page-controls"><button type="button" class="btn btn-sm" id="it-prev" disabled>上一页</button><button type="button" class="btn btn-sm" id="it-next" disabled>下一页</button></div>
             </div>
           </article>
 
@@ -1305,8 +1398,7 @@ tbody tr.is-static:hover{background:transparent}
                 </article>
             </div>
             <article class="card shop-catalog-card">
-              <div class="card-head"><h3>商店物品</h3><div class="backpack-head-actions"><span class="muted" id="backpack-count">—</span>
-                <button type="button" class="btn btn-sm btn-danger" id="backpack-batch-delete" disabled>批量删除</button></div></div>
+              <div class="card-head"><h3>商店物品</h3><span class="muted" id="backpack-count">—</span></div>
               <div class="card-body item-list-search">
                 <div id="backpack-runtime" class="backpack-runtime" role="status"></div>
                 <div class="toolbar"><div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
@@ -1315,6 +1407,9 @@ tbody tr.is-static:hover{background:transparent}
               </div>
               <div class="table-wrap backpack-table-wrap"><table><thead><tr><th>物品</th><th>商品 ID</th><th>售价</th><th>售卖范围</th><th style="text-align:right"><input type="checkbox" id="backpack-select-all" aria-label="选择当前列表"></th></tr></thead>
                 <tbody id="backpack-rows"><tr class="is-static"><td colspan="6" class="muted">切换标签后读取</td></tr></tbody></table></div>
+              <div class="card-foot">
+                <div class="shop-batch-tools"><span>已选 <b id="backpack-selected-count">0</b> 件</span><button type="button" class="btn btn-sm btn-danger" id="backpack-batch-delete" disabled>批量下架</button></div>
+              </div>
             </article>
           </div>
         </div>
@@ -1682,6 +1777,22 @@ tbody tr.is-static:hover{background:transparent}
 <div id="row-context-menu" class="row-context-menu" role="menu" aria-label="列表操作" hidden></div>
 
 <script>
+(function(){
+  const buttons = document.querySelectorAll('.theme-swatch');
+  function update(){
+    const current = document.documentElement.dataset.theme === 'orange' ? 'orange' : 'green';
+    buttons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.themeValue === current)));
+  }
+  buttons.forEach(button => button.addEventListener('click', function(){
+    const theme = button.dataset.themeValue;
+    if (theme === 'orange') document.documentElement.dataset.theme = 'orange';
+    else delete document.documentElement.dataset.theme;
+    try { localStorage.setItem('gm-color-theme', theme); } catch (_) {}
+    update();
+  }));
+  update();
+})();
+
 (function(){
 "use strict";
 
@@ -2717,9 +2828,12 @@ async function loadHealth(){
     sshInfo = (s.ssh_user || '—') + '@' + (s.ssh_host || '—') + ':' + (s.ssh_port || '—');
     renderSshInfo();
     $('#health-mysql').textContent = (s.mysql_user || '—') + '@' + (j.data.db_char || '—');
-    $('#health-point').textContent = j.data.db_ims || '—';
-    $('#health-db').textContent = j.data.db_char || '—';
-  } catch(e){ /* 静默：不影响主流程 */ }
+    $('#health-client').textContent = ({configured:'已配置', invalid:'路径错误', unconfigured:'未配置'})[j.data.client_resource_status] || '读取失败';
+  } catch(e){ $('#health-client').textContent = '读取失败'; }
+  try{
+    const j = await api('/api/ip-whitelist');
+    $('#health-whitelist').textContent = (j.data.entries || []).length + ' 条';
+  } catch(e){ $('#health-whitelist').textContent = '读取失败'; }
 }
 
 /* ============================================================
@@ -3136,16 +3250,30 @@ $('#pt-submit').addEventListener('click', async e => {
 /* ============================================================
    物品 / 待发放清单
    ============================================================ */
-let itemSearchTimer = 0, itemSearchRequest = 0;
+let itemSearchTimer = 0, itemSearchRequest = 0, itemPage = 0;
+const itemPageSize = 60;
 async function searchItem(){
   const request = ++itemSearchRequest;
   const tb = $('#it-rows');
+  const category = $('#it-type').value;
   tb.innerHTML = skeleton(5);
+  $('#it-prev').disabled = true;
+  $('#it-next').disabled = true;
   try{
     const q = $('#it-q').value.trim();
-    const j = await api('/api/items?q=' + encodeURIComponent(q));
+    const j = await api('/api/items?q=' + encodeURIComponent(q) + '&category=' +
+      encodeURIComponent(category) + '&limit=' + itemPageSize + '&offset=' + itemPage * itemPageSize);
     if (request !== itemSearchRequest) return;
-    $('#item-count').textContent = '共 ' + (q ? j.rows.length : j.total) + ' 条';
+    const typeSelect = $('#it-type');
+    typeSelect.innerHTML = '<option value="">全部类型</option>' +
+      j.types.map(name => '<option value="' + esc(name) + '">' + esc(name) + '</option>').join('');
+    typeSelect.value = category;
+    const pages = Math.max(1, Math.ceil(j.matched_total / itemPageSize));
+    if (itemPage >= pages){ itemPage = pages - 1; return searchItem(); }
+    $('#item-count').textContent = '共 ' + j.matched_total + ' 条';
+    $('#it-page-info').textContent = '第 ' + (itemPage + 1) + ' / ' + pages + ' 页';
+    $('#it-prev').disabled = itemPage === 0;
+    $('#it-next').disabled = itemPage + 1 >= pages;
     if (!j.rows.length){ tb.innerHTML = emptyRow(5, '没有匹配的物品', '换个物品名或物品 ID 试试'); return; }
     tb.innerHTML = j.rows.map(r => (
       '<tr class="is-static">' +
@@ -3153,7 +3281,7 @@ async function searchItem(){
           encodeURIComponent(r.id) + '" target="_blank" rel="noopener noreferrer" ' +
           'title="查看 Wiki 物品详情（新标签页）">' + esc(r.name) + '</a></td>' +
         '<td class="num">' + esc(r.id) + '</td>' +
-        '<td class="num">' + esc(r.type) + '</td>' +
+        '<td class="item-type">' + esc(r.type_name) + '</td>' +
         '<td class="num">' + esc(r.lv || '—') + '</td>' +
         '<td style="text-align:right"><button class="btn btn-sm btn-icon-add" data-add="' + esc(r.id) + '" data-name="' + esc(r.name) + '" data-type="' + esc(r.type) + '" aria-label="加入物品" title="加入"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button></td>' +
       '</tr>'
@@ -3357,9 +3485,7 @@ function renderBackpackRuntime(runtime){
   const node = $('#backpack-runtime');
   const state = runtime?.state;
   node.classList.toggle('is-warning', state === 'unavailable');
-  node.textContent = state === 'matched' ? '已保存配置与游戏内商人商品列表一致。' :
-    state === 'different' ? '' :
-    state === 'unavailable' ? '无法读取游戏内商人列表，请确认服务端状态。' : '';
+  node.textContent = state === 'unavailable' ? '无法读取游戏内商人列表，请确认服务端状态。' : '';
 }
 function renderBackpackPrice(price){
   const icons = {'铜':0, '银':1, '金':2, '砖':3};
@@ -3381,6 +3507,7 @@ function renderBackpackRows(){
   selectAll.checked = rows.length > 0 && selectedVisible === rows.length;
   selectAll.indeterminate = selectedVisible > 0 && selectedVisible < rows.length;
   selectAll.disabled = blocked || !rows.length;
+  $('#backpack-selected-count').textContent = state.backpackSelectedProducts.size;
   $('#backpack-batch-delete').disabled = blocked || !state.backpackSelectedProducts.size;
   $('#backpack-count').textContent = rows.length + ' / ' + data.rows.length + ' 件';
   $('#backpack-rows').innerHTML = rows.length ? rows.map(row =>
@@ -3643,11 +3770,24 @@ document.addEventListener('focusout', e => {
 $('#it-q').addEventListener('input', e => {
   ++itemSearchRequest;
   clearTimeout(itemSearchTimer);
+  itemPage = 0;
   if (!e.isComposing) itemSearchTimer = setTimeout(searchItem, 200);
 });
 $('#it-q').addEventListener('compositionend', () => {
   clearTimeout(itemSearchTimer);
   itemSearchTimer = setTimeout(searchItem, 200);
+});
+$('#it-type').addEventListener('change', () => {
+  clearTimeout(itemSearchTimer);
+  itemPage = 0;
+  $('#it-wrap').scrollTop = 0;
+  searchItem();
+});
+$('#it-prev').addEventListener('click', () => {
+  if (itemPage > 0){ itemPage--; $('#it-wrap').scrollTop = 0; searchItem(); }
+});
+$('#it-next').addEventListener('click', () => {
+  itemPage++; $('#it-wrap').scrollTop = 0; searchItem();
 });
 
 async function resolveChar(v){
@@ -4956,6 +5096,7 @@ async function loadIpWhitelist(){
 }
 function renderIpWhitelist(data){
   const entries = data.entries || [];
+  $('#health-whitelist').textContent = entries.length + ' 条';
   $('#ip-whitelist-entries').innerHTML = entries.length ? entries.map(entry =>
     '<tr class="is-static"><td class="num">' + esc(entry) + '</td><td><button type="button" class="btn btn-sm" data-ip-remove="' + esc(entry) + '">删除</button></td></tr>'
   ).join('') : emptyRow(2, '白名单为空', '');

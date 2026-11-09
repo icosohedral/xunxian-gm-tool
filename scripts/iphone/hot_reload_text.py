@@ -29,9 +29,9 @@ def main():
             targets = {}
             for line in table.decode('gb18030').splitlines():
                 fields = line.split('\t')
-                if fields[0].isdigit() and 50031 <= int(fields[0]) <= 50074:
+                if fields[0].isdigit() and 50031 <= int(fields[0]) <= 50092:
                     targets[int(fields[0])] = fields[1]
-            if len(targets) != 44:
+            if len(targets) != 62:
                 raise ValueError('手机文字 ID 不完整或重复')
             temp = '/tmp/iphone-talk-' + hashlib.sha256(table).hexdigest()[:20] + '.txt'
             sftp.putfo(io.BytesIO(table), temp)

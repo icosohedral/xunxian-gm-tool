@@ -34,22 +34,22 @@ TEXT = {
     50046: "美团外卖，送啥都快",
     50047: "@@IPHONE_DELIVERY_OPEN",
     50048: "@@IPHONE_DELIVERY_CLOSE",
-    50049: "十级强效活血药 ×200　20金",
-    50050: "十级强效理气药 ×200　20金",
-    50051: "高级跌打药 ×50　5砖",
-    50052: "返魂仙丹 ×50　10砖",
-    50053: "妖怪精魄 ×200　1金",
+    50049: "十级强效活血药 ×200",
+    50050: "十级强效理气药 ×200",
+    50051: "高级跌打药 ×50",
+    50052: "返魂仙丹 ×50",
+    50053: "妖怪精魄 ×200",
     50054: "购买成功，物品已放入背包。",
     50055: "流通金不足，购买失败。",
     50056: "背包空间不足，购买失败。",
     50057: "石塘大药房",
     50058: "宠物商店",
     50059: "京东超市",
-    50060: "高级侍宠玩具 ×10　10砖",
-    50061: "坚固照妖镜 ×1　10金",
-    50062: "炼妖壶 ×1　1砖",
-    50063: "愚人节礼包 ×1　1砖",
-    50064: "高级骑宠玩具 ×10　10砖",
+    50060: "高级侍宠玩具 ×10",
+    50061: "坚固照妖镜 ×1",
+    50062: "炼妖壶 ×1",
+    50063: "愚人节礼包 ×1",
+    50064: "高级骑宠玩具 ×10",
     50065: "QQ音乐",
     50066: "QQ音乐：请选择音乐（第 %d 页 / 共 %d 页）。",
     50067: "中原·白天",
@@ -60,6 +60,24 @@ TEXT = {
     50072: "@@IPHONE_MUSIC_STOP",
     50073: "上一页",
     50074: "下一页",
+    50075: "借贷宝",
+    50076: "说不出口，熟人谈钱，交给借贷宝",
+    50077: "借钱",
+    50078: "还钱",
+    50079: "借<m:10000000>，利息<m:3000000>。需要扣除四分之一经验值。",
+    50080: "将要偿还<m:%d>（利息<m:%d>）。",
+    50081: "确认",
+    50082: "已有未还清的借款，请先还款。",
+    50083: "当前没有需要偿还的借款。",
+    50084: "借款成功，已到账<m:10000000>，应还<m:13000000>。",
+    50085: "还款成功，借款已还清。",
+    50086: "流通金不足或余额已达上限，操作未完成。",
+    50087: "当前经验不足，无法借款。",
+    50088: "操作未完成，请稍后重试。",
+    50089: "借贷状态正在核对，请联系管理员。",
+    50090: "石塘大药房：活血药 ×200 <m:200000>；理气药 ×200 <m:200000>；高级跌打药 ×50 <m:5000000>；返魂仙丹 ×50 <m:10000000>。请选择商品。",
+    50091: "宠物商店：妖怪精魄 ×200 <m:10000>；高级骑宠玩具 ×10 <m:10000000>；高级侍宠玩具 ×10 <m:10000000>；坚固照妖镜 ×1 <m:100000>；炼妖壶 ×1 <m:1000000>。请选择商品。",
+    50092: "京东超市：愚人节礼包 ×1 <m:1000000>。请选择商品。",
 }
 
 
@@ -77,7 +95,7 @@ def add_row(original: bytes, fields: list[str], ident: int) -> bytes:
 def make_edits(source: Path) -> dict[str, bytes]:
     paths = ("item/item_list.txt", "item/item_use.txt",
              "server/script_func_reg.txt", "etc/talk_list.txt", "etc/text.txt",
-             "pet/summon_type.txt")
+             "pet/summon_type.txt", "server/flag_dword_player.txt")
     with DpkReader(source) as reader:
         entries = {entry.path: entry for entry in reader.read_entries()}
         original = {name: reader.extract(entries[name]) for name in paths}
@@ -87,10 +105,10 @@ def make_edits(source: Path) -> dict[str, bytes]:
     header = lines[0].split("\t")
     item = next(line.split("\t") for line in lines[1:]
                 if line.split("\t", 1)[0] == "7")
-    item[0:3] = [str(ITEM_ID), "iPhone手机", "1"]
+    item[0:3] = [str(ITEM_ID), "iPhone 18 Pro max 土豪金", "1"]
     item[4] = "rw498"  # Existing unused icon slot, repacked with iPhone.png.
     item[6] = "50031"  # Tooltip is looked up in etc/text.txt.
-    item[7] = "1"
+    item[7] = "9"  # Match 两仪石 (item 21316).
     item[header.index("使用属性")] = str(USE_ID)
     item[header.index("重叠数量")] = "1"
     item[header.index("唯一")] = "1"
@@ -131,6 +149,10 @@ def make_edits(source: Path) -> dict[str, bytes]:
         summon_row[1] = str(ident)
         data = data.rstrip(b"\r\n") + b"\r\n" + ("\t".join(summon_row) + "\r\n").encode("gb18030")
     result[paths[5]] = data
+    flag_lines = original[paths[6]].decode("gb18030").splitlines()
+    if any(len(line.split("\t")) > 1 and line.split("\t")[1] == "203" for line in flag_lines[1:]):
+        raise ValueError("玩家持久标志 203 已存在")
+    result[paths[6]] = original[paths[6]].rstrip(b"\r\n") + "\r\n借贷宝状态\t203\t0\t0\t2\t0\r\n".encode("gb18030")
     return result
 
 

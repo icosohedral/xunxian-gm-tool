@@ -52,7 +52,7 @@ def build_package(source: Path, name: str) -> None:
             raise ValueError(f"{name}: NPC ID 冲突")
         template = next(row for row in cha_rows[1:] if row.split("\t")[1:2] == ["1399"])
         npc_fields = template.split("\t")
-        npc_fields[0:2] = ["小黄", str(NPC_ID)]
+        npc_fields[0:2] = ["新葡京娱乐城", str(NPC_ID)]
         (target / "cha_list.txt").write_bytes(append_rows(cha, ["\t".join(npc_fields)]))
 
         if SPAWN_PATH in entries:
