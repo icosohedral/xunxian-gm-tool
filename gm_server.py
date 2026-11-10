@@ -3282,37 +3282,43 @@ class Handler(BaseHTTPRequestHandler):
                 if not os.path.exists(page):
                     page = os.path.join(APP_DIR, "index.html")
                 return self._file(page, "text/html; charset=utf-8")
-            if p in {f"/logos/{name}.png" for name in
+            if p in {f"/assets/{name}.png" for name in
                      ("logo", "logo_spritssheet", "status", "account", "item", "mail", "logs", "rate", "skill", "pet")}:
                 filename = p.rsplit("/", 1)[-1]
-                image = os.path.join(RES_DIR, "logos", filename)
+                image = os.path.join(RES_DIR, "assets", filename)
                 if not os.path.exists(image):
-                    image = os.path.join(APP_DIR, "logos", filename)
+                    image = os.path.join(APP_DIR, "assets", filename)
                 return self._file(image, "image/png")
             icon_match = re.fullmatch(r"/equipment-icons/(200|201|203|205|206|207|208)/([0-9a-z]{1,32})\.png", p)
             if icon_match:
-                folders = {"200": "帽子", "201": "首饰", "203": "衣服", "205": "腰带", "206": "裤子", "207": "鞋子", "208": "首饰"}
+                folders = {"200": "hats", "201": "accessories", "203": "clothing", "205": "belts", "206": "pants", "207": "shoes", "208": "accessories"}
                 folder, filename = folders[icon_match.group(1)], icon_match.group(2) + ".png"
-                image = os.path.join(RES_DIR, "logos", "icons", folder, filename)
+                image = os.path.join(RES_DIR, "assets", "icons", folder, filename)
                 if not os.path.isfile(image):
-                    image = os.path.join(APP_DIR, "logos", "icons", folder, filename)
+                    image = os.path.join(APP_DIR, "assets", "icons", folder, filename)
                 return self._file(image, "image/png")
-            if re.fullmatch(r"/logos/icons/wq/wq[0-9a-z]{1,16}\.png", p):
+            if re.fullmatch(r"/assets/icons/weapons/wq[0-9a-z]{1,16}\.png", p):
                 filename = p.rsplit("/", 1)[-1]
-                image = os.path.join(RES_DIR, "logos", "icons", "wq", filename)
+                image = os.path.join(RES_DIR, "assets", "icons", "weapons", filename)
                 if not os.path.isfile(image):
-                    image = os.path.join(APP_DIR, "logos", "icons", "wq", filename)
+                    image = os.path.join(APP_DIR, "assets", "icons", "weapons", filename)
                 return self._file(image, "image/png")
-            if re.fullmatch(r"/logos/icons/money/money[0-3]\.png", p):
+            if re.fullmatch(r"/assets/icons/money/money[0-3]\.png", p):
                 filename = p.rsplit("/", 1)[-1]
-                image = os.path.join(RES_DIR, "logos", "icons", "money", filename)
+                image = os.path.join(RES_DIR, "assets", "icons", "money", filename)
                 if not os.path.isfile(image):
-                    image = os.path.join(APP_DIR, "logos", "icons", "money", filename)
+                    image = os.path.join(APP_DIR, "assets", "icons", "money", filename)
                 return self._file(image, "image/png")
-            if p == "/logos/icons/items/vip.png":
-                image = os.path.join(RES_DIR, "logos", "icons", "items", "vip.png")
+            if re.fullmatch(r"/assets/icons/career/career0(?:[1-9]|10)\.png", p):
+                filename = p.rsplit("/", 1)[-1]
+                image = os.path.join(RES_DIR, "assets", "icons", "career", filename)
                 if not os.path.isfile(image):
-                    image = os.path.join(APP_DIR, "logos", "icons", "items", "vip.png")
+                    image = os.path.join(APP_DIR, "assets", "icons", "career", filename)
+                return self._file(image, "image/png")
+            if p == "/assets/icons/items/vip.png":
+                image = os.path.join(RES_DIR, "assets", "icons", "items", "vip.png")
+                if not os.path.isfile(image):
+                    image = os.path.join(APP_DIR, "assets", "icons", "items", "vip.png")
                 return self._file(image, "image/png")
             if p == "/api/summons/catalog":
                 catalog_path = Path(RES_DIR) / "doc" / "召唤物列表.csv"
@@ -3340,9 +3346,9 @@ class Handler(BaseHTTPRequestHandler):
                 except Exception as e:
                     return self._json({"ok": False, "error": str(e)}, 500)
             if p == "/favicon.ico":
-                logo = os.path.join(RES_DIR, "logos", "logo.png")
+                logo = os.path.join(RES_DIR, "assets", "logo.png")
                 if not os.path.exists(logo):
-                    logo = os.path.join(APP_DIR, "logos", "logo.png")
+                    logo = os.path.join(APP_DIR, "assets", "logo.png")
                 if os.path.exists(logo):
                     return self._file(logo, "image/png")
                 self.send_response(204)
@@ -3504,7 +3510,7 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError("职业筛选无效")
                 template_id = qs.get("id", [""])[0]
                 category = qs.get("category", ["100"])[0]
-                folders = {"100": "wq", "200": "帽子", "201": "首饰", "203": "衣服", "205": "腰带", "206": "裤子", "207": "鞋子", "208": "首饰"}
+                folders = {"100": "weapons", "200": "hats", "201": "accessories", "203": "clothing", "205": "belts", "206": "pants", "207": "shoes", "208": "accessories"}
                 if category not in folders:
                     raise ValueError("装备类别无效")
                 data = weapon_catalog(_ensure_client_work_package(),
@@ -3515,7 +3521,7 @@ class Handler(BaseHTTPRequestHandler):
                     data["icon_choices"] = sorted(
                         icon for icon in data["icon_models"]
                         if re.fullmatch(r"[0-9a-z]{1,32}", icon) and any(
-                            (Path(root) / "logos" / "icons" / folders[category] / f"{icon}.png").is_file()
+                            (Path(root) / "assets" / "icons" / folders[category] / f"{icon}.png").is_file()
                             for root in (RES_DIR, APP_DIR)))
                 return self._json({"ok": True, "data": data})
             if p == "/api/equipment_attribute_choices":

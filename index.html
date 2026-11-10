@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>寻仙GM工作台</title>
-<link rel="icon" type="image/png" href="/logos/logo.png">
+<link rel="icon" type="image/png" href="/assets/logo.png">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
 <script>
@@ -70,7 +70,7 @@ body.has-modal{overflow:hidden}
   border-radius:16px;box-shadow:var(--shadow);backdrop-filter:blur(18px)}
 .brand{display:flex;align-items:center;gap:11px;min-width:0}
 .brand-mark{width:40px;height:40px;flex:0 0 40px;display:grid;place-items:center;background:transparent}
-.brand-sprite{display:block;width:40px;height:40px;background-image:url('/logos/logo_spritssheet.png');background-size:400% 200%;background-repeat:no-repeat;animation:brand-animate 5s steps(1,end) infinite}
+.brand-sprite{display:block;width:40px;height:40px;background-image:url('/assets/logo_spritssheet.png');background-size:400% 200%;background-repeat:no-repeat;animation:brand-animate 5s steps(1,end) infinite}
 @keyframes brand-animate{
   0%{background-position:0 0} 4%{background-position:33.333% 0}
   8%{background-position:66.667% 0} 12%{background-position:100% 0}
@@ -464,6 +464,9 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .skill-limits-table th:first-child,.skill-limits-table td:first-child{width:56px;text-align:center}
 .skill-limits-table th:nth-child(2),.skill-limits-table td:nth-child(2){width:108px}
 .skill-limits-table th:nth-child(4),.skill-limits-table td:nth-child(4){width:150px;text-align:left}
+.skill-career-list{display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px}
+.skill-career{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.skill-career img{width:16px;height:16px;object-fit:contain;flex:none}
 .definition-table td{padding:5px 10px}
 .definition-table tbody tr{cursor:default}
 .definition-table tbody tr:hover{background:#f7fbf9}
@@ -935,33 +938,33 @@ tbody tr.is-static:hover{background:transparent}
     <!-- ================= 侧栏 ================= -->
     <aside class="rail" aria-label="主导航">
       <button class="rail-item is-active" data-view="home" title="服务概览">
-        <img src="/logos/status.png" alt="" aria-hidden="true">
+        <img src="/assets/status.png" alt="" aria-hidden="true">
         <span>服务概览</span>
       </button>
       <button class="rail-item" data-view="acct" title="账号管理">
-        <img src="/logos/account.png" alt="" aria-hidden="true">
+        <img src="/assets/account.png" alt="" aria-hidden="true">
         <span>账号管理</span>
       </button>
       <button class="rail-item" data-view="item" title="物品管理">
-        <img src="/logos/item.png" alt="" aria-hidden="true">
+        <img src="/assets/item.png" alt="" aria-hidden="true">
         <span>物品管理</span>
         <span class="badge is-hidden" id="cart-badge">0</span>
       </button>
       <button class="rail-item" data-view="skill-config" title="技能配置">
-        <img src="/logos/skill.png" alt="" aria-hidden="true">
+        <img src="/assets/skill.png" alt="" aria-hidden="true">
         <span>技能配置</span>
       </button>
       <button class="rail-item" data-view="pet-config" title="宠物配置">
-        <img src="/logos/pet.png" alt="" aria-hidden="true">
+        <img src="/assets/pet.png" alt="" aria-hidden="true">
         <span>宠物配置</span>
       </button>
       <button class="rail-item" data-view="rates" title="游戏配置">
-        <img src="/logos/rate.png" alt="" aria-hidden="true">
+        <img src="/assets/rate.png" alt="" aria-hidden="true">
         <span>游戏配置</span>
       </button>
       <div class="rail-sep"></div>
       <button class="rail-item" data-view="logs" title="运维管理">
-        <img src="/logos/logs.png" alt="" aria-hidden="true">
+        <img src="/assets/logs.png" alt="" aria-hidden="true">
         <span>运维管理</span>
       </button>
       <div class="rail-footer">
@@ -2469,7 +2472,7 @@ function updateWeaponIconPreview(){
   }
   image.src = weaponIconUrl(icon);
 }
-function weaponIconUrl(icon){ const category = state.weaponDraft[2] || '100'; return category === '100' ? '/logos/icons/wq/' + icon + '.png' : '/equipment-icons/' + category + '/' + icon + '.png'; }
+function weaponIconUrl(icon){ const category = state.weaponDraft[2] || '100'; return category === '100' ? '/assets/icons/weapons/' + icon + '.png' : '/equipment-icons/' + category + '/' + icon + '.png'; }
 $('#weapon-category').addEventListener('change', () => { state.weaponTemplate = null; state.weaponDraft = []; $('#weapon-editor').classList.add('is-hidden'); $('#weapon-editor-empty').classList.remove('is-hidden'); $('#weapon-icon-panel').classList.add('is-hidden'); loadWeaponTemplates(); });
 function assignWeaponModel(){
   const icon = String(state.weaponDraft[4] || '').trim().toLowerCase();
@@ -3490,8 +3493,8 @@ function renderBackpackRuntime(runtime){
 function renderBackpackPrice(price){
   const icons = {'铜':0, '银':1, '金':2, '砖':3};
   return esc(price).replace(/(\d+(?:\.\d+)?)\s+(铜|银|金|砖)(?=$|\s|[；+])/g,
-    (_, amount, unit) => amount + '<img class="backpack-money-icon" src="/logos/icons/money/money' + icons[unit] + '.png" alt="' + unit + '" title="' + unit + '">')
-    .replace(/VIP凭证(?= × \d+)/g, '<img class="backpack-money-icon" src="/logos/icons/items/vip.png" alt="VIP凭证" title="VIP凭证">');
+    (_, amount, unit) => amount + '<img class="backpack-money-icon" src="/assets/icons/money/money' + icons[unit] + '.png" alt="' + unit + '" title="' + unit + '">')
+    .replace(/VIP凭证(?= × \d+)/g, '<img class="backpack-money-icon" src="/assets/icons/items/vip.png" alt="VIP凭证" title="VIP凭证">');
 }
 function renderBackpackRows(){
   const data = state.backpackShop;
@@ -4233,6 +4236,12 @@ const skillProfessionName = id => {
   const profession = (state.skillLimits?.professions || []).find(item => Number(item.id) === Number(id));
   return profession?.name || ('职业 ' + id);
 };
+const skillCareerLabel = id => {
+  const name = skillProfessionName(id);
+  const careerId = Number(id);
+  const icon = Number.isInteger(careerId) && careerId >= 1 && careerId <= 10 ? 'career0' + careerId : '';
+  return '<span class="skill-career">' + (icon ? '<img src="/assets/icons/career/' + icon + '.png" alt="" width="16" height="16">' : '') + esc(name) + '</span>';
+};
 function skillLimitPendingChanges(){
   const target = Number($('#skill-limits-target').value);
   return (state.skillLimits?.skills || []).map(skill => ({skill, assigned:state.skillLimitSelection.has(skill.id)}))
@@ -4278,14 +4287,14 @@ function renderSkillLimitRows(){
   state.skillLimitVisibleGroups = groups;
   $('#skill-limits-rows').innerHTML = groups.length ? groups.map((group, index) => {
     const skill = group.skills[0];
-    const sources = skillSourceProfessions(skill).map(skillProfessionName).join('、');
+    const sources = skillSourceProfessions(skill).map(skillCareerLabel).join('');
     const selectedCount = group.skills.filter(s => state.skillLimitSelection.has(s.id)).length;
     const selected = selectedCount === group.skills.length;
     const ids = skillGroupIdLabel(group.skills.map(s => s.id));
     return '<tr><td><input class="skill-limits-check" type="checkbox" data-skill-group="' + index + '" ' +
       (selected ? 'checked ' : '') +
       'aria-label="选择技能 ' + esc(skill.name) + '，共 ' + group.skills.length + ' 个版本"></td>' +
-      '<td>' + ids + '</td><td>' + esc(skill.name) + '</td><td>' + esc(sources) + '</td></tr>';
+      '<td>' + ids + '</td><td>' + esc(skill.name) + '</td><td><span class="skill-career-list">' + sources + '</span></td></tr>';
   }).join('') :
     '<tr class="is-static"><td colspan="4" style="padding:0;border:0"><div class="empty"><b>没有匹配的可学习技能</b></div></td></tr>';
   $('#skill-limits-rows').querySelectorAll('[data-skill-group]').forEach(input => {

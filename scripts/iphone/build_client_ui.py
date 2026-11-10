@@ -87,7 +87,7 @@ def main() -> None:
     icon.parent.mkdir(parents=True, exist_ok=True)
     import subprocess
     subprocess.run([
-        "magick", str(ROOT / "logos/icons/自定义资源/iPhone.png"),
+        "magick", str(ROOT / "assets/icons/custom/iPhone.png"),
         "-resize", "58x58", "-gravity", "center", "-background", "none",
         "-extent", "64x64", "-define", "png:compression-level=9",
         "PNG32:" + str(icon),
