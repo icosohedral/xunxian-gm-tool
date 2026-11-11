@@ -1732,9 +1732,15 @@ def qfloat(v, default=0.0):
         return default
 
 
-def op_log(action, detail, result="ok"):
+# 只读取数据、不改变游戏的接口；它们失败时记录的日志同样标记为 read。
+READ_ONLY_API_PATHS = {"/api/profession-skills/inspect", "/api/skill-limits/inspect",
+                       "/api/config/pick-path", "/api/summons/catalog"}
+
+
+def op_log(action, detail, result="ok", kind="op"):
+    """kind: op = 用户主动操作；read = 打开页面时自动读取；request = 已受理、结果另记一条。"""
     rec = {"ts": int(time.time()), "time": time.strftime("%Y-%m-%d %H:%M:%S"),
-           "action": action, "detail": detail, "result": result}
+           "action": action, "detail": detail, "result": result, "kind": kind}
     try:
         with open(LOG_PATH, "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
@@ -3757,7 +3763,7 @@ class Handler(BaseHTTPRequestHandler):
                 info.update({"session_id": session_id,
                     "client_path": str(configured_client_path)})
                 op_log("读取职业技能配置", {"skills": len(info["skills"]),
-                    "client_path": str(configured_client_path)})
+                    "client_path": str(configured_client_path)}, kind="read")
                 return self._json({"ok": True, "data": info})
             if p == "/api/profession-skills/apply":
                 session_id = str(body.get("session_id") or "")
@@ -4008,7 +4014,7 @@ class Handler(BaseHTTPRequestHandler):
                         "provenance_key": provenance_key,
                         "skills": {row["id"]: row for row in shared_skills}}
                 op_log("读取三份技能配置包", {"sha256": info["sha256"],
-                    "shared_skills": len(info["skills"]), "client_path": str(client_path)})
+                    "shared_skills": len(info["skills"]), "client_path": str(client_path)}, kind="read")
                 return self._json({"ok": True, "data": info})
             if p == "/api/skill-limits/apply":
                 target_profession = int(body.get("target_profession", 0))
@@ -4343,14 +4349,14 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": True, "data": result})
             if p == "/api/shop/restart":
                 result = start_shop_restart()
-                op_log("商城配置后重启请求", {})
+                op_log("商城配置后重启请求", {}, kind="request")
                 return self._json({"ok": True, "data": result}, 202)
             if p == "/api/server/control":
                 action = body.get("action")
                 if action not in ("start", "restart", "stop"):
                     return self._json({"ok": False, "error": "未知的服务端操作"}, 400)
                 result = start_server_action(action)
-                op_log("服务端操作请求", {"action": action})
+                op_log("服务端操作请求", {"action": action}, kind="request")
                 return self._json({"ok": True, "data": result}, 202)
             if p == "/api/point":
                 r = set_point(body.get("account"), body.get("mode", "add"), body.get("value", 0))
@@ -4517,7 +4523,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"ok": False, "error": str(e)}, 400)
         except Exception as e:
             traceback.print_exc()
-            op_log(p, body, "fail: " + str(e))
+            op_log(p, body, "fail: " + str(e), kind="read" if p in READ_ONLY_API_PATHS else "op")
             return self._json({"ok": False, "error": str(e)}, 500)
 
 

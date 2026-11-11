@@ -14,7 +14,8 @@ try { if (localStorage.getItem('gm-color-theme') === 'orange') document.document
    1. 设计令牌
    ============================================================ */
 :root{
-  --ink:#14312c; --ink-soft:#5f7773; --ink-faint:#8ca19c;
+  --ink:#14312c; --ink-soft:#5f7773; --ink-faint:#6e837e;
+  --disabled-bg:#edf1ef; --disabled-ink:#97a7a2;
   --pine:#075e54; --jade:#009b80; --mint:#dff2ec; --mint-deep:#cfe9e1;
   --paper:#f3f7f5; --surface:#fff; --rail:#eef4f1;
   --line:#d7e4df; --line-strong:#b9cec7;
@@ -27,7 +28,8 @@ try { if (localStorage.getItem('gm-color-theme') === 'orange') document.document
 }
 
 :root[data-theme="orange"]{
-  --ink:#382720; --ink-soft:#806b62; --ink-faint:#a6958c;
+  --ink:#382720; --ink-soft:#806b62; --ink-faint:#8c786f;
+  --disabled-bg:#f1ebe7; --disabled-ink:#ad9d94;
   --pine:#873f29; --jade:#d97757; --mint:#fae9e2; --mint-deep:#f2d5c8;
   --paper:#faf9f5; --rail:#f5eeea; --line:#e9dcd5; --line-strong:#d8c0b3;
   --ok:#667557;
@@ -39,8 +41,8 @@ try { if (localStorage.getItem('gm-color-theme') === 'orange') document.document
 :root[data-theme="orange"] .segmented button.is-active{box-shadow:0 3px 10px rgba(80,45,30,.12)}
 :root[data-theme="orange"] .reload-scope-tag[aria-pressed="true"]{border-color:#e7bda9;background:#fae9e2;color:#873f29}
 :root[data-theme="orange"] .account-actions{border-color:#e8cabb;background:#fcf2ed}
-:root[data-theme="orange"] .stage{background:#faf9f5}
 :root[data-theme="orange"] .rail-item:hover{background:#fbf1ec}
+:root[data-theme="orange"] #it-rows tr.is-static:hover{background:#fcf5f1}
 .rail-footer{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:auto}
 .theme-picker{display:flex;align-items:center;gap:6px;padding:8px 10px 1px}
 .theme-swatch{width:13px;height:13px;padding:0;border:1px solid rgba(0,0,0,.15);border-radius:3px}
@@ -65,12 +67,12 @@ body.has-modal{overflow:hidden}
    3. 外壳：顶栏 / 侧栏 / 内容区
    ============================================================ */
 .shell{min-height:100vh;display:flex;flex-direction:column}
-.topbar{height:66px;position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;
+.topbar{height:54px;position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;
   gap:16px;margin:7px 9px 0;padding:0 16px;background:rgba(255,255,255,.94);border:1px solid var(--line);
-  border-radius:16px;box-shadow:var(--shadow);backdrop-filter:blur(18px)}
+  border-radius:14px;backdrop-filter:blur(18px)}
 .brand{display:flex;align-items:center;gap:11px;min-width:0}
-.brand-mark{width:40px;height:40px;flex:0 0 40px;display:grid;place-items:center;background:transparent}
-.brand-sprite{display:block;width:40px;height:40px;background-image:url('/assets/logo_spritssheet.png');background-size:400% 200%;background-repeat:no-repeat;animation:brand-animate 5s steps(1,end) infinite}
+.brand-mark{width:34px;height:34px;flex:0 0 34px;display:grid;place-items:center;background:transparent}
+.brand-sprite{display:block;width:34px;height:34px;background-image:url('/assets/logo_spritssheet.png');background-size:400% 200%;background-repeat:no-repeat;animation:brand-animate 5s steps(1,end) infinite}
 @keyframes brand-animate{
   0%{background-position:0 0} 4%{background-position:33.333% 0}
   8%{background-position:66.667% 0} 12%{background-position:100% 0}
@@ -79,23 +81,24 @@ body.has-modal{overflow:hidden}
   32%,100%{background-position:0 0}
 }
 @media (prefers-reduced-motion:reduce){.brand-sprite{animation:none}}
-.brand-text h1{font:700 18px/1.2 var(--font-display);margin:0;letter-spacing:-.02em;white-space:nowrap}
+.brand-text h1{font:700 16px/1.2 var(--font-display);margin:0;letter-spacing:-.02em;white-space:nowrap}
 .topbar-actions{display:flex;align-items:center;gap:8px}
-.dpk-queue-button{position:relative;width:38px;height:38px;display:grid;place-items:center;border:0;border-radius:11px;
+.dpk-queue-button{position:relative;width:34px;height:34px;display:grid;place-items:center;border:0;border-radius:11px;
   background:var(--jade);color:#fff;cursor:pointer;box-shadow:0 6px 16px rgba(0,155,128,.2);transition:transform .15s,background .15s}
 .dpk-queue-button:hover{background:#008b73;transform:translateY(-1px)}
 .dpk-queue-button svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 .dpk-queue-count{position:absolute;right:-7px;top:-7px;min-width:19px;height:19px;padding:0 5px;display:grid;place-items:center;
-  border:2px solid #fff;border-radius:99px;background:#d84b42;color:#fff;font-size:10px;font-weight:800;line-height:1}
+  border:2px solid #fff;border-radius:99px;background:#d84b42;color:#fff;font-size:11px;font-weight:800;line-height:1}
+.dpk-queue-count[hidden]{display:none}
 .dpk-queue-shell{width:min(620px,100%)}
 .dpk-queue-list{display:grid;gap:8px;max-height:min(56vh,520px);overflow:auto;padding:2px}
 .dpk-queue-item{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--line);border-radius:11px;background:#fbfdfc}
-.dpk-queue-item strong{display:block;color:var(--ink);font-size:12px}.dpk-queue-item small{display:block;margin-top:3px;color:var(--ink-faint);font-size:10.5px}
-.dpk-queue-actions{display:flex;align-items:center;gap:6px}.dpk-queue-actions .btn{height:30px;padding:0 9px;font-size:11px}
+.dpk-queue-item strong{display:block;color:var(--ink);font-size:12px}.dpk-queue-item small{display:block;margin-top:3px;color:var(--ink-faint);font-size:12px}
+.dpk-queue-actions{display:flex;align-items:center;gap:6px}.dpk-queue-actions .btn{height:30px;padding:0 9px;font-size:12px}
 .dpk-queue-empty{padding:28px 8px;text-align:center;color:var(--ink-faint)}
 
 .pill{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 11px;border-radius:99px;
-  border:1px solid var(--line);background:#f6faf8;color:var(--pine);font-size:11px;font-weight:700;white-space:nowrap}
+  border:1px solid var(--line);background:#f6faf8;color:var(--pine);font-size:12px;font-weight:700;white-space:nowrap}
 .pill .dot{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px rgba(15,138,99,.14)}
 .pill.is-warn{border-color:#f0dcc0;background:#fdf6ec;color:var(--warn)}
 .pill.is-warn .dot{background:#d98324;box-shadow:0 0 0 3px rgba(217,131,36,.14)}
@@ -105,9 +108,9 @@ body.has-modal{overflow:hidden}
 
 .workspace{flex:1;display:grid;grid-template-columns:202px minmax(0,1fr);gap:7px;
   padding:7px 9px 9px;align-items:stretch;min-height:0}
-.rail{padding:9px;background:var(--surface);border:1px solid var(--line);border-radius:16px;
-  box-shadow:var(--shadow);display:flex;flex-direction:column;gap:3px;
-  position:sticky;top:7px;align-self:start;height:calc(100vh - 89px);min-height:0;overflow-y:auto}
+.rail{padding:9px;background:var(--surface);border:1px solid var(--line);border-radius:14px;
+  display:flex;flex-direction:column;gap:3px;
+  position:sticky;top:7px;align-self:start;height:calc(100vh - 77px);min-height:0;overflow-y:auto}
 .rail-item{position:relative;width:100%;min-height:48px;display:grid;grid-template-columns:28px 1fr auto;
   align-items:center;gap:10px;padding:0 12px;border:0;border-radius:10px;background:transparent;
   color:var(--ink-soft);text-align:left;font-size:14px;font-weight:700;transition:.13s ease}
@@ -117,24 +120,24 @@ body.has-modal{overflow:hidden}
 .rail-item.is-active{background:var(--mint);color:var(--pine)}
 .rail-item.is-active svg{opacity:1;color:var(--jade)}
 .rail-item .badge{margin-left:auto;min-width:19px;height:19px;padding:0 5px;display:grid;place-items:center;
-  border-radius:99px;background:var(--mint-deep);color:var(--pine);font-size:10px;font-weight:800}
+  border-radius:99px;background:var(--mint-deep);color:var(--pine);font-size:11px;font-weight:800}
 .rail-item.is-active .badge{background:#fff}
 .rail-sep{height:1px;margin:9px 9px;background:var(--line)}
 .rail-version{display:block;padding:8px 10px 1px;color:var(--ink-faint);
-  font-size:10px;font-weight:550;letter-spacing:.02em;text-align:left;text-decoration:none}
+  font-size:11px;font-weight:550;letter-spacing:.02em;text-align:left;text-decoration:none}
 .rail-version:hover{color:var(--pine)}
 .rail-version:focus-visible{outline:2px solid var(--jade);outline-offset:2px;border-radius:3px}
 
-.stage{min-width:0;padding:11px 12px 0;background:#f8fbfa;border:1px solid var(--line);
-  border-radius:16px;box-shadow:var(--shadow);height:calc(100vh - 89px);min-height:0;overflow:auto}
+.stage{min-width:0;padding:0 6px 0 10px;background:transparent;height:calc(100vh - 77px);min-height:0;overflow:auto}
 .stage-inner{max-width:1440px;margin:0 auto}
-.stage-inner::after{content:"";display:block;height:11px}
+.stage-inner::after{content:"";display:block;height:0}
 
 /* ============================================================
    4. 视图操作条（分段控件等，无标题）
    ============================================================ */
-.view-actions{display:flex;align-items:center;justify-content:flex-start;gap:8px;margin-bottom:7px}
-.view-actions .muted{font-size:11px}
+.view-actions{display:flex;align-items:center;justify-content:flex-start;gap:12px;margin:0 0 9px}
+.view-heading{display:flex;align-items:center;gap:12px;min-width:0}
+.view-actions .muted{font-size:12px}
 .weapon-layout{display:grid;grid-template-columns:minmax(320px,1fr) minmax(400px,1.25fr) minmax(260px,.85fr);gap:14px;align-items:start}
 .weapon-filter{display:flex;gap:8px;align-items:center}.weapon-filter select{width:88px;flex:none}.weapon-filter input{min-width:0;flex:1}
 .weapon-template-row{cursor:pointer}.weapon-template-row.is-active{background:var(--mint)}
@@ -149,14 +152,14 @@ body.has-modal{overflow:hidden}
 .weapon-trait-row{cursor:pointer}.weapon-trait-row td:last-child{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--pine);font-weight:700}.weapon-trait-row:focus-visible{outline:2px solid var(--jade);outline-offset:-2px}
 .weapon-trait-label{min-width:0;flex:0 1 auto;overflow-wrap:anywhere}.weapon-trait-number{margin-left:8px;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--pine);font-weight:700}
 .weapon-trait-list{display:flex;flex-wrap:wrap;align-content:flex-start;gap:5px}
-.weapon-trait-empty{color:var(--ink-faint);font-size:11px;line-height:1.5}
-.weapon-trait-entry{display:inline-flex;flex:0 1 auto;align-items:center;width:max-content;max-width:100%;min-height:26px;padding-left:9px;border:1px solid var(--jade);border-radius:999px;background:var(--jade);color:#fff;font-size:11px;line-height:1.2}
+.weapon-trait-empty{color:var(--ink-faint);font-size:12px;line-height:1.5}
+.weapon-trait-entry{display:inline-flex;flex:0 1 auto;align-items:center;width:max-content;max-width:100%;min-height:26px;padding-left:9px;border:1px solid var(--jade);border-radius:999px;background:var(--jade);color:#fff;font-size:12px;line-height:1.2}
 .weapon-trait-entry .weapon-trait-label{padding:3px 0}.weapon-trait-entry .weapon-trait-number{margin-left:5px;color:#fff}.weapon-trait-entry button{padding:2px 7px;border:0;background:transparent;color:#fff;font-size:15px;line-height:1;opacity:.8;cursor:pointer}.weapon-trait-entry button:hover,.weapon-trait-entry button:focus-visible{opacity:1}
-.weapon-icon-trigger{display:grid;place-items:center;width:100%;height:34px;padding:2px;border:1px solid var(--line);border-radius:9px;background:#f8fbfa;color:var(--ink-soft);font-size:10px;cursor:pointer}
+.weapon-icon-trigger{display:grid;place-items:center;width:100%;height:34px;padding:2px;border:1px solid var(--line);border-radius:9px;background:#f8fbfa;color:var(--ink-soft);font-size:12px;cursor:pointer}
 .weapon-icon-trigger:hover,.weapon-icon-trigger:focus-visible{border-color:var(--jade);background:var(--mint);outline:none}
 .weapon-icon-trigger img{width:28px;height:28px;object-fit:contain;image-rendering:pixelated}
 .weapon-icon-options{display:grid;grid-template-columns:repeat(auto-fill,minmax(78px,1fr));align-content:start;gap:8px;padding:12px;overflow:auto}
-.weapon-icon-option{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0;padding:9px 5px;border:1px solid var(--line);border-radius:9px;background:#f8fbfa;color:var(--ink);font-size:11px;cursor:pointer}
+.weapon-icon-option{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0;padding:9px 5px;border:1px solid var(--line);border-radius:9px;background:#f8fbfa;color:var(--ink);font-size:12px;cursor:pointer}
 .weapon-icon-option img{width:44px;height:44px;object-fit:contain;image-rendering:pixelated}.weapon-icon-option:hover,.weapon-icon-option:focus-visible{border-color:var(--jade);background:var(--mint);outline:none}.weapon-icon-option.is-selected{border-color:var(--jade);background:var(--mint);color:var(--pine);font-weight:750}
 @media(max-width:1180px){.weapon-layout{grid-template-columns:minmax(320px,1fr) minmax(0,1.2fr)}.weapon-trait-panel,.weapon-icon-panel{grid-column:2}}
 @media(max-width:900px){.weapon-layout{grid-template-columns:1fr}.weapon-trait-panel,.weapon-icon-panel{grid-column:auto}}@media(max-width:560px){.weapon-editor-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -173,8 +176,8 @@ body.has-modal{overflow:hidden}
 .card-head.plain{border-bottom:0;min-height:auto;padding:0 0 8px}
 .card-body{padding:16px 18px}
 .card-foot{min-height:44px;padding:7px 14px;display:flex;align-items:center;justify-content:space-between;
-  border-top:1px solid var(--line);background:#f8fbfa;color:var(--ink-soft);font-size:11px}
-.step{color:var(--jade);font-size:10px;font-weight:900;letter-spacing:.1em}
+  border-top:1px solid var(--line);background:#f8fbfa;color:var(--ink-soft);font-size:12px}
+.step{color:var(--jade);font-size:11px;font-weight:900;letter-spacing:.1em}
 
 /* ============================================================
    6. 按钮
@@ -193,9 +196,10 @@ body.has-modal{overflow:hidden}
 .btn-ghost:hover{background:var(--mint);color:var(--pine);border-color:transparent}
 .btn-danger{border-color:#f0d3ce;background:#fff;color:var(--danger)}
 .btn-danger:hover{background:#fdf2f0;border-color:#e0b0a8}
-.btn-sm{height:27px;padding:0 10px;font-size:10.5px;border-radius:7px}
+.btn-sm{height:27px;padding:0 10px;font-size:12px;border-radius:7px}
 .btn-block{width:100%}
-.btn:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
+.btn:disabled,.btn:disabled:hover{border-color:var(--line);background:var(--disabled-bg);color:var(--disabled-ink);
+  opacity:1;cursor:not-allowed;box-shadow:none;transform:none}
 .btn.is-busy{pointer-events:none;opacity:.75}
 .spinner{width:13px;height:13px;border:2px solid currentColor;border-right-color:transparent;
   border-radius:50%;animation:spin .7s linear infinite;opacity:.85}
@@ -217,7 +221,7 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%2314312c' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
   background-repeat:no-repeat;background-position:right 9px center;background-size:12px}
 .field{display:block;margin-bottom:12px}
-.field>span{display:block;margin-bottom:5px;color:var(--ink-soft);font-size:11px;font-weight:650}
+.field>span{display:block;margin-bottom:5px;color:var(--ink-soft);font-size:12px;font-weight:650}
 .search{position:relative;display:flex;align-items:center;min-width:0}
 .search svg{position:absolute;left:10px;width:14px;height:14px;stroke:var(--ink-faint);fill:none;
   stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
@@ -228,33 +232,34 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .item-type-filter{width:150px;max-width:100%}
 .item-page-controls{display:flex;align-items:center;gap:8px}
 .item-list-search{padding:12px 16px;border-bottom:1px solid var(--line)}
-.muted{color:var(--ink-faint);font-size:11px}
-.hint-text{margin:10px 0 0;color:var(--ink-faint);font-size:11px;line-height:1.7}
+.muted{color:var(--ink-faint);font-size:12px}
+.hint-text{margin:10px 0 0;color:var(--ink-faint);font-size:12px;line-height:1.7}
 .hint-text b{color:var(--ink-soft);font-weight:750}
 
 /* 分段控件 */
 .segmented{display:inline-flex;padding:3px;border:1px solid var(--line);border-radius:10px;background:#eaf1ee}
 .segmented button{min-height:27px;padding:0 13px;border:0;border-radius:7px;background:transparent;
-  color:var(--ink-soft);font-size:11.5px;font-weight:750}
+  color:var(--ink-soft);font-size:12px;font-weight:750}
 .segmented button.is-active{background:#fff;color:var(--pine);box-shadow:0 3px 10px rgba(20,61,56,.09)}
 .reload-scope-tags{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
-.reload-scope-tag{width:100%;min-height:34px;padding:0 11px;display:flex;align-items:center;justify-content:space-between;gap:12px;
-  border:1px solid var(--line);border-radius:999px;background:#f8fbfa;color:var(--ink-soft);font-size:11px;font-weight:750;
+.reload-scope-tag{width:100%;min-height:36px;padding:0 11px;display:flex;flex-direction:row-reverse;align-items:center;justify-content:flex-end;gap:9px;
+  border:1px solid var(--line);border-radius:9px;background:#f8fbfa;color:var(--ink-soft);font-size:12px;font-weight:750;
   text-align:left;cursor:pointer;transition:background .14s,border-color .14s,color .14s,transform .14s}
-.reload-scope-check{width:16px;height:16px;flex:0 0 16px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;opacity:0;transition:opacity .14s}
-.reload-scope-tag:hover{border-color:var(--jade);color:var(--pine);transform:translateY(-1px)}
+.reload-scope-check{width:16px;height:16px;flex:0 0 16px;padding:1px;fill:none;stroke:transparent;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;
+  border:1.5px solid var(--line-strong);border-radius:4px;background:#fff;transition:background .14s,border-color .14s}
+.reload-scope-tag:hover{border-color:var(--jade);color:var(--pine)}
 .reload-scope-tag:focus-visible{outline:2px solid rgba(0,155,128,.35);outline-offset:2px}
 .reload-scope-tag[aria-pressed="true"]{border-color:#a8d8b5;background:#e5f5e9;color:#216b45}
-.reload-scope-tag[aria-pressed="true"] .reload-scope-check{opacity:1}
+.reload-scope-tag[aria-pressed="true"] .reload-scope-check{border-color:var(--jade);background:var(--jade);stroke:#fff}
 
 /* 问号提示：hover / focus 时用 CSS 气泡显示 data-tip，无需 JS */
 .help-dot{position:relative;width:22px;height:22px;flex:0 0 22px;display:grid;place-items:center;
   padding:0;border:1px solid var(--line-strong);border-radius:50%;background:#fff;color:var(--ink-soft);
-  font:800 11px/1 var(--font-body);cursor:help;transition:.13s ease}
+  font:800 12px/1 var(--font-body);cursor:help;transition:.13s ease}
 .help-dot:hover,.help-dot:focus-visible{border-color:var(--jade);background:var(--mint);color:var(--pine);outline:none}
 .help-dot::after{content:attr(data-tip);position:absolute;left:0;top:calc(100% + 8px);z-index:40;
   width:max-content;max-width:280px;padding:7px 10px;border-radius:8px;background:var(--ink);color:#fff;
-  font:600 11px/1.5 var(--font-body);white-space:normal;text-align:left;box-shadow:var(--shadow-lg);
+  font:600 12px/1.5 var(--font-body);white-space:normal;text-align:left;box-shadow:var(--shadow-lg);
   opacity:0;transform:translateY(-4px);pointer-events:none;transition:.16s ease}
 .help-dot:hover::after,.help-dot:focus-visible::after{opacity:1;transform:translateY(0)}
 
@@ -264,13 +269,11 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .stat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:7px}
 .stat{position:relative;padding:15px 17px;background:rgba(255,255,255,.9);border:1px solid var(--line);
   border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
-.stat::after{content:"";position:absolute;right:-22px;top:-22px;width:66px;height:66px;
-  border-radius:50%;background:var(--mint);opacity:.5}
-.stat-label{display:flex;align-items:center;gap:6px;color:var(--ink-soft);font-size:11px;font-weight:650}
+.stat-label{display:flex;align-items:center;gap:6px;color:var(--ink-soft);font-size:12px;font-weight:650}
 .stat-label svg{width:14px;height:14px;stroke:var(--jade);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .stat-value{margin-top:7px;font:700 27px/1.1 var(--font-display);letter-spacing:-.03em;color:var(--pine);
   font-variant-numeric:tabular-nums}
-.stat-hint{margin-top:4px;color:var(--ink-faint);font-size:10px}
+.stat-hint{margin-top:4px;color:var(--ink-faint);font-size:12px}
 .stat.is-bad .stat-value{color:var(--danger)}
 
 /* ============================================================
@@ -279,11 +282,20 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .cols-2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:7px}
 .cols-main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:7px;align-items:start}
 .mb-7{margin-bottom:7px}
+.cols-main.is-detail-empty{grid-template-columns:minmax(0,1fr)}
+.cols-main.is-detail-empty>.card:last-child{display:none!important}
+.cols-main.has-detail-panel>.card:last-child{animation:detail-in .18s ease-out}
+@keyframes detail-in{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+.detail-head-actions{display:flex;align-items:center;gap:6px;flex:none}
+.detail-close{width:28px;height:28px;display:grid;place-items:center;padding:0;border:0;border-radius:7px;background:transparent;color:var(--ink-faint)}
+.detail-close:hover{background:var(--mint);color:var(--pine)}
+.detail-close svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
 
 /* 健康度 */
 .health-row{display:flex;align-items:center;justify-content:space-between;gap:12px;
   padding:11px 0;border-top:1px solid #edf2f0}
-.health-row:first-child{border-top:0;padding-top:2px}
+.health-row:first-child{border-top:0;padding-top:0}
+.health-row:last-child{padding-bottom:0}
 .health-link{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:1;min-width:0;padding:0;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
 .health-link:hover .health-key{color:var(--pine)}
 .health-link:focus-visible{outline:2px solid var(--jade);outline-offset:4px;border-radius:4px}
@@ -291,7 +303,7 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .health-key i{width:26px;height:26px;flex:0 0 26px;display:grid;place-items:center;border-radius:8px;
   background:var(--mint);color:var(--pine)}
 .health-key svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
-.health-val{color:var(--ink-soft);font-size:11px;text-align:right;overflow:hidden;
+.health-val{color:var(--ink-soft);font-size:12px;text-align:right;overflow:hidden;
   text-overflow:ellipsis;white-space:nowrap;max-width:55%}
 .health-reveal{display:flex;align-items:center;justify-content:flex-end;gap:7px;
   padding:2px 0;border:0;background:transparent;cursor:pointer}
@@ -303,13 +315,22 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 
 /* 快捷操作 */
 .quick-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
-.quick{display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--line);
+.quick{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line);
   border-radius:11px;background:#f8fbfa;color:var(--ink);text-align:left;transition:.13s ease}
 .quick:hover{border-color:var(--jade);background:var(--mint)}
 .quick i{width:30px;height:30px;flex:0 0 30px;display:grid;place-items:center;border-radius:9px;
   background:#fff;color:var(--jade);border:1px solid var(--line)}
 .quick svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .quick b{display:block;font-size:12px}
+.home-log-table{min-width:560px}
+/* 桌面宽度下概览页铺满内容区，最近操作卡片占满剩余高度，底边与左侧导航对齐。 */
+@media (min-width:981px){
+  #view-home:not(.is-hidden){display:flex;flex-direction:column;min-height:calc(100vh - 77px)}
+  .home-log-card{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
+  .home-log-card .table-wrap{flex:1 1 0;min-height:150px}
+}
+.home-log-table th:nth-child(1){width:150px}.home-log-table th:nth-child(2){width:150px}.home-log-table th:nth-child(4){width:72px}
+.log-table.home-log-table td.log-detail{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink-faint);font-family:inherit}
 
 /* ============================================================
    10. 横幅
@@ -321,9 +342,9 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
   background:#fff;color:var(--danger);border:1px solid #f0d3ce}
 .banner svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 .banner b{display:block;color:var(--danger);font-size:12px;margin-bottom:3px}
-.banner code{display:block;margin-top:5px;color:#8a4b3f;font-size:10.5px;line-height:1.6;
+.banner code{display:block;margin-top:5px;color:#8a4b3f;font-size:12px;line-height:1.6;
   word-break:break-all;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
-.banner .btn{margin-top:8px;height:28px;font-size:11px}
+.banner .btn{margin-top:8px;height:28px;font-size:12px}
 
 /* ============================================================
    11. 表格
@@ -334,10 +355,10 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .rate-form{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
 .rate-form .field{margin-bottom:14px}
 .rate-actions{grid-column:1/-1;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.rate-status{min-height:19px;margin-top:10px;color:var(--ok);font-size:11px}
+.rate-status{min-height:19px;margin-top:10px;color:var(--ok);font-size:12px}
 .rate-status.is-bad{color:var(--danger)}
 .game-config-tabs{margin-bottom:10px}
-.dungeon-status{margin-top:10px;font-size:11px;color:var(--ink-soft);overflow-wrap:anywhere}
+.dungeon-status{margin-top:10px;font-size:12px;color:var(--ink-soft);overflow-wrap:anywhere}
 .dungeon-status.is-bad{color:var(--danger)}
 #dungeon-tag[hidden]{display:none}
 .dungeon-empty-loading{display:inline-flex;align-items:center;justify-content:center;gap:7px;color:var(--ink-soft);font-size:12px;font-weight:650}
@@ -357,24 +378,20 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .fate-lock-switch.is-loading::before{content:"";position:absolute;inset:4px;border:2px solid transparent;border-top-color:#fff;
   border-radius:50%;animation:fate-spin .7s linear infinite;z-index:1}
 .fate-lock-actions{display:flex;align-items:center;justify-content:flex-start;gap:10px;margin-top:8px}
-.fate-lock-actions-note,.dungeon-toolbar-note{color:var(--ink-faint);font-size:11px}
+.fate-lock-actions-note,.dungeon-toolbar-note{color:var(--ink-faint);font-size:12px}
 @keyframes fate-spin{to{transform:rotate(360deg)}}
-.fate-lock-status{min-height:0;margin-top:7px;color:var(--ok);font-size:11px;overflow-wrap:anywhere}
+.fate-lock-status{min-height:0;margin-top:7px;color:var(--ok);font-size:12px;overflow-wrap:anywhere}
 .fate-lock-status.is-bad{color:var(--danger)}
 .definition-card{width:100%}
 .definition-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
-.skill-limits-loading{display:inline-flex;align-items:center;gap:7px;color:var(--ink-soft);font-size:11px;font-weight:650}
+.skill-limits-loading{display:inline-flex;align-items:center;gap:7px;color:var(--ink-soft);font-size:12px;font-weight:650}
 .skill-limits-loading[hidden]{display:none}
-.skill-limits-toolbar{display:grid;grid-template-columns:minmax(140px,.6fr) minmax(190px,1fr) auto;align-items:end;gap:9px;margin:14px 0 8px}
+.skill-limits-toolbar{display:grid;grid-template-columns:minmax(140px,.6fr) minmax(130px,.5fr) minmax(190px,1fr) auto;align-items:end;gap:9px;margin:0 0 8px}
 .skill-limits-toolbar .field{min-width:0;margin:0}
 .skill-limits-toolbar input[type=search]{min-width:0;height:34px}
-.skill-limits-profession-filter{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin:2px 0 8px}
-.skill-limits-profession-filter button{height:27px;padding:0 9px;border:1px solid var(--line);border-radius:7px;background:#fff;color:var(--ink-soft);font-size:10.5px;font-weight:650;cursor:pointer}
-.skill-limits-profession-filter button:hover{border-color:var(--jade);color:var(--pine)}
-.skill-limits-profession-filter button.is-active{border-color:var(--jade);background:var(--mint);color:var(--pine)}
 .skill-confirm-list{max-height:min(55vh,420px);margin:0;padding:0 0 0 24px;overflow:auto}
 .skill-confirm-list li{padding:3px 0;color:var(--ink);font-size:12px;line-height:1.5}
-.profession-skill-toolbar{display:grid;grid-template-columns:minmax(190px,.7fr) minmax(220px,1fr);gap:10px;align-items:end;margin:6px 0 14px}
+.profession-skill-toolbar{display:grid;grid-template-columns:minmax(190px,.7fr) minmax(220px,1fr) auto;gap:10px;align-items:end;margin:0 0 14px}
 .profession-skill-toolbar .field{min-width:0;margin:0}
 .profession-skill-layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(330px,.75fr);gap:12px;align-items:start}
 .profession-skill-layout .definition-table-wrap{height:min(58vh,500px);min-height:300px}
@@ -391,11 +408,11 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .profession-skill-editor{min-width:0;padding:16px;border:1px solid #cfe4da;border-radius:11px;background:#fff;box-shadow:0 5px 18px rgba(12,69,55,.055)}
 .profession-skill-editor-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;min-width:0;padding-bottom:13px;border-bottom:1px solid var(--line)}
 .profession-skill-editor h4{min-width:0;margin:0;color:var(--pine);font-size:16px;line-height:1.3;overflow-wrap:anywhere}
-.profession-skill-editor-id{flex:none;margin:0;color:var(--ink-faint);font:650 11px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace}
+.profession-skill-editor-id{flex:none;margin:0;color:var(--ink-faint);font:650 12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace}
 .profession-skill-editor-id:empty{display:none}
 .profession-skill-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:14px 0 12px}
 .profession-skill-editor .field{min-width:0;margin:0}
-.profession-skill-editor .field>span{font-size:11px;font-weight:750;color:var(--ink)}
+.profession-skill-editor .field>span{font-size:12px;font-weight:750;color:var(--ink)}
 .profession-skill-editor input{height:38px;background:#fbfdfc;font-variant-numeric:tabular-nums}
 .profession-skill-editor input:disabled{background:#f3f6f4;color:var(--ink-faint)}
 .profession-skill-stage{height:38px}
@@ -403,7 +420,7 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .profession-skill-pending .card-head{min-height:48px;padding:0 14px}
 .profession-skill-pending .card-body{padding:12px 14px 14px}
 .profession-skill-pending-title{display:flex;align-items:center;gap:8px;min-width:0}
-.profession-skill-pending-clear{padding:4px 2px;border:0;background:transparent;color:var(--ink-soft);font-size:11px;cursor:pointer}
+.profession-skill-pending-clear{padding:4px 2px;border:0;background:transparent;color:var(--ink-soft);font-size:12px;cursor:pointer}
 .profession-skill-pending-clear:hover:not(:disabled),.profession-skill-pending-clear:focus-visible{color:var(--danger);outline:0;text-decoration:underline}
 .profession-skill-pending-clear:disabled{opacity:.5;cursor:default}
 .profession-skill-pending-list{display:grid;gap:7px;max-height:210px;overflow:auto}
@@ -411,28 +428,43 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .profession-skill-pending-item{display:grid;grid-template-columns:minmax(0,1fr) 30px;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:#f8fbfa}
 .profession-skill-pending-detail{min-width:0;display:grid;gap:3px}
 .profession-skill-pending-detail b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink);font-size:12px}
-.profession-skill-pending-detail small{color:var(--ink-faint);font-size:10px;line-height:1.4}
+.profession-skill-pending-detail small{color:var(--ink-faint);font-size:12px;line-height:1.4}
 .profession-skill-pending-apply{width:100%;height:38px;margin-top:12px}
 @media(max-width:860px){.profession-skill-layout{grid-template-columns:minmax(0,1fr)}.profession-skill-layout .definition-table-wrap{height:min(45vh,380px);min-height:230px}}
 @media(max-width:640px){.profession-skill-toolbar{grid-template-columns:1fr}}
 @media(max-width:420px){.profession-skill-fields{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:640px){.skill-limits-toolbar{grid-template-columns:minmax(0,1fr) auto}.skill-limits-toolbar .field{grid-column:1/-1}}
 .skill-limits-hint{color:var(--ink-faint);font-size:12px;margin:8px 0}
+.skill-limits-meta{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0}
+/* 工具栏内的状态提示：紧凑胶囊，过长时省略，悬停看全文。 */
+.toolbar-status{display:inline-block;max-width:min(460px,45%);height:24px;padding:0 10px;border-radius:99px;
+  background:var(--mint);color:var(--pine);font-size:12px;font-weight:650;line-height:24px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:middle;flex:0 1 auto;min-width:0}
+.toolbar-status.is-bad{background:#fbecea;color:var(--danger)}
+.toolbar-status:empty{display:none}
+.definition-toolbar .toolbar-status{margin-left:auto;max-width:360px;flex:0 1 auto}
+@media (min-width:981px){
+  .definition-toolbar:has(.toolbar-status){flex-wrap:nowrap}
+  .definition-toolbar:has(.toolbar-status)>:not(.toolbar-status):not(input){flex-shrink:0}
+}
+.definition-toolbar .toolbar-status:not(:empty)~.tag{margin-left:0}
+.profession-skill-toolbar .toolbar-status{align-self:center;justify-self:end;max-width:320px}
+.summon-config-toolbar .toolbar-status{grid-column:1/-1;justify-self:start;max-width:100%}
 .skill-limits-check{width:16px;height:16px;accent-color:var(--jade)}
 .skill-limits-actions{white-space:nowrap}
-.summon-config-toolbar{display:grid;grid-template-columns:minmax(130px,.7fr) minmax(210px,1.4fr) minmax(180px,1fr) auto;align-items:end;gap:10px;margin:6px 0 14px}
+.summon-config-toolbar{display:grid;grid-template-columns:minmax(130px,.7fr) minmax(210px,1.4fr) minmax(180px,1fr) auto;align-items:end;gap:10px;margin:0 0 14px}
 .summon-config-toolbar .field{min-width:0;margin:0}
 .summon-config-toolbar #summon-apply{justify-self:end}
 .summon-creature-search input{height:34px}
-.summon-selection-summary{margin:0 0 12px;font-size:11px}
+.summon-selection-summary{margin:0 0 12px;font-size:12px}
 .summon-skills-layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(230px,.85fr) minmax(210px,.75fr);align-items:stretch;gap:12px}
 .summon-skills-layout .definition-table-wrap{height:min(54vh,460px);min-height:300px}
 .summon-attributes-section{min-width:0;height:min(54vh,460px);min-height:300px;overflow:auto;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#f8fbf9}
 .summon-attributes-list{display:grid;gap:5px;margin:0}
 .summon-attributes-list div{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--line)}
-.summon-attributes-list dt{color:var(--ink-soft);font-size:11px}
-.summon-attributes-list dd{margin:0;color:var(--ink);font-size:11px;font-weight:650;font-variant-numeric:tabular-nums;text-align:right;overflow-wrap:anywhere}
-.summon-attributes-subtitle{margin-top:10px;color:var(--ink-faint);font-size:10px}
+.summon-attributes-list dt{color:var(--ink-soft);font-size:12px}
+.summon-attributes-list dd{margin:0;color:var(--ink);font-size:12px;font-weight:650;font-variant-numeric:tabular-nums;text-align:right;overflow-wrap:anywhere}
+.summon-attributes-subtitle{margin-top:10px;color:var(--ink-faint);font-size:12px}
 .definition-table.summon-skill-table{width:100%;min-width:0;table-layout:fixed}
 .definition-table.summon-skill-table th:first-child,.definition-table.summon-skill-table td:first-child{width:48px;text-align:center}
 .definition-table.summon-skill-table th:nth-child(2),.definition-table.summon-skill-table td:nth-child(2){width:88px}
@@ -448,10 +480,10 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .summon-order-item.is-dragging{opacity:.42}
 .summon-order-grip{color:var(--ink-faint);font-size:15px;line-height:1;cursor:grab;user-select:none;touch-action:none}
 .summon-order-item:active .summon-order-grip{cursor:grabbing}
-.summon-order-number{display:grid;place-items:center;width:20px;height:20px;border-radius:6px;background:var(--mint);color:var(--pine);font-size:10px;font-weight:750}
+.summon-order-number{display:grid;place-items:center;width:20px;height:20px;border-radius:6px;background:var(--mint);color:var(--pine);font-size:11px;font-weight:750}
 .summon-order-name{min-width:0;overflow-wrap:anywhere;font-size:12px;font-weight:650}
-.summon-order-cooldown{color:var(--ink-soft);font-size:11px;font-variant-numeric:tabular-nums;white-space:nowrap}
-.summon-order-empty{padding:7px 2px;color:var(--ink-faint);font-size:11px}
+.summon-order-cooldown{color:var(--ink-soft);font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.summon-order-empty{padding:7px 2px;color:var(--ink-faint);font-size:12px}
 @media(max-width:760px){.summon-config-toolbar{grid-template-columns:minmax(130px,.7fr) minmax(210px,1.4fr)}.summon-config-toolbar .field:nth-child(2){grid-column:2}.summon-creature-search{grid-column:1}}
 @media(max-width:460px){.summon-config-toolbar{grid-template-columns:minmax(0,1fr) auto}.summon-config-toolbar .field:nth-child(1),.summon-config-toolbar .field:nth-child(2){grid-column:1/-1}}
 @media(max-width:900px){.summon-skills-layout{grid-template-columns:minmax(0,1.4fr) minmax(220px,.8fr)}.summon-order-section{grid-column:1/-1}.summon-attributes-section{height:auto;min-height:0;max-height:300px}}
@@ -478,8 +510,8 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .definition-table tbody tr{cursor:default}
 .definition-table tbody tr:hover{background:#f7fbf9}
 .definition-table tbody tr.is-changed{background:#f0faf6}
-.definition-id{font:650 11px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--ink-faint)}
-.definition-description{white-space:normal!important;line-height:1.45;color:var(--ink-soft);font-size:11px}
+.definition-id{font:650 12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--ink-faint)}
+.definition-description{white-space:normal!important;line-height:1.45;color:var(--ink-soft);font-size:12px}
 .definition-value{width:100%;min-width:100px;height:30px;padding:4px 8px;border:1px solid transparent;border-radius:7px;
   background:transparent;color:var(--ink);font:12px/1.35 ui-monospace,SFMono-Regular,Menlo,monospace;transition:.13s ease}
 .definition-value:hover{border-color:var(--line);background:#fff}
@@ -505,8 +537,8 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .ride-config-item.is-active{border-color:var(--jade);background:var(--mint)}
 .ride-config-item.is-changed{box-shadow:inset 3px 0 var(--danger)}
 .ride-config-item b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
-.ride-config-item small{color:var(--ink-faint);font-size:10px}
-.ride-config-item span{grid-column:1/-1;color:var(--ink-soft);font-size:11px}
+.ride-config-item small{color:var(--ink-faint);font-size:12px}
+.ride-config-item span{grid-column:1/-1;color:var(--ink-soft);font-size:12px}
 .ride-config-editor-card .card-body{padding:18px}
 .ride-config-editor-card .card-head h3{min-width:0;overflow-wrap:anywhere}
 .ride-config-editor-card .card-head{gap:10px}
@@ -515,7 +547,7 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .ride-config-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 12px}
 .ride-config-fields .field{min-width:0;margin:0}
 .ride-config-fields input,.ride-config-fields select{height:38px;background-color:#fbfdfc}
-.ride-config-shared{grid-column:1/-1;color:var(--ink-faint);font-size:11px;line-height:1.5}
+.ride-config-shared{grid-column:1/-1;color:var(--ink-faint);font-size:12px;line-height:1.5}
 .ride-config-shared-link{border:0;padding:0;background:none;color:var(--jade);font:inherit;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
 .ride-config-shared-link:hover{color:var(--pine)}
 .ride-config-shared-list{margin:0;padding-left:20px;max-height:min(50vh,360px);overflow:auto;color:var(--ink)}
@@ -531,7 +563,7 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .definition-favorite.is-favorite svg{fill:currentColor;transform:scale(1.05)}
 .definition-favorite:active{transform:scale(.92)}
 .definition-favorite:focus-visible{outline:2px solid var(--jade);outline-offset:2px}
-.definition-status{min-height:19px;margin-top:9px;color:var(--ok);font-size:11px}
+.definition-status{min-height:19px;margin-top:9px;color:var(--ok);font-size:12px}
 .definition-status.is-bad{color:var(--danger)}
 .sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;
   overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
@@ -542,15 +574,23 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .btn-icon-add{width:28px;padding:0;justify-content:center;border-color:transparent;background:var(--mint);color:var(--pine)}
 .btn-icon-add:hover{border-color:var(--jade);background:var(--mint-deep);color:var(--pine)}
 .btn-icon-add svg{width:15px;height:15px}
+#it-rows tr.is-static{cursor:pointer}
+#it-rows tr.is-static:hover{background:#f2faf7}
+@media (hover:hover){
+  #it-rows .btn-icon-add{opacity:0;transition:opacity .12s}
+  #it-rows tr:hover .btn-icon-add,#it-rows .btn-icon-add:focus-visible{opacity:1}
+}
+#cart:has(.cart-empty){height:auto}
+#cart .cart-empty{padding:18px 12px}
 table{width:100%;border-collapse:collapse;font-size:12px}
 th{position:sticky;top:0;z-index:2;padding:9px 14px;text-align:left;color:#718783;background:#f5f9f7;
-  border-bottom:1px solid var(--line);font-size:10px;font-weight:700;letter-spacing:.05em;white-space:nowrap}
+  border-bottom:1px solid var(--line);font-size:12px;font-weight:700;letter-spacing:.05em;white-space:nowrap}
 td{padding:10px 14px;border-bottom:1px solid #edf2f0;white-space:nowrap;color:var(--ink)}
 td.num{font-variant-numeric:tabular-nums;color:var(--ink-soft)}
 td.item-type{color:var(--ink-soft)}
 td.wrap{white-space:normal;line-height:1.6}
 .log-table{table-layout:fixed;min-width:520px}
-.log-table .log-detail{overflow-wrap:anywhere;word-break:break-word;font-family:ui-monospace,Menlo,monospace;font-size:11px}
+.log-table .log-detail{overflow-wrap:anywhere;word-break:break-word;font-family:ui-monospace,Menlo,monospace;font-size:12px}
 tbody tr{cursor:pointer;transition:background .12s ease}
 tbody tr:hover{background:#f2faf7}
 tbody tr.is-selected{background:var(--mint)}
@@ -570,7 +610,7 @@ tbody tr.is-static:hover{background:transparent}
 .row-context-menu svg{width:16px;height:16px;flex:0 0 16px;fill:none;stroke:currentColor;stroke-width:1.8;
   stroke-linecap:round;stroke-linejoin:round}
 .tag{display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 8px;border-radius:99px;
-  background:#eef1f5;color:var(--ink-soft);font-size:10px;font-weight:700;vertical-align:middle}
+  background:#eef1f5;color:var(--ink-soft);font-size:12px;font-weight:700;vertical-align:middle}
 .tag::before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.7}
 .tag.ok{background:#e6f4ee;color:var(--ok)}
 .tag.warn{background:#fdf3e6;color:var(--warn)}
@@ -578,10 +618,10 @@ tbody tr.is-static:hover{background:transparent}
 .tag.gm{background:#f0eafa;color:#7545a4}
 .tag.plain::before{display:none}
 .pager{min-height:44px;padding:6px 14px;display:flex;align-items:center;justify-content:space-between;
-  border-top:1px solid var(--line);background:#f8fbfa;color:var(--ink-soft);font-size:11px}
+  border-top:1px solid var(--line);background:#f8fbfa;color:var(--ink-soft);font-size:12px}
 .pager div{display:flex;gap:5px}
 .pager button{height:27px;padding:0 10px;border:1px solid var(--line);border-radius:7px;background:#fff;
-  color:var(--ink-soft);font-size:10.5px;font-weight:650}
+  color:var(--ink-soft);font-size:12px;font-weight:650}
 .pager button:hover:not(:disabled){border-color:var(--jade);color:var(--pine)}
 .pager button:disabled{opacity:.4;cursor:not-allowed}
 
@@ -593,7 +633,7 @@ tbody tr.is-static:hover{background:transparent}
 .sk-row:nth-child(2n){width:88%}
 .sk-row:nth-child(3n){width:72%}
 @keyframes sk{0%{background-position:100% 50%}100%{background-position:0 50%}}
-.empty{padding:38px 16px;text-align:center;color:var(--ink-faint);font-size:11.5px}
+.empty{padding:38px 16px;text-align:center;color:var(--ink-faint);font-size:12px}
 .empty i{width:38px;height:38px;margin:0 auto 10px;display:grid;place-items:center;border-radius:12px;
   background:#f2f8f5;color:#a8bdb7;border:1px solid var(--line)}
 .empty svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
@@ -603,43 +643,43 @@ tbody tr.is-static:hover{background:transparent}
    12. 详情面板
    ============================================================ */
 .kv{display:grid;grid-template-columns:78px minmax(0,1fr);gap:9px 12px;font-size:12px}
-.kv dt{color:var(--ink-faint);font-size:11px}
+.kv dt{color:var(--ink-faint);font-size:12px}
 .kv dd{margin:0;color:var(--ink);font-weight:650;overflow-wrap:anywhere}
 .kv dd .muted{font-weight:500}
 #acct-detail-title,#char-detail-title{flex-wrap:wrap;gap:4px 6px;line-height:1.25}
 #acct-detail-title .account-name{font-size:14px;font-weight:850;color:var(--pine)}
-#acct-detail-title .account-id{font:650 10.5px/1.3 var(--font-body);color:var(--ink-soft);letter-spacing:.01em;font-variant-numeric:tabular-nums}
+#acct-detail-title .account-id{font:650 12px/1.3 var(--font-body);color:var(--ink-soft);letter-spacing:.01em;font-variant-numeric:tabular-nums}
 #char-detail-title .char-name{font-size:14px;font-weight:850;color:var(--pine)}
-#char-detail-title .char-id{font:650 10.5px/1.3 var(--font-body);color:var(--ink-soft);font-variant-numeric:tabular-nums}
+#char-detail-title .char-id{font:650 12px/1.3 var(--font-body);color:var(--ink-soft);font-variant-numeric:tabular-nums}
 #char-detail-tag{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:4px}
 #acct-detail .account-kv{grid-template-columns:76px minmax(0,1fr);align-items:center;gap:13px 12px}
-#acct-detail .account-kv dt{color:var(--ink-soft);font-size:11px;font-weight:650}
+#acct-detail .account-kv dt{color:var(--ink-soft);font-size:12px;font-weight:650}
 #acct-detail .account-kv dd{font-size:12px;font-weight:700}
 #acct-detail .account-point{color:var(--pine);font:800 22px/1.1 var(--font-display);font-variant-numeric:tabular-nums;letter-spacing:-.025em}
-#acct-detail .account-frozen{display:inline-block;margin-left:4px;color:var(--ink-soft);font:600 11px/1.4 var(--font-body);letter-spacing:0}
-#acct-detail .account-ban-date{margin-left:6px;color:var(--danger);font-size:11px;font-weight:650;font-variant-numeric:tabular-nums}
+#acct-detail .account-frozen{display:inline-block;margin-left:4px;color:var(--ink-soft);font:600 12px/1.4 var(--font-body);letter-spacing:0}
+#acct-detail .account-ban-date{margin-left:6px;color:var(--danger);font-size:12px;font-weight:650;font-variant-numeric:tabular-nums}
 #acct-detail .detail-sub h4{font-size:12px}
 #acct-detail .detail-sub td:first-child{color:var(--ink);font-weight:750}
 #acct-detail .detail-sub td:nth-child(2){color:var(--ink-soft)}
 #char-detail .char-kv{grid-template-columns:74px minmax(0,1fr);align-items:baseline;gap:11px 10px}
-#char-detail .char-kv dt{color:var(--ink-soft);font-size:11px;font-weight:650}
+#char-detail .char-kv dt{color:var(--ink-soft);font-size:12px;font-weight:650}
 #char-detail .char-kv dd{font-size:12px;font-weight:650}
 #char-detail .char-strong{color:var(--ink);font-weight:800}
 #char-detail .char-scene{color:var(--pine);font-weight:800}
-#char-detail .char-meta{margin-left:4px;color:var(--ink-soft);font-size:10.5px;font-weight:550;overflow-wrap:anywhere}
+#char-detail .char-meta{margin-left:4px;color:var(--ink-soft);font-size:12px;font-weight:550;overflow-wrap:anywhere}
 #char-detail .char-date{font-variant-numeric:tabular-nums}
-#char-detail .char-date{color:var(--ink-soft);font-size:11px}
+#char-detail .char-date{color:var(--ink-soft);font-size:12px}
 #char-detail .char-point{color:var(--pine);font:800 19px/1.1 var(--font-display);font-variant-numeric:tabular-nums}
-#char-detail .char-frozen{display:inline-block;margin-left:4px;color:var(--ink-soft);font-size:10.5px;font-weight:550}
+#char-detail .char-frozen{display:inline-block;margin-left:4px;color:var(--ink-soft);font-size:12px;font-weight:550}
 #char-detail .char-section{margin-top:16px;padding:13px;border:1px solid var(--line);border-radius:11px;background:#fbfdfc}
 #char-detail .char-section h4{margin:0 0 11px;color:var(--pine);font-size:12px;font-weight:800}
 .char-coord-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px}
-.char-coord-grid label{min-width:0;color:var(--ink-soft);font-size:11px;font-weight:750}
+.char-coord-grid label{min-width:0;color:var(--ink-soft);font-size:12px;font-weight:750}
 .char-coord-grid label span{display:block;margin-bottom:5px}
 .char-coord-grid input{width:100%;font-variant-numeric:tabular-nums}
 #char-detail .char-action-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 #char-detail .char-action-btn{width:100%;min-height:38px;justify-content:flex-start;gap:7px;padding:0 10px;
-  border-color:#bed9cd;background:#fff;color:var(--pine);font-size:11px;font-weight:750}
+  border-color:#bed9cd;background:#fff;color:var(--pine);font-size:12px;font-weight:750}
 #char-detail .char-action-btn:hover{border-color:var(--jade);background:#e8f6ef;color:#08775f}
 #char-detail .char-action-btn svg{width:15px;height:15px;flex:none;stroke:currentColor;fill:none;
   stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -649,8 +689,8 @@ tbody tr.is-static:hover{background:transparent}
 #char-detail .char-danger{margin-top:16px;padding:12px 13px;border:1px solid #efd3cd;border-radius:11px;background:#fdf7f5}
 #char-detail .char-danger>b{display:block;margin-bottom:8px;color:var(--danger);font-size:12px;font-weight:800}
 .detail-sub{margin:16px 0 0;padding-top:14px;border-top:1px solid var(--line)}
-.detail-sub h4{margin:0 0 8px;font-size:11.5px;color:var(--pine);font-weight:800}
-.detail-sub table{font-size:11.5px}
+.detail-sub h4{margin:0 0 8px;font-size:12px;color:var(--pine);font-weight:800}
+.detail-sub table{font-size:12px}
 .detail-sub th{padding:7px 10px}
 .detail-sub td{padding:7px 10px}
 .detail-sub .table-wrap{max-height:190px}
@@ -658,7 +698,7 @@ tbody tr.is-static:hover{background:transparent}
 .account-actions>b{display:block;color:var(--pine);font-size:12px;margin-bottom:9px;font-weight:800}
 .account-actions .toolbar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .account-actions .account-action-btn{width:100%;height:37px;justify-content:center;gap:7px;border-color:#bed9cd;
-  background:#fff;color:var(--pine);font-size:11.5px;font-weight:750;box-shadow:0 2px 5px rgba(20,61,56,.04)}
+  background:#fff;color:var(--pine);font-size:12px;font-weight:750;box-shadow:0 2px 5px rgba(20,61,56,.04)}
 .account-actions .account-action-btn:hover{border-color:var(--jade);background:#e8f6ef;color:#08775f;
   box-shadow:0 3px 9px rgba(20,61,56,.08)}
 .account-actions .account-action-btn.is-primary{grid-column:1/-1;border-color:var(--jade);background:var(--jade);color:#fff}
@@ -672,18 +712,18 @@ tbody tr.is-static:hover{background:transparent}
 .account-form .modal-head i{width:38px;height:38px;flex:0 0 38px;border-radius:11px;background:#e6f5ee;color:var(--pine)}
 .account-form .modal-head svg{width:19px;height:19px;stroke-width:1.8;stroke-linejoin:round}
 .account-form .modal-head h3{font-size:16px;color:var(--pine);line-height:1.3}
-.account-form .modal-account{margin:3px 0 0;color:var(--ink-soft);font-size:11.5px;line-height:1.35;overflow-wrap:anywhere}
+.account-form .modal-account{margin:3px 0 0;color:var(--ink-soft);font-size:12px;line-height:1.35;overflow-wrap:anywhere}
 .account-form .modal-body{padding:18px 22px 20px}
 .account-form .field{margin:0 0 14px}
 .account-form .field:last-of-type{margin-bottom:0}
-.account-form .field>span{margin-bottom:6px;color:var(--ink);font-size:11.5px;font-weight:750}
+.account-form .field>span{margin-bottom:6px;color:var(--ink);font-size:12px;font-weight:750}
 .account-form .field input,.account-form .field select{height:40px;background:#fff;font-size:12px}
 .account-form .modal-foot{padding:13px 22px;background:#f6faf8}
 .account-form .modal-foot .btn{height:36px;min-width:88px}
 .account-form .modal-foot [type=submit]{min-width:104px}
 .account-form .modal-foot [type=submit]:disabled{opacity:.82;cursor:wait}
 .account-form .form-error{margin-top:10px;padding:8px 10px;border-radius:8px;background:#fdf0ee;
-  color:var(--danger);font-size:11px;line-height:1.5}
+  color:var(--danger);font-size:12px;line-height:1.5}
 .account-form .form-error:empty{display:none}
 
 /* ============================================================
@@ -696,28 +736,30 @@ tbody tr.is-static:hover{background:transparent}
   padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:#f8fbfa;margin-bottom:7px}
 .cart-title{display:flex;align-items:baseline;gap:5px;min-width:0}
 .cart-title b{min-width:0;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.cart-title small{flex:none;color:var(--ink-faint);font-size:10px}
-.cart-item input{height:29px;text-align:center;font-size:11.5px;font-weight:700}
+.cart-title small{flex:none;color:var(--ink-faint);font-size:12px}
+.cart-item input{height:29px;text-align:center;font-size:12px;font-weight:700}
 .cart-remove{width:30px;height:30px;display:grid;place-items:center;border:0;border-radius:7px;cursor:pointer;
   background:#fdf0ee;color:var(--danger)}
 .cart-remove svg{width:15px;height:15px;stroke:currentColor;fill:none;
   stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .cart-remove:hover,.cart-remove:focus-visible{background:#f9d9d3;color:#a13d2e;outline:0}
-.cart-empty{padding:26px 12px;text-align:center;color:var(--ink-faint);font-size:11px;
+.cart-empty{padding:26px 12px;text-align:center;color:var(--ink-faint);font-size:12px;
   border:1px dashed var(--line-strong);border-radius:10px}
 .cart-target{margin-top:12px}
 .shop-suggestions{max-height:220px;overflow:auto;margin-top:-6px;margin-bottom:10px;border:1px solid var(--line);
   border-radius:10px;background:#fff;box-shadow:0 8px 20px rgba(20,61,56,.08)}
 .shop-suggestion{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 11px;
-  border:0;border-bottom:1px solid #edf2f0;background:#fff;color:var(--ink);text-align:left;font-size:11.5px}
+  border:0;border-bottom:1px solid #edf2f0;background:#fff;color:var(--ink);text-align:left;font-size:12px}
 .shop-suggestion:last-child{border-bottom:0}
 .shop-suggestion:hover{background:#f2f8f6}
 .shop-suggestion small{color:var(--ink-faint);font-variant-numeric:tabular-nums}
 .shop-row-warning{background:#fdf6ed!important;color:#855a1c}
 .shop-selected{min-height:38px;display:flex;align-items:center;padding:8px 11px;border:1px dashed var(--line-strong);
-  border-radius:9px;background:#f8fbfa;color:var(--ink-faint);font-size:11.5px}
+  border-radius:9px;background:#f8fbfa;color:var(--ink-faint);font-size:12px}
 .shop-selected.is-set{border-style:solid;border-color:#bdddd3;background:var(--mint);color:var(--pine);font-weight:700}
-.shop-status{margin-top:10px;color:var(--ink-soft);font-size:11px;line-height:1.6;white-space:pre-wrap}
+.shop-status{margin-top:10px;color:var(--ink-soft);font-size:12px;line-height:1.6;white-space:pre-wrap}
+/* 状态行没有内容时不占位，卡片上下内边距保持一致。 */
+:is(.rate-status,.dungeon-status,.fate-lock-status,.definition-status,.shop-status):empty{display:none}
 .shop-status:empty{display:none}
 .shop-status.is-error{color:var(--danger)}
 .shop-status.is-success{color:var(--pine)}
@@ -726,11 +768,11 @@ tbody tr.is-static:hover{background:transparent}
 .backpack-price-fields{display:grid;grid-template-columns:minmax(0,1fr) 96px;gap:8px;margin:12px 0 4px}
 .backpack-table-wrap{max-height:calc(100vh - 310px);min-height:260px}
 .backpack-product-name{font-weight:650}
-.backpack-product-meta{font-size:11px;color:var(--ink-faint)}
+.backpack-product-meta{font-size:12px;color:var(--ink-faint)}
 .backpack-money-icon{width:16px;height:16px;object-fit:contain;vertical-align:middle;margin-left:3px}
 .backpack-range{display:flex;flex-wrap:wrap;gap:4px}
-.backpack-range span{padding:3px 6px;border-radius:6px;background:#eef4f1;color:var(--pine);font-size:10px;white-space:nowrap}
-.backpack-runtime{padding:0 0 8px;font-size:11px;line-height:1.5;color:var(--ink-soft)}
+.backpack-range span{padding:3px 6px;border-radius:6px;background:#eef4f1;color:var(--pine);font-size:12px;white-space:nowrap}
+.backpack-runtime{padding:0 0 8px;font-size:12px;line-height:1.5;color:var(--ink-soft)}
 .backpack-runtime:empty{display:none}
 .backpack-runtime.is-warning{color:#855a1c}
 #item-panel-backpack .shop-grid{align-items:stretch}
@@ -742,12 +784,12 @@ tbody tr.is-static:hover{background:transparent}
 .backpack-draft .card-body{display:flex;flex-direction:column;flex:1;min-height:0}
 .backpack-draft-rows{height:210px;flex:1;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:var(--line-strong) transparent}
 .backpack-draft-row{grid-template-columns:minmax(0,1fr) 30px}
-.backpack-draft-row .meta{margin-top:4px;color:var(--ink-faint);font-size:11px}
+.backpack-draft-row .meta{margin-top:4px;color:var(--ink-faint);font-size:12px}
 .backpack-draft-queue{margin-top:12px;height:38px}
 .shop-catalog-card{grid-area:catalog}
 .shop-add-card{grid-area:add}
 .shop-batch-tools{display:flex;align-items:center;gap:8px;min-width:0}
-.shop-batch-tools label{display:flex;align-items:center;gap:6px;margin:0;color:var(--ink-soft);font-size:10.5px;white-space:nowrap}
+.shop-batch-tools label{display:flex;align-items:center;gap:6px;margin:0;color:var(--ink-soft);font-size:12px;white-space:nowrap}
 .shop-batch-tools input{width:14px;height:14px;accent-color:var(--jade)}
 .item-check-result ul{margin:5px 0 0;padding-left:18px}
 .item-check-result li{margin:2px 0}
@@ -758,11 +800,11 @@ tbody tr.is-static:hover{background:transparent}
    ============================================================ */
 .chip-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .chip{height:26px;padding:0 11px;border:1px solid var(--line);border-radius:99px;background:#f8fbfa;
-  color:var(--ink-soft);font-size:11px;font-weight:700}
+  color:var(--ink-soft);font-size:12px;font-weight:700}
 .chip:hover{border-color:var(--jade);background:var(--mint);color:var(--pine)}
 .result-big{margin:6px 0 14px;font:700 32px/1.1 var(--font-display);color:var(--pine);
   letter-spacing:-.03em;font-variant-numeric:tabular-nums}
-.delta{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:750}
+.delta{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:750}
 .delta.up{color:var(--danger)}
 .delta.down{color:var(--ok)}
 
@@ -789,7 +831,7 @@ tbody tr.is-static:hover{background:transparent}
   align-items:center;gap:9px;flex-wrap:wrap;background:rgba(255,255,255,.94);
   border:1px solid var(--line);border-radius:12px;box-shadow:0 6px 24px rgba(20,61,56,.06)}
 .config-form .form-actions{grid-column:1/-1;margin-top:0;padding:10px 14px}
-.form-actions .status{color:var(--ink-soft);font-size:11px;margin-left:auto;max-width:52%;
+.form-actions .status{color:var(--ink-soft);font-size:12px;margin-left:auto;max-width:52%;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .form-actions .status.is-bad{color:var(--danger)}
 
@@ -861,7 +903,7 @@ tbody tr.is-static:hover{background:transparent}
   .rail-footer{flex:none;margin:0 4px 0 auto}
   .rail-version{display:none}
   .theme-picker{padding:0}
-  .stage{padding:9px 9px 0;border-radius:14px;height:auto;min-height:0;overflow:visible}
+  .stage{padding:4px 0 0;height:auto;min-height:0;overflow:visible}
   .stage-inner::after{height:9px}
   .stat-grid{grid-template-columns:1fr 1fr}
   .view-actions{justify-content:flex-start;flex-wrap:wrap}
@@ -876,6 +918,22 @@ tbody tr.is-static:hover{background:transparent}
 @media (max-width:760px){.server-control-grid{grid-template-columns:minmax(0,1fr)}}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}
+}
+/* 桌面宽度下，主列表卡片底边与左侧导航对齐。 */
+@media (min-width:981px){
+  .table-wrap.tall{height:calc(100vh - 244px)}
+  #item-panel-weapon .table-wrap.tall{height:calc(100vh - 236px)}
+  #item-panel-custom .table-wrap.tall{height:calc(100vh - 209px)}
+  .definition-table-wrap{height:calc(100vh - 248px)}
+  #game-config-panel-base .definition-table-wrap,
+  #game-config-panel-dynamic .definition-table-wrap{height:calc(100vh - 209px)}
+  #game-config-panel-dungeon .definition-table-wrap{height:calc(100vh - 209px)}
+  .profession-skill-layout .definition-table-wrap{height:calc(100vh - 203px)}
+  .summon-skills-layout .definition-table-wrap,.summon-attributes-section{height:calc(100vh - 258px)}
+  .ride-config-list{height:calc(100vh - 201px)}
+}
+@media (min-width:1181px){
+  #acct-panel-char .cols-main>.card:last-child{height:calc(100vh - 188px)}
 }
 /* 原生下拉框及选项使用温暖的深棕色。 */
 :root[data-theme="orange"] select{color:#684a3d;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23684a3d' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E")}
@@ -917,6 +975,8 @@ tbody tr.is-static:hover{background:transparent}
 :root[data-theme="orange"] .dpk-queue-button:hover,
 :root[data-theme="orange"] #char-detail .char-action-btn.is-primary:hover,
 :root[data-theme="orange"] .account-actions .account-action-btn.is-primary:hover{background:#873f29;border-color:#873f29;color:#fff}
+:root[data-theme="orange"] .btn:disabled,
+:root[data-theme="orange"] .btn:disabled:hover{border-color:var(--line);background:var(--disabled-bg);color:var(--disabled-ink);box-shadow:none}
 </style>
 </head>
 <body>
@@ -978,7 +1038,7 @@ tbody tr.is-static:hover{background:transparent}
         <span>运维管理</span>
       </button>
       <div class="rail-footer">
-      <a class="rail-version" href="https://github.com/icosohedral/xunxian-gm-tool" target="_blank" rel="noopener noreferrer" aria-label="项目仓库，版本 1.2.0">v1.2.0</a>
+      <a class="rail-version" href="https://github.com/icosohedral/xunxian-gm-tool" target="_blank" rel="noopener noreferrer" aria-label="项目仓库，版本 1.2.1">v1.2.1</a>
         <div class="theme-picker" role="group" aria-label="颜色主题">
           <button type="button" class="theme-swatch" data-theme-value="green" aria-label="绿色主题" aria-pressed="true" title="绿色主题"></button>
           <button type="button" class="theme-swatch" data-theme-value="orange" aria-label="陶土橙主题" aria-pressed="false" title="陶土橙主题"></button>
@@ -1002,32 +1062,28 @@ tbody tr.is-static:hover{background:transparent}
       <!-- ============ 概览 ============ -->
       <section id="view-home" class="view">
         <div class="stat-grid">
-          <div class="stat">
+          <div class="stat" title="数据表 common_accounts">
             <div class="stat-label"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c.6-3.7 3.7-5.6 7.5-5.6s6.9 1.9 7.5 5.6"/></svg>账号总数</div>
             <div class="stat-value" id="stat-accounts">—</div>
-            <div class="stat-hint">common_accounts</div>
           </div>
-          <div class="stat">
+          <div class="stat" title="数据表 common_characters">
             <div class="stat-label"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M2.6 19.6c.5-3.3 3.2-5 6.4-5s5.9 1.7 6.4 5"/></svg>角色总数</div>
             <div class="stat-value" id="stat-chars">—</div>
-            <div class="stat-hint">common_characters</div>
           </div>
-          <div class="stat">
+          <div class="stat" title="数据表 item_list">
             <div class="stat-label"><svg viewBox="0 0 24 24"><path d="m12 3 8 4.2v9.6L12 21l-8-4.2V7.2L12 3Z"/><path d="m4 7.2 8 4.3 8-4.3"/><path d="M12 11.5V21"/></svg>物品模板</div>
             <div class="stat-value" id="stat-items">—</div>
-            <div class="stat-hint">item_list</div>
           </div>
-          <div class="stat">
+          <div class="stat" title="数据表 scn_info">
             <div class="stat-label"><svg viewBox="0 0 24 24"><path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11Z"/><circle cx="12" cy="10" r="2.4"/></svg>场景</div>
             <div class="stat-value" id="stat-scenes">—</div>
-            <div class="stat-hint">scn_info</div>
           </div>
         </div>
 
         <div class="cols-2 mb-7">
           <article class="card">
             <div class="card-head"><h3>服务状态</h3><span class="tag ok" id="health-tag">检测中</span></div>
-            <div class="card-body" style="padding-top:6px">
+            <div class="card-body">
               <div class="health-row">
                 <button type="button" class="health-link" data-health-target="ssh" title="打开 SSH 连接配置"><span class="health-key"><i><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8"/></svg></i>SSH 通道</span><span class="health-val health-reveal-value" id="health-ssh-value">********</span></button>
                 <button type="button" class="health-reveal" id="health-ssh" aria-label="显示 SSH 通道信息" aria-pressed="false" title="显示 SSH 通道信息"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-5.5 9.5-5.5 9.5 5.5 9.5 5.5-3.5 5.5-9.5 5.5S2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.5"/><path class="eye-slash" d="M4 20 20 4"/></svg></button>
@@ -1068,6 +1124,16 @@ tbody tr.is-static:hover{background:transparent}
             </div>
           </article>
         </div>
+
+        <article class="card home-log-card">
+          <div class="card-head"><h3>最近操作</h3><button class="btn btn-sm btn-ghost" type="button" id="home-log-all">查看全部</button></div>
+          <div class="table-wrap">
+            <table class="log-table home-log-table">
+              <thead><tr><th>时间</th><th>操作</th><th>详情</th><th>结果</th></tr></thead>
+              <tbody id="home-log-rows"></tbody>
+            </table>
+          </div>
+        </article>
       </section>
 
       <!-- ============ 账号管理 ============ -->
@@ -1095,7 +1161,7 @@ tbody tr.is-static:hover{background:transparent}
             </div>
           </div>
 
-          <div class="cols-main">
+          <div class="cols-main has-detail-panel is-detail-empty">
             <article class="card">
               <div class="card-head"><h3>账号列表</h3><span class="muted" id="acct-count">—</span></div>
               <div class="table-wrap tall" id="acct-wrap">
@@ -1107,7 +1173,7 @@ tbody tr.is-static:hover{background:transparent}
             </article>
 
             <article class="card">
-              <div class="card-head"><h3 id="acct-detail-title">账号详情</h3><span id="acct-detail-tag"></span></div>
+              <div class="card-head"><h3 id="acct-detail-title">账号详情</h3><span class="detail-head-actions"><span id="acct-detail-tag"></span><button class="detail-close" type="button" data-detail-close aria-label="关闭详情" title="关闭详情"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></span></div>
               <div class="card-body" id="acct-detail">
                 <div class="empty">
                   <i><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c.6-3.7 3.7-5.6 7.5-5.6s6.9 1.9 7.5 5.6"/></svg></i>
@@ -1132,7 +1198,7 @@ tbody tr.is-static:hover{background:transparent}
             </div>
           </div>
 
-          <div class="cols-main">
+          <div class="cols-main has-detail-panel is-detail-empty">
             <article class="card">
               <div class="card-head"><h3>角色列表</h3><span class="muted" id="char-count">—</span></div>
               <div class="table-wrap tall" id="char-wrap">
@@ -1144,7 +1210,7 @@ tbody tr.is-static:hover{background:transparent}
             </article>
 
             <article class="card">
-              <div class="card-head"><h3 id="char-detail-title">角色详情</h3><span id="char-detail-tag"></span></div>
+              <div class="card-head"><h3 id="char-detail-title">角色详情</h3><span class="detail-head-actions"><span id="char-detail-tag"></span><button class="detail-close" type="button" data-detail-close aria-label="关闭详情" title="关闭详情"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></span></div>
               <div class="card-body" id="char-detail">
                 <div class="empty">
                   <i><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M2.6 19.6c.5-3.3 3.2-5 6.4-5s5.9 1.7 6.4 5"/></svg></i>
@@ -1247,7 +1313,7 @@ tbody tr.is-static:hover{background:transparent}
                 <select id="it-type" class="item-type-filter" aria-label="筛选物品类型"><option value="">全部类型</option></select>
               </div>
             </div>
-            <div class="table-wrap" id="it-wrap" style="max-height:calc(100vh - 310px);min-height:260px">
+            <div class="table-wrap" id="it-wrap" style="max-height:calc(100vh - 280px);min-height:260px">
               <table>
                 <thead><tr><th>名称</th><th>ID</th><th>类型</th><th>等级</th><th style="text-align:right">操作</th></tr></thead>
                 <tbody id="it-rows"></tbody>
@@ -1318,7 +1384,7 @@ tbody tr.is-static:hover{background:transparent}
         <div id="item-panel-custom" class="is-hidden">
           <article class="card">
             <div class="card-head">
-              <h3>道具管理</h3>
+              <h3>自定义道具</h3>
               <div class="toolbar"><span class="muted" id="custom-item-count">—</span><button type="button" class="btn btn-sm btn-danger" id="custom-item-delete" disabled>删除选中</button></div>
             </div>
             <div class="card-body">
@@ -1366,7 +1432,7 @@ tbody tr.is-static:hover{background:transparent}
                   </div>
                 </div>
               </div>
-              <div class="table-wrap" style="max-height:calc(100vh - 310px);min-height:260px">
+              <div class="table-wrap" style="max-height:calc(100vh - 280px);min-height:260px">
                 <table>
                   <thead><tr><th><input type="checkbox" id="shop-select-all" aria-label="选择当前列表"></th><th>名称</th><th>ID</th><th>仙玉</th><th>数量</th><th>分类</th><th></th></tr></thead>
                   <tbody id="shop-rows"><tr class="is-static"><td colspan="7" class="muted">切换标签后读取</td></tr></tbody>
@@ -1439,7 +1505,6 @@ tbody tr.is-static:hover{background:transparent}
         </div>
         <div id="game-config-panel-rates" role="tabpanel">
           <article class="card rate-card">
-            <div class="card-head"><h3>倍率设置</h3></div>
             <div class="card-body">
               <form id="rate-form" class="rate-form" novalidate>
                 <label class="field" for="rate-exp"><span>经验倍率</span><input id="rate-exp" type="number" min="0" max="100000" step="0.1" required></label>
@@ -1455,36 +1520,33 @@ tbody tr.is-static:hover{background:transparent}
         </div>
         <div id="game-config-panel-base" class="is-hidden" role="tabpanel">
           <article class="card definition-card">
-            <div class="card-head"><h3>基础定义表</h3></div>
             <div class="card-body">
               <div class="definition-toolbar">
                 <input class="definition-search" id="definitions-search-base" type="search" placeholder="搜索编号、数据或项目" aria-label="搜索基础定义表">
                 <button class="btn btn-primary" type="button" id="definitions-save-base" disabled>保存修改</button>
                 <span class="dungeon-toolbar-note">修改后重启服务端生效</span>
+                <span class="toolbar-status" id="definitions-status-base" role="status" aria-live="polite"></span>
                 <span class="tag plain" id="definitions-count-base"></span>
               </div>
               <div class="table-wrap definition-table-wrap"><table class="definition-table"><thead><tr><th>编号</th><th>数据</th><th>项目</th><th>收藏</th></tr></thead><tbody id="definitions-rows-base"><tr class="is-static"><td colspan="4" style="padding:0;border:0"><div class="empty"><b>切换标签后读取</b></div></td></tr></tbody></table></div>
-              <div class="definition-status" id="definitions-status-base" role="status" aria-live="polite"></div>
             </div>
           </article>
         </div>
         <div id="game-config-panel-dynamic" class="is-hidden" role="tabpanel">
           <article class="card definition-card">
-            <div class="card-head"><h3>动态定义表</h3></div>
             <div class="card-body">
               <div class="definition-toolbar">
                 <input class="definition-search" id="definitions-search-dynamic" type="search" placeholder="搜索编号、数据或项目" aria-label="搜索动态定义表">
                 <button class="btn btn-primary" type="button" id="definitions-save-dynamic" disabled>保存修改</button>
+                <span class="toolbar-status" id="definitions-status-dynamic" role="status" aria-live="polite"></span>
                 <span class="tag plain" id="definitions-count-dynamic"></span>
               </div>
               <div class="table-wrap definition-table-wrap"><table class="definition-table"><thead><tr><th>编号</th><th>数据</th><th>项目</th><th>收藏</th></tr></thead><tbody id="definitions-rows-dynamic"><tr class="is-static"><td colspan="4" style="padding:0;border:0"><div class="empty"><b>切换标签后读取</b></div></td></tr></tbody></table></div>
-              <div class="definition-status" id="definitions-status-dynamic" role="status" aria-live="polite"></div>
             </div>
           </article>
         </div>
         <div id="game-config-panel-fate" class="is-hidden" role="tabpanel">
           <article class="card fate-lock-card">
-            <div class="card-head"><h3>等级锁定</h3></div>
             <div class="card-body">
               <div class="fate-lock-levels" id="fate-lock-levels" aria-label="当前等级锁分布"></div>
               <div class="fate-lock-status" id="fate-lock-status" role="status" aria-live="polite"></div>
@@ -1499,7 +1561,6 @@ tbody tr.is-static:hover{background:transparent}
         </div>
         <div id="game-config-panel-dungeon" class="is-hidden" role="tabpanel">
           <article class="card definition-card">
-            <div class="card-head"><h3>副本进入限制</h3><span class="tag plain" id="dungeon-tag" hidden></span></div>
             <div class="card-body">
               <div class="definition-toolbar dungeon-toolbar">
                 <input class="definition-search" id="dungeon-search" type="search" placeholder="搜索副本名称或场景 ID" aria-label="搜索副本">
@@ -1507,9 +1568,10 @@ tbody tr.is-static:hover{background:transparent}
                 <button class="btn" type="button" id="dungeon-set-all" title="将全部次数设为 999，再点击应用修改" disabled>一键设置</button>
                 <button class="btn btn-primary" type="button" id="dungeon-apply" disabled>应用修改</button>
                 <span class="dungeon-toolbar-note">修改后重启服务端生效</span>
+                <span class="toolbar-status" id="dungeon-status" role="status" aria-live="polite"></span>
+                <span class="tag plain" id="dungeon-tag" hidden></span>
               </div>
               <div class="table-wrap definition-table-wrap"><table class="definition-table dungeon-table"><thead><tr><th>场景 ID</th><th>副本</th><th>限制来源</th><th>当前次数</th><th>调整为</th></tr></thead><tbody id="dungeon-rows"><tr class="is-static"><td colspan="5" style="padding:0;border:0"><div class="empty"><span class="dungeon-empty-loading"><span class="spinner" aria-hidden="true"></span>正在读取</span></div></td></tr></tbody></table></div>
-              <div class="dungeon-status" id="dungeon-status" role="status" aria-live="polite"></div>
             </div>
           </article>
         </div>
@@ -1517,7 +1579,6 @@ tbody tr.is-static:hover{background:transparent}
 
       <!-- ============ 宠物配置 ============ -->
       <section id="view-pet-config" class="view is-hidden">
-        <div class="view-actions"><div class="segmented" role="tablist" aria-label="宠物配置类型"><button type="button" class="is-active" role="tab" aria-selected="true">骑宠设置</button></div></div>
         <div class="ride-config-layout">
           <article class="card ride-config-list-card">
             <div class="card-head"><h3>骑宠</h3><span class="tag plain" id="ride-speed-count" hidden></span></div>
@@ -1548,30 +1609,29 @@ tbody tr.is-static:hover{background:transparent}
             <button type="button" role="tab" aria-selected="false" data-scm="profession">职业技能配置</button>
             <button type="button" role="tab" aria-selected="false" data-scm="summon">召唤物</button>
           </div>
+          <div class="view-heading"><span class="skill-limits-loading" id="skill-limits-loading" role="status" hidden><span class="spinner" aria-hidden="true"></span>读取中</span><span class="skill-limits-loading" id="profession-skills-loading" role="status" hidden><span class="spinner" aria-hidden="true"></span>读取中</span><span class="skill-limits-loading" id="summon-loading" role="status" hidden><span class="spinner" aria-hidden="true"></span>读取中</span></div>
         </div>
         <div id="skill-config-panel-cross-career" role="tabpanel">
           <article class="card definition-card">
-            <div class="card-head"><h3>跨职业技能</h3><span class="skill-limits-loading" id="skill-limits-loading" role="status" hidden><span class="spinner" aria-hidden="true"></span>读取中</span></div>
             <div class="card-body">
               <div class="skill-limits-toolbar">
                 <label class="field" for="skill-limits-target"><span>目标职业</span><select id="skill-limits-target" disabled></select></label>
+                <label class="field" for="skill-limits-source"><span>技能职业</span><select id="skill-limits-source" disabled></select></label>
                 <input id="skill-limits-search" type="search" placeholder="搜索技能名称或 ID" aria-label="搜索技能名称或 ID" disabled>
                 <button class="btn btn-primary" id="skill-limits-build" type="button" disabled>加入修改队列</button>
               </div>
-              <div class="skill-limits-profession-filter" id="skill-limits-profession-filter" role="group" aria-label="按技能职业筛选"></div>
-              <div class="skill-limits-hint" id="skill-limits-hint"></div>
+              <div class="skill-limits-meta"><div class="skill-limits-hint" id="skill-limits-hint"></div><span class="toolbar-status" id="skill-limits-status" role="status" aria-live="polite"></span></div>
               <div class="table-wrap definition-table-wrap"><table class="definition-table skill-limits-table"><thead><tr><th><input id="skill-limits-all" type="checkbox" aria-label="选择当前列表全部技能" disabled></th><th>技能 ID</th><th>技能名称</th><th>职业</th></tr></thead><tbody id="skill-limits-rows"></tbody></table></div>
-              <div class="definition-status" id="skill-limits-status" role="status" aria-live="polite"></div>
             </div>
           </article>
         </div>
         <div id="skill-config-panel-profession" class="is-hidden" role="tabpanel">
           <article class="card definition-card">
-            <div class="card-head"><h3>职业技能配置</h3><span class="skill-limits-loading" id="profession-skills-loading" role="status" hidden><span class="spinner" aria-hidden="true"></span>读取中</span></div>
             <div class="card-body">
               <div class="profession-skill-toolbar">
                   <label class="field"><select id="profession-skills-profession" aria-label="选择职业" disabled></select></label>
                 <input class="definition-search" id="profession-skills-search" type="search" placeholder="搜索技能名称或 ID" aria-label="搜索技能名称或 ID" disabled>
+                <span class="toolbar-status" id="profession-skills-status" role="status" aria-live="polite"></span>
               </div>
               <div class="profession-skill-layout">
                 <div class="table-wrap definition-table-wrap"><table class="definition-table profession-skill-table"><thead><tr><th>技能 ID</th><th>技能名称</th><th>冷却（秒）</th><th>距离（步）</th></tr></thead><tbody id="profession-skills-rows"><tr class="is-static"><td colspan="4" style="padding:0;border:0"><div class="empty"><b>选择职业后读取技能</b></div></td></tr></tbody></table></div>
@@ -1593,19 +1653,18 @@ tbody tr.is-static:hover{background:transparent}
                   </section>
                 </div>
               </div>
-              <div class="definition-status" id="profession-skills-status" role="status" aria-live="polite"></div>
             </div>
           </article>
         </div>
         <div id="skill-config-panel-summon" class="is-hidden" role="tabpanel">
           <article class="card definition-card">
-            <div class="card-head"><h3>自定义召唤</h3><span class="skill-limits-loading" id="summon-loading" role="status" hidden><span class="spinner" aria-hidden="true"></span>读取中</span></div>
             <div class="card-body">
               <div class="summon-config-toolbar">
                 <label class="field" for="summon-type"><span>召唤类型</span><select id="summon-type"><option value="friend">职业导师</option><option value="monster">怪物</option><option value="catcher">捕快</option></select></label>
                 <label class="field" for="summon-creature"><span>召唤物</span><select id="summon-creature" disabled></select></label>
                 <label class="field summon-creature-search" for="summon-creature-search"><span>搜索召唤物</span><input id="summon-creature-search" placeholder="搜索召唤物名称" autocomplete="off"></label>
                 <button class="btn btn-primary" id="summon-apply" type="button" disabled>加入修改队列</button>
+                <span class="toolbar-status" id="summon-status" role="status" aria-live="polite"></span>
               </div>
               <div class="summon-selection-summary muted"><span id="summon-selection-count">已选择 0/4 个技能</span></div>
               <div class="summon-skills-layout">
@@ -1619,7 +1678,6 @@ tbody tr.is-static:hover{background:transparent}
                   <ol class="summon-order-list" id="summon-skill-order-list" aria-label="召唤物技能栏顺序" aria-live="polite"><li class="summon-order-empty">勾选技能后可调整顺序</li></ol>
                 </section>
               </div>
-              <div class="definition-status" id="summon-status" role="status" aria-live="polite"></div>
             </div>
           </article>
         </div>
@@ -1660,7 +1718,7 @@ tbody tr.is-static:hover{background:transparent}
             <div class="card-body">
               <div class="toolbar" style="gap:9px;flex-wrap:wrap">
                 <button class="btn btn-primary server-action-btn" id="server-restart"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.8-3M4 4v4h4"/><path d="M4 13a8 8 0 0 0 14.8 3M20 20v-4h-4"/></svg><span>重启</span></button>
-                <button class="btn btn-primary server-action-btn" id="server-start" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7V5Z"/></svg><span>启动</span></button>
+                <button class="btn server-action-btn" id="server-start" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7V5Z"/></svg><span>启动</span></button>
                 <button class="btn btn-danger server-action-btn" id="server-stop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v9"/><path d="M7.1 5.8a8 8 0 1 0 9.8 0"/></svg><span>关闭服务端</span></button>
               </div>
               <div class="shop-status" id="server-control-message" role="status" aria-live="polite"></div>
@@ -1681,7 +1739,7 @@ tbody tr.is-static:hover{background:transparent}
                 <button class="btn btn-sm" id="log-refresh">刷新</button>
               </div>
             </div>
-            <div class="table-wrap" style="max-height:calc(100vh - 240px)">
+            <div class="table-wrap" style="max-height:calc(100vh - 177px)">
               <table class="log-table">
                 <thead><tr><th style="width:150px">时间</th><th style="width:130px">操作</th><th>内容</th><th style="width:80px">结果</th></tr></thead>
                 <tbody id="log-rows"></tbody>
@@ -2229,6 +2287,7 @@ function showView(v){
   $$('.rail-item').forEach(b => b.classList.toggle('is-active', b.dataset.view === v));
   VIEWS.forEach(k => $('#view-' + k).classList.toggle('is-hidden', k !== v));
   if (v === 'logs') ensureLogsPanel();
+  if (v === 'home') loadHomeLogs();
   if (v === 'acct') ensureAcctList();
   if (v === 'item') ensureItemList();
   if (v === 'rates'){
@@ -2914,6 +2973,7 @@ async function searchAcct(){
 
 async function openAcct(id){
   state.acctId = id;
+  $('#acct-detail').closest('.cols-main').classList.remove('is-detail-empty');
   $$('#acct-rows tr').forEach(tr => tr.classList.toggle('is-selected', tr.dataset.id === String(id)));
   const box = $('#acct-detail');
   $('#acct-detail-title').textContent = '账号详情';
@@ -2971,6 +3031,14 @@ $('#acct-rows').addEventListener('click', e => {
   if (tr) openAcct(tr.dataset.id);
 });
 $('#acct-search').addEventListener('click', searchAcct);
+document.addEventListener('click', e => {
+  const close = e.target.closest('[data-detail-close]');
+  if (!close) return;
+  const layout = close.closest('.cols-main');
+  layout.classList.add('is-detail-empty');
+  $$('tbody tr.is-selected', layout).forEach(tr => tr.classList.remove('is-selected'));
+  if (layout.contains($('#acct-detail'))) state.acctId = null;
+});
 $('#acct-q').addEventListener('keydown', e => { if (e.key === 'Enter') searchAcct(); });
 
 $('#acct-detail-tag').addEventListener('click', async e => {
@@ -3072,6 +3140,7 @@ async function loadScenes(){
 
 async function openChar(id){
   state.charId = id;
+  $('#char-detail').closest('.cols-main').classList.remove('is-detail-empty');
   $$('#char-rows tr').forEach(tr => tr.classList.toggle('is-selected', tr.dataset.id === String(id)));
   const box = $('#char-detail');
   $('#char-detail-title').textContent = '角色详情';
@@ -3797,6 +3866,11 @@ function renderCart(){
 document.addEventListener('click', e => {
   const add = e.target.closest('[data-add]');
   if (add){ addCart(add.dataset.add, add.dataset.name, add.dataset.type); return; }
+  const itemRow = e.target.closest('#it-rows tr');
+  if (itemRow && !e.target.closest('a,button,input')){
+    const rowAdd = itemRow.querySelector('[data-add]');
+    if (rowAdd){ addCart(rowAdd.dataset.add, rowAdd.dataset.name, rowAdd.dataset.type); return; }
+  }
   const del = e.target.closest('[data-del]');
   if (del){ state.cart.splice(+del.dataset.del, 1); renderCart(); }
 });
@@ -4314,11 +4388,10 @@ function renderSkillLimitProfessionFilter(){
     state.skillLimitSourceFilter = 'all';
   }
   const options = [{id:'all',name:'全部职业'}, ...professionIds.map(id => ({id:String(id),name:skillProfessionName(id)}))];
-  $('#skill-limits-profession-filter').innerHTML = options.map(p =>
-    '<button type="button" data-profession-filter="' + esc(p.id) + '" aria-pressed="' +
-      (String(state.skillLimitSourceFilter) === String(p.id) ? 'true' : 'false') + '" class="' +
-      (String(state.skillLimitSourceFilter) === String(p.id) ? 'is-active' : '') + '">' + esc(p.name) + '</button>'
-  ).join('');
+  const source = $('#skill-limits-source');
+  source.innerHTML = options.map(p => '<option value="' + esc(p.id) + '">' + esc(p.name) + '</option>').join('');
+  source.value = String(state.skillLimitSourceFilter);
+  source.disabled = false;
 }
 function renderSkillLimitRows(){
   const data = state.skillLimits;
@@ -4655,15 +4728,8 @@ $('#summon-apply').addEventListener('click', async e => {
   });
 });
 
-$('#skill-limits-profession-filter').addEventListener('click', e => {
-  const button = e.target.closest('[data-profession-filter]');
-  if (!button) return;
-  state.skillLimitSourceFilter = button.dataset.professionFilter;
-  $('#skill-limits-profession-filter').querySelectorAll('[data-profession-filter]').forEach(item => {
-    const active = item === button;
-    item.classList.toggle('is-active', active);
-    item.setAttribute('aria-pressed', active ? 'true' : 'false');
-  });
+$('#skill-limits-source').addEventListener('change', e => {
+  state.skillLimitSourceFilter = e.target.value;
   renderSkillLimitRows();
 });
 $('#skill-limits-search').addEventListener('input', renderSkillLimitRows);
@@ -5242,6 +5308,43 @@ $('#log-filter').addEventListener('click', e => {
 });
 $('#log-refresh').addEventListener('click', loadLogs);
 
+/* 概览只显示用户主动执行的操作。新日志带 kind 字段；旧日志没有，按动作名识别自动读取和重复的请求记录。 */
+const HOME_LOG_HIDDEN_ACTIONS = new Set([
+  '读取三份技能配置包', '读取职业技能配置', '读取客户端技能配置包',
+  '服务端操作请求', '商城配置后重启请求',
+  '/api/profession-skills/inspect', '/api/skill-limits/inspect', '/api/config/pick-path', '/api/summons/catalog',
+]);
+function isUserOperationLog(r){
+  if (r.kind) return r.kind === 'op';
+  return !HOME_LOG_HIDDEN_ACTIONS.has(r.action);
+}
+async function loadHomeLogs(){
+  const tb = $('#home-log-rows');
+  if (!tb.children.length) tb.innerHTML = skeleton(4);
+  try{
+    const j = await api('/api/logs?n=500');
+    const rows = j.rows.filter(isUserOperationLog).slice(0, 30);
+    if (!rows.length){ tb.innerHTML = emptyRow(4, '暂无操作记录', '充值、发物品、修改配置等操作会出现在这里'); return; }
+    tb.innerHTML = rows.map(r => (
+      '<tr class="is-static">' +
+        '<td class="num">' + esc(r.time) + '</td>' +
+        '<td>' + esc(r.action) + '</td>' +
+        '<td class="log-detail" title="' + esc(typeof r.detail === 'string' ? r.detail : JSON.stringify(r.detail)) + '">' +
+          esc(typeof r.detail === 'string' ? r.detail : JSON.stringify(r.detail)) + '</td>' +
+        '<td>' + (String(r.result).startsWith('fail')
+          ? '<span class="tag bad">失败</span>'
+          : '<span class="tag ok">成功</span>') + '</td>' +
+      '</tr>'
+    )).join('');
+  } catch(e){
+    tb.innerHTML = emptyRow(4, '读取失败', e.message);
+  }
+}
+/* 工具栏状态胶囊：文字过长时省略，悬停显示全文。 */
+$$('.toolbar-status').forEach(pill => new MutationObserver(() => { pill.title = pill.textContent; })
+  .observe(pill, {subtree:true, childList:true, characterData:true}));
+$('#home-log-all').addEventListener('click', () => { setLogsMode('log', true); showView('logs'); ensureLogsPanel(); });
+
 async function loadServerControlState(){
   try{
     const j = await api('/api/server/control');
@@ -5323,7 +5426,8 @@ async function loadConfig(){
       $('#skill-limits-search').disabled = true;
       $('#skill-limits-build').disabled = true;
       $('#skill-limits-all').disabled = true;
-      $('#skill-limits-profession-filter').innerHTML = '';
+      $('#skill-limits-source').innerHTML = '';
+      $('#skill-limits-source').disabled = true;
       $('#skill-limits-rows').innerHTML = '';
       $('#skill-limits-hint').textContent = '';
     }
