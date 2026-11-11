@@ -6,7 +6,7 @@ import shlex
 
 
 REMOTE_SCRIPT = r'''
-import ipaddress, json, os, pathlib, re, shutil, sys, tempfile
+import datetime, ipaddress, json, os, pathlib, re, shutil, sys, tempfile
 
 cfg = pathlib.Path('/opt/xxserver/runtime/all/xxsrv.ini')
 run_root = pathlib.Path('/opt/xxserver/runs')
@@ -32,6 +32,18 @@ def config():
     wan = re.search(r'(?im)^\s*allow_wan\s*=\s*([^\r\n]*)', block)
     return raw, text, section, stop, block, match, entries, wan.group(1).strip() if wan else ''
 
+ELAPSED = re.compile(rb'\[\+(\d+(?:\.\d+)?)s\]')
+
+def with_date(clock, moment):
+    """Attach the calendar date nearest to `moment` (epoch seconds) to an HH:MM:SS clock."""
+    base = datetime.datetime.fromtimestamp(moment)
+    hour, minute, second = (int(part) for part in clock.split(':'))
+    options = [datetime.datetime.combine((base + datetime.timedelta(days=shift)).date(),
+                                         datetime.time(hour, minute, second))
+               for shift in (-1, 0, 1)]
+    best = min(options, key=lambda value: abs((value - base).total_seconds()))
+    return best.strftime('%Y-%m-%d %H:%M:%S')
+
 def recent(entries):
     if not run_root.is_dir():
         return [], '未找到服务端运行日志目录'
@@ -51,8 +63,18 @@ def recent(entries):
                 data = handle.read()
             if size > len(data):
                 data = data.split(b'\n', 1)[-1]
+            written = log.stat().st_mtime
         except OSError:
             continue
+        # Log lines carry only a clock time plus seconds since the server started
+        # ("[+10027.82s]"). The newest line was written at the file's mtime, which
+        # gives the start time and therefore the date of every earlier line.
+        started = None
+        for raw_line in reversed(data.splitlines()):
+            elapsed = ELAPSED.search(raw_line)
+            if elapsed:
+                started = written - float(elapsed.group(1))
+                break
         # A backend log may contain mixed encodings. Decode each line separately
         # so one malformed entry does not corrupt otherwise valid UTF-8 lines.
         for raw_line in reversed(data.splitlines()):
@@ -77,7 +99,12 @@ def recent(entries):
             if ip is None:
                 continue
             stamp = re.search(r'(?:\d{4}[-/]\d{1,2}[-/]\d{1,2}[ T])?\d{1,2}:\d{2}:\d{2}', line)
-            rows.append({'time': stamp.group(0) if stamp else '', 'ip': str(ip),
+            when = stamp.group(0) if stamp else ''
+            if when and ':' in when and len(when) <= 8:
+                elapsed = ELAPSED.search(raw_line)
+                moment = started + float(elapsed.group(1)) if elapsed and started is not None else written
+                when = with_date(when, moment)
+            rows.append({'time': when, 'ip': str(ip),
                          'allowed': any(ip in network for network in networks),
                          'rejected': '拒绝' in line or 'reject' in line.lower(),
                          'detail': line[-280:]})

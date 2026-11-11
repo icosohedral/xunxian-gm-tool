@@ -1736,7 +1736,6 @@ tbody tr.is-static:hover{background:transparent}
                   <button type="button" data-f="ok">成功</button>
                   <button type="button" data-f="fail">失败</button>
                 </div>
-                <button class="btn btn-sm" id="log-refresh">刷新</button>
               </div>
             </div>
             <div class="table-wrap" style="max-height:calc(100vh - 177px)">
@@ -1750,18 +1749,18 @@ tbody tr.is-static:hover{background:transparent}
 
         <div id="logs-panel-whitelist" class="is-hidden">
           <article class="card">
-            <div class="card-head"><h3>允许访问的 IP</h3><button class="btn btn-sm" id="ip-whitelist-refresh" type="button">刷新</button></div>
+            <div class="card-head"><h3>允许访问的 IP</h3></div>
             <div class="card-body">
               <form class="toolbar" id="ip-whitelist-form" style="margin-bottom:12px">
                 <input id="ip-whitelist-input" placeholder="IPv4 地址或 CIDR 网段" aria-label="IPv4 地址或 CIDR 网段" autocomplete="off" style="width:min(320px,100%)">
                 <button class="btn btn-primary" type="submit">添加</button>
+                <span class="dungeon-toolbar-note" id="ip-whitelist-note">修改后重启服务端生效</span>
               </form>
               <div class="table-wrap"><table><thead><tr><th>IP / 网段</th><th style="width:100px">操作</th></tr></thead><tbody id="ip-whitelist-entries"></tbody></table></div>
-              <div class="muted" id="ip-whitelist-note" style="margin-top:10px">修改后重启服务端生效</div>
             </div>
           </article>
           <article class="card" style="margin-top:14px">
-            <div class="card-head"><h3>最近 5 次网络连接记录</h3></div>
+            <div class="card-head"><h3>最近尝试连接记录</h3></div>
             <div class="table-wrap"><table><thead><tr><th style="width:170px">时间</th><th>来源 IP</th><th style="width:105px">当前白名单</th><th style="width:105px">日志结果</th><th style="width:100px">操作</th></tr></thead><tbody id="ip-whitelist-recent"></tbody></table></div>
             <div class="muted" id="ip-whitelist-log-note" style="padding:8px 16px"></div>
           </article>
@@ -1827,7 +1826,6 @@ tbody tr.is-static:hover{background:transparent}
 
           <div class="form-actions">
             <button class="btn btn-primary" type="submit" id="cfg-save">保存配置</button>
-            <button class="btn" type="button" id="cfg-reload">重新读取</button>
             <button class="btn" type="button" id="cfg-test">测试连接</button>
             <span class="status" id="cfg-message" role="status" aria-live="polite"></span>
           </div>
@@ -5247,7 +5245,6 @@ $('#ip-whitelist-form').addEventListener('submit', async e => {
   catch(err){ toast(err.message, true); }
   finally{ button.disabled = false; }
 });
-$('#ip-whitelist-refresh').addEventListener('click', loadIpWhitelist);
 $('#ip-whitelist-recent').addEventListener('click', async e => {
   const button = e.target.closest('[data-ip-add]');
   if (!button) return;
@@ -5306,7 +5303,6 @@ $('#log-filter').addEventListener('click', e => {
   $$('#log-filter button').forEach(x => x.classList.toggle('is-active', x === b));
   renderLogs();
 });
-$('#log-refresh').addEventListener('click', loadLogs);
 
 /* 概览只显示用户主动执行的操作。新日志带 kind 字段；旧日志没有，按动作名识别自动读取和重复的请求记录。 */
 const HOME_LOG_HIDDEN_ACTIONS = new Set([
@@ -5505,7 +5501,6 @@ $('#config-form').addEventListener('submit', async e => {
   }
 });
 
-$('#cfg-reload').addEventListener('click', loadConfig);
 $('#cfg-test').addEventListener('click', async e => {
   const btn = e.currentTarget;
   busy(btn, true, '测试中');
