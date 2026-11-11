@@ -1683,13 +1683,14 @@ def _server_action_worker(action, source):
         failure_phase = {"start": "启动失败", "restart": "重启失败", "stop": "关闭失败"}[action]
         _shop_restart_state.update({"phase": failure_phase if errors else success_phase,
                                     "error": "；".join(errors), "updated_at": int(time.time())})
-        op_log(source + {"start": "启动服务端", "restart": "重启服务端", "stop": "关闭服务端"}[action], {},
-               "fail: " + "; ".join(errors) if errors else "ok")
+        op_log({"start": "启动服务端", "restart": "重启服务端", "stop": "关闭服务端"}[action],
+               {"source": source.removesuffix("后")}, "fail: " + "; ".join(errors) if errors else "ok")
     except Exception as e:
         reset_ssh()
         _shop_restart_state.update({"phase": {"start": "启动失败", "restart": "重启失败", "stop": "关闭失败"}[action], "error": str(e)[:500],
                                     "updated_at": int(time.time())})
-        op_log(source + {"start": "启动服务端", "restart": "重启服务端", "stop": "关闭服务端"}[action], {}, "fail: " + str(e))
+        op_log({"start": "启动服务端", "restart": "重启服务端", "stop": "关闭服务端"}[action],
+               {"source": source.removesuffix("后")}, "fail: " + str(e))
     finally:
         _shop_restart_state["running"] = False
 
@@ -1737,15 +1738,72 @@ READ_ONLY_API_PATHS = {"/api/profession-skills/inspect", "/api/skill-limits/insp
                        "/api/config/pick-path", "/api/summons/catalog"}
 
 
-def op_log(action, detail, result="ok", kind="op"):
-    """kind: op = 用户主动操作；read = 打开页面时自动读取；request = 已受理、结果另记一条。"""
+def op_log(action, detail, result="ok", kind="op", api=None):
+    """kind: op = 用户主动操作；read = 打开页面时自动读取；request = 已受理、结果另记一条。
+    api: 接口失败时记录请求路径，操作名用中文，路径单独保留。"""
     rec = {"ts": int(time.time()), "time": time.strftime("%Y-%m-%d %H:%M:%S"),
            "action": action, "detail": detail, "result": result, "kind": kind}
+    if api:
+        rec["api"] = api
     try:
         with open(LOG_PATH, "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
     except Exception:
         pass
+    return rec
+
+
+# 接口失败时日志没有业务名称，按路径（和请求里的动作）换成中文操作名。
+API_ACTION_LABELS = {
+    "/api/config": "修改连接配置", "/api/config/reload": "配置热重载", "/api/config/pick-path": "选择文件路径",
+    "/api/definitions": "修改定义表", "/api/shop/add": "商城上架", "/api/shop/delete": "商城下架",
+    "/api/shop/delete-batch": "商城批量下架", "/api/shop/restart": "商城配置后重启",
+    "/api/backpack-shop/edit": "修改背包商店", "/api/custom-items/delete": "删除自定义道具",
+    "/api/package-queue/apply": "批量应用配置包", "/api/weapons/reload": "新增武器热重载",
+    "/api/skills/reload": "技能热重载", "/api/weapon/apply": "新增自定义武器",
+    "/api/profession-skills/inspect": "读取职业技能配置", "/api/profession-skills/apply": "修改职业技能参数",
+    "/api/skill-limits/inspect": "读取三份技能配置包", "/api/skill-limits/apply": "同步技能限制配置包",
+    "/api/summons/apply": "应用召唤物技能配置", "/api/summons/catalog": "读取召唤物列表",
+    "/api/dungeon-limits": "修改副本进入限制", "/api/ride-speeds": "修改骑宠设置",
+    "/api/rates": "倍率设置", "/api/fate-lock": "解除天劫等级锁定",
+    "/api/server/control": "服务端操作", "/api/point": "充值", "/api/teleport": "传送", "/api/rename": "改名",
+    "/api/silence": "禁言", "/api/ban": "封禁", "/api/reset_password": "密码重置",
+    "/api/account/set-gm": "设置 GM 权限", "/api/item_send": "发物品", "/api/mail_send": "发邮件",
+    "/api/ip-whitelist": "修改 IP 白名单", "/api/charflag": "修改角色状态",
+}
+CHARFLAG_ACTION_LABELS = {"unlock": "清理角色锁", "delete": "标记删除角色",
+                          "restore": "恢复角色", "revive": "清除死亡状态"}
+
+
+def api_action_label(path, body=None):
+    body = body if isinstance(body, dict) else {}
+    if path == "/api/charflag":
+        return CHARFLAG_ACTION_LABELS.get(body.get("action"), API_ACTION_LABELS[path])
+    if path == "/api/ip-whitelist" and body.get("action") in ("add", "remove"):
+        return "IP 白名单" + ("添加" if body["action"] == "add" else "删除")
+    if path == "/api/server/control" and body.get("action") in ("start", "restart", "stop"):
+        return {"start": "启动服务端", "restart": "重启服务端", "stop": "关闭服务端"}[body["action"]]
+    if path == "/api/ban" and "hours" in body:
+        return "封禁" if qint(body.get("hours")) > 0 else "解封"
+    if path == "/api/account/set-gm" and "enabled" in body:
+        return "设为GM" if body.get("enabled") else "取消GM权限"
+    return API_ACTION_LABELS.get(path, path)
+
+
+_SERVER_ACTION_LOG = re.compile(r"^(.+?)((?:启动|重启|关闭)服务端)$")
+
+
+def _display_log(rec):
+    """Give older records readable action names; new records are written this way already."""
+    action = str(rec.get("action", ""))
+    if action.startswith("/api/"):
+        rec.setdefault("api", action)
+        rec["action"] = api_action_label(action, rec.get("detail"))
+    else:
+        match = _SERVER_ACTION_LOG.match(action)
+        if match and not rec.get("detail"):
+            rec["action"] = match.group(2)
+            rec["detail"] = {"source": match.group(1).removesuffix("后")}
     return rec
 
 
@@ -1759,7 +1817,7 @@ def read_logs(n=200):
         ln = ln.strip()
         if ln:
             try:
-                out.append(json.loads(ln))
+                out.append(_display_log(json.loads(ln)))
             except Exception:
                 pass
     out.reverse()
@@ -4523,7 +4581,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"ok": False, "error": str(e)}, 400)
         except Exception as e:
             traceback.print_exc()
-            op_log(p, body, "fail: " + str(e), kind="read" if p in READ_ONLY_API_PATHS else "op")
+            op_log(api_action_label(p, body), body, "fail: " + str(e),
+                   kind="read" if p in READ_ONLY_API_PATHS else "op", api=p)
             return self._json({"ok": False, "error": str(e)}, 500)
 
 

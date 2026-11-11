@@ -314,14 +314,47 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .health-reveal:hover svg{stroke:var(--pine)}
 
 /* 快捷操作 */
-.quick-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
-.quick{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line);
+.quick-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+/* 卡片与左侧服务状态等高，快捷方式均分卡片内的空间。 */
+.quick-card{display:flex;flex-direction:column}
+.quick-card>.card-body{flex:1;display:flex;flex-direction:column}
+.quick-card .quick-grid{flex:1;grid-template-rows:repeat(3,minmax(54px,1fr))}
+.quick-card{overflow:visible}
+.quick{display:flex;align-items:center;gap:12px;padding:10px 14px;border:1px solid var(--line);
   border-radius:11px;background:#f8fbfa;color:var(--ink);text-align:left;transition:.13s ease}
 .quick:hover{border-color:var(--jade);background:var(--mint)}
 .quick i{width:30px;height:30px;flex:0 0 30px;display:grid;place-items:center;border-radius:9px;
   background:#fff;color:var(--jade);border:1px solid var(--line)}
 .quick svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
-.quick b{display:block;font-size:12px}
+.quick b{display:block;font-size:13px}
+.quick-tile{position:relative;min-width:0;display:flex}
+.quick-tile.is-dragging .quick{opacity:.35;border-style:dashed;border-color:var(--jade);background:var(--mint)}
+.quick-grid.is-sorting .quick-remove,.quick-grid.is-sorting .quick-add{opacity:0!important;pointer-events:none}
+.quick-tile .quick{width:100%}
+.quick{min-width:0}
+.quick>div{min-width:0}
+.quick i img{width:22px;height:22px;object-fit:contain;display:block}
+/* 鼠标移到快捷方式上才显示删除按钮。 */
+.quick-remove{position:absolute;top:-7px;right:-7px;width:20px;height:20px;display:grid;place-items:center;padding:0;
+  border:1px solid var(--line-strong);border-radius:50%;background:var(--surface);color:var(--ink-soft);
+  opacity:0;pointer-events:none;transition:opacity .12s}
+.quick-remove svg{width:11px;height:11px;stroke:currentColor;stroke-width:2.4;fill:none;stroke-linecap:round}
+.quick-remove:hover{border-color:var(--danger);color:var(--danger)}
+.quick-tile:hover .quick-remove,.quick-tile:focus-within .quick-remove{opacity:1;pointer-events:auto}
+/* 未满 6 个时，鼠标移到卡片上，下一个空位显示「+」。 */
+.quick-add{justify-content:center;border-style:dashed;background:transparent;color:var(--ink-soft);
+  font-size:20px;font-weight:400;line-height:1;opacity:0;transition:opacity .12s,border-color .12s,background .12s}
+.quick-card:hover .quick-add,.quick-add:focus-visible,.quick-add-tile.is-empty .quick-add,.quick-add-tile.is-open .quick-add{opacity:1}
+.quick-add:hover,.quick-add-tile.is-open .quick-add{border-color:var(--jade);background:var(--mint);color:var(--pine)}
+@media (hover:none){.quick-remove,.quick-add{opacity:1;pointer-events:auto}}
+.quick-picker{position:absolute;top:calc(100% + 6px);left:0;z-index:30;width:min(380px,calc(100vw - 32px));
+  max-height:340px;overflow:auto;padding:12px 14px;background:var(--surface);border:1px solid var(--line);
+  border-radius:12px;box-shadow:var(--shadow-lg)}
+.quick-add-tile.is-right .quick-picker{left:auto;right:0}
+.quick-picker-group+.quick-picker-group{margin-top:10px}
+.quick-picker-group h4{margin:0;color:var(--ink-soft);font-size:12px;font-weight:700}
+.quick-picker-group .chip-row{margin-top:6px}
+.quick-picker .chip::before{content:"+ ";color:var(--jade)}
 .home-log-table{min-width:560px}
 /* 桌面宽度下概览页铺满内容区，最近操作卡片占满剩余高度，底边与左侧导航对齐。 */
 @media (min-width:981px){
@@ -329,7 +362,6 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
   .home-log-card{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
   .home-log-card .table-wrap{flex:1 1 0;min-height:150px}
 }
-.home-log-table th:nth-child(1){width:150px}.home-log-table th:nth-child(2){width:150px}.home-log-table th:nth-child(4){width:72px}
 .log-table.home-log-table td.log-detail{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink-faint);font-family:inherit}
 
 /* ============================================================
@@ -589,8 +621,12 @@ td{padding:10px 14px;border-bottom:1px solid #edf2f0;white-space:nowrap;color:va
 td.num{font-variant-numeric:tabular-nums;color:var(--ink-soft)}
 td.item-type{color:var(--ink-soft)}
 td.wrap{white-space:normal;line-height:1.6}
-.log-table{table-layout:fixed;min-width:520px}
-.log-table .log-detail{overflow-wrap:anywhere;word-break:break-word;font-family:ui-monospace,Menlo,monospace;font-size:12px}
+.log-table{table-layout:fixed;min-width:600px}
+/* 列宽固定，每格内容不越出本列：时间不换行，操作名过长时换行。 */
+.log-table td{overflow:hidden;vertical-align:top}
+.log-table th:nth-child(1){width:168px}.log-table th:nth-child(2){width:176px}.log-table th:nth-child(4){width:88px}
+.log-table td:nth-child(2){white-space:normal;overflow-wrap:anywhere;line-height:1.5}
+.log-table .log-detail{overflow-wrap:anywhere;word-break:break-word;font-size:12px;line-height:1.5}
 tbody tr{cursor:pointer;transition:background .12s ease}
 tbody tr:hover{background:#f2faf7}
 tbody tr.is-selected{background:var(--mint)}
@@ -1100,27 +1136,10 @@ tbody tr.is-static:hover{background:transparent}
             </div>
           </article>
 
-          <article class="card">
+          <article class="card quick-card" id="quick-card">
             <div class="card-head"><h3>快捷操作</h3></div>
             <div class="card-body">
-              <div class="quick-grid">
-                <button class="quick" data-goto="char">
-                  <i><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg></i>
-                  <div><b>查角色</b></div>
-                </button>
-                <button class="quick" data-goto="item">
-                  <i><svg viewBox="0 0 24 24"><path d="m12 3 8 4.2v9.6L12 21l-8-4.2V7.2L12 3Z"/></svg></i>
-                  <div><b>发道具</b></div>
-                </button>
-                <button class="quick" data-goto="point">
-                  <i><svg viewBox="0 0 24 24"><path d="M12 4v16M6.5 8.5h9a2.5 2.5 0 0 1 0 5h-7a2.5 2.5 0 0 0 0 5h9"/></svg></i>
-                  <div><b>仙玉充值</b></div>
-                </button>
-                <button class="quick" data-goto="config">
-                  <i><svg viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></svg></i>
-                  <div><b>连接配置</b></div>
-                </button>
-              </div>
+              <div class="quick-grid" id="quick-grid"></div>
             </div>
           </article>
         </div>
@@ -1740,7 +1759,7 @@ tbody tr.is-static:hover{background:transparent}
             </div>
             <div class="table-wrap" style="max-height:calc(100vh - 177px)">
               <table class="log-table">
-                <thead><tr><th style="width:150px">时间</th><th style="width:130px">操作</th><th>内容</th><th style="width:80px">结果</th></tr></thead>
+                <thead><tr><th>时间</th><th>操作</th><th>内容</th><th>结果</th></tr></thead>
                 <tbody id="log-rows"></tbody>
               </table>
             </div>
@@ -2801,6 +2820,145 @@ document.addEventListener('click', e => {
   const g = e.target.closest('[data-goto]');
   if (g) goto(g.dataset.goto);
 });
+
+/* 概览快捷操作：用户可添加或删除常用子标签，列表保存在本浏览器。 */
+const QUICK_STORE = 'gm-home-shortcuts';
+const QUICK_DEFAULT = ['item', 'shop', 'skill-profession', 'weapon', 'pet', 'game-base'];
+const QUICK_GROUPS = [
+  {name:'账号管理', icon:'account', items:[
+    ['acct', '账号', () => goto('acct')],
+    ['char', '角色', () => goto('char')],
+    ['point', '仙玉充值', () => goto('point')],
+    ['mail', '发送邮件', () => goto('mail')]]},
+  {name:'物品管理', icon:'item', items:[
+    ['item', '发放物品', () => goto('item')],
+    ['shop', '商城上架', () => goto('shop')],
+    ['backpack', '背包商店', () => goto('backpack')],
+    ['weapon', '新建装备', () => goto('weapon')],
+    ['custom', '道具管理', () => goto('custom')]]},
+  {name:'技能配置', icon:'skill', items:[
+    ['skill-cross-career', '跨职业技能', () => { state.skillConfigMode = 'cross-career'; showView('skill-config'); }],
+    ['skill-profession', '职业技能配置', () => { state.skillConfigMode = 'profession'; showView('skill-config'); }],
+    ['skill-summon', '召唤物', () => { state.skillConfigMode = 'summon'; showView('skill-config'); }]]},
+  {name:'宠物配置', icon:'pet', items:[
+    ['pet', '骑宠设置', () => showView('pet-config')]]},
+  {name:'游戏配置', icon:'rate', items:[
+    ['game-rates', '倍率设置', () => { setGameConfigMode('rates', true); showView('rates'); }],
+    ['game-base', '基础定义表', () => { setGameConfigMode('base', true); showView('rates'); }],
+    ['game-dynamic', '动态定义表', () => { setGameConfigMode('dynamic', true); showView('rates'); }],
+    ['game-fate', '等级锁定', () => { setGameConfigMode('fate', true); showView('rates'); }],
+    ['game-dungeon', '副本进入限制', () => { setGameConfigMode('dungeon', true); showView('rates'); }]]},
+  {name:'运维管理', icon:'logs', items:[
+    ['ops', '服务控制', () => { setLogsMode('server', true); showView('logs'); }],
+    ['oplog', '操作日志', () => { setLogsMode('log', true); showView('logs'); }],
+    ['ip-whitelist', 'IP白名单', () => { setLogsMode('whitelist', true); showView('logs'); }],
+    ['config', '连接配置', () => goto('config')]]},
+];
+const QUICK_ITEMS = new Map(QUICK_GROUPS.flatMap(group =>
+  group.items.map(([id, label, open]) => [id, {id, label, open, group:group.name, icon:group.icon}])));
+const QUICK_MAX = 6;
+let quickPickerOpen = false;
+function loadQuickShortcuts(){
+  try{
+    const saved = JSON.parse(localStorage.getItem(QUICK_STORE));
+    if (Array.isArray(saved)) return saved.filter(id => QUICK_ITEMS.has(id)).slice(0, QUICK_MAX);
+  } catch(_){}
+  return [...QUICK_DEFAULT];
+}
+let quickShortcuts = loadQuickShortcuts();
+function saveQuickShortcuts(){
+  try{ localStorage.setItem(QUICK_STORE, JSON.stringify(quickShortcuts)); } catch(_){}
+}
+const QUICK_REMOVE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+function renderQuickShortcuts(){
+  const count = quickShortcuts.length;
+  if (count >= QUICK_MAX) quickPickerOpen = false;
+  const tiles = quickShortcuts.map(id => {
+    const item = QUICK_ITEMS.get(id);
+    return '<div class="quick-tile" draggable="true" data-quick-id="' + esc(id) + '"><button type="button" class="quick" data-quick="' + esc(id) + '" title="' + esc(item.group + ' · ' + item.label + '（可拖动调整位置）') + '">' +
+      '<i><img src="/assets/' + item.icon + '.png" alt="" aria-hidden="true" draggable="false"></i>' +
+      '<div><b>' + esc(item.label) + '</b></div></button>' +
+      '<button type="button" class="quick-remove" data-quick-remove="' + esc(id) + '" aria-label="移除 ' + esc(item.label) + '" title="移除">' + QUICK_REMOVE_ICON + '</button>' +
+    '</div>';
+  });
+  // 未满 6 个时，下一个空位放「+」：鼠标移到卡片上才显示，没有快捷方式时一直显示。
+  if (count < QUICK_MAX){
+    let picker = '';
+    if (quickPickerOpen){
+      const groups = QUICK_GROUPS.map(group => {
+        const left = group.items.filter(([id]) => !quickShortcuts.includes(id));
+        return left.length ? '<div class="quick-picker-group"><h4>' + esc(group.name) + '</h4><div class="chip-row">' +
+          left.map(([id, label]) => '<button type="button" class="chip" data-quick-add="' + esc(id) + '">' + esc(label) + '</button>').join('') +
+          '</div></div>' : '';
+      }).join('');
+      picker = '<div class="quick-picker" role="dialog" aria-label="添加快捷操作">' + groups + '</div>';
+    }
+    tiles.push('<div class="quick-tile quick-add-tile' + (count ? '' : ' is-empty') + (count % 2 ? ' is-right' : '') +
+      (quickPickerOpen ? ' is-open' : '') + '"><button type="button" class="quick quick-add" id="quick-add" aria-expanded="' + quickPickerOpen +
+      '" aria-label="添加快捷操作" title="添加快捷操作（' + count + '/' + QUICK_MAX + '）">+</button>' + picker + '</div>');
+  }
+  $('#quick-grid').innerHTML = tiles.join('');
+}
+function closeQuickPicker(){
+  if (!quickPickerOpen) return;
+  quickPickerOpen = false;
+  renderQuickShortcuts();
+}
+$('#quick-card').addEventListener('click', e => {
+  const remove = e.target.closest('[data-quick-remove]');
+  if (remove){
+    quickShortcuts = quickShortcuts.filter(id => id !== remove.dataset.quickRemove);
+    saveQuickShortcuts(); renderQuickShortcuts(); return;
+  }
+  const add = e.target.closest('[data-quick-add]');
+  if (add){
+    if (quickShortcuts.length >= QUICK_MAX) return;
+    quickShortcuts.push(add.dataset.quickAdd);
+    quickPickerOpen = false;
+    saveQuickShortcuts(); renderQuickShortcuts(); return;
+  }
+  if (e.target.closest('#quick-add')){ quickPickerOpen = !quickPickerOpen; renderQuickShortcuts(); return; }
+  if (e.target.closest('.quick-picker')) return;
+  const tile = e.target.closest('[data-quick]');
+  if (tile) QUICK_ITEMS.get(tile.dataset.quick).open();
+});
+document.addEventListener('click', e => { if (!e.target.closest('.quick-add-tile')) closeQuickPicker(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeQuickPicker(); });
+/* 拖动快捷方式调整位置：拖动过程中直接移动节点，松手后按新顺序保存。 */
+let quickDragTile = null;
+const quickGrid = $('#quick-grid');
+quickGrid.addEventListener('dragstart', e => {
+  const tile = e.target.closest('.quick-tile[data-quick-id]');
+  if (!tile) return;
+  quickDragTile = tile;
+  quickPickerOpen = false;
+  quickGrid.querySelector('.quick-picker')?.remove();
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', tile.dataset.quickId);
+  requestAnimationFrame(() => tile.classList.add('is-dragging'));
+  quickGrid.classList.add('is-sorting');
+});
+quickGrid.addEventListener('dragover', e => {
+  if (!quickDragTile) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const target = e.target.closest('.quick-tile[data-quick-id]');
+  if (!target || target === quickDragTile) return;
+  const tiles = [...quickGrid.querySelectorAll('.quick-tile[data-quick-id]')];
+  const after = tiles.indexOf(quickDragTile) < tiles.indexOf(target);
+  quickGrid.insertBefore(quickDragTile, after ? target.nextSibling : target);
+});
+quickGrid.addEventListener('drop', e => { if (quickDragTile) e.preventDefault(); });
+quickGrid.addEventListener('dragend', () => {
+  if (!quickDragTile) return;
+  quickDragTile.classList.remove('is-dragging');
+  quickGrid.classList.remove('is-sorting');
+  quickDragTile = null;
+  const order = [...quickGrid.querySelectorAll('.quick-tile[data-quick-id]')].map(tile => tile.dataset.quickId);
+  if (order.join() !== quickShortcuts.join()){ quickShortcuts = order; saveQuickShortcuts(); }
+  renderQuickShortcuts();
+});
+renderQuickShortcuts();
 
 /* 列表右键快捷操作 */
 const rowMenu = $('#row-context-menu');
@@ -4031,7 +4189,7 @@ $('#rate-form').addEventListener('submit', async e => {
 /* ============================================================
    游戏配置定义表
    ============================================================ */
-function setGameConfigMode(mode){
+function setGameConfigMode(mode, skipLoad=false){
   if (!['rates','base','dynamic','fate','dungeon'].includes(mode)) mode = 'rates';
   state.gameConfigMode = mode;
   $$('#game-config-mode button').forEach(button => {
@@ -4041,6 +4199,7 @@ function setGameConfigMode(mode){
   });
   ['rates','base','dynamic','fate','dungeon'].forEach(key =>
     $('#game-config-panel-' + key).classList.toggle('is-hidden', key !== mode));
+  if (skipLoad) return;
   if (mode === 'rates' && !state.ratesLoaded) loadRates();
   if (mode === 'fate' && !state.fateLocks) loadFateLocks();
   if (mode === 'dungeon' && !state.dungeonLimits) loadDungeonLimits();
@@ -5263,6 +5422,81 @@ $('#ip-whitelist-entries').addEventListener('click', async e => {
 /* ============================================================
    操作日志
    ============================================================ */
+/* 日志详情转成可读文字：常见字段用中文名，备份路径、校验值等内部字段不显示。 */
+const LOG_DETAIL_LABELS = {
+  char_id:'角色 ID', account:'账号', account_id:'账号 ID', name:'名称', old:'原名', new:'新名', title:'标题',
+  sender:'发件人', items:'物品', item_ids:'物品', value:'数值', amount:'数量', mode:'方式', count:'数量',
+  price:'价格', category:'分类', id:'ID', ids:'ID', product_id:'商品 ID', item_id:'物品 ID', scene:'场景',
+  online:'在线', hours:'时长（小时）', seconds:'时长（秒）', entry:'IP', exp:'经验倍率', money:'掉钱倍率',
+  levels:'等级', changes:'修改', changed:'修改项', saved:'已保存', total:'共计', added:'新增', removed_from:'移除自',
+  skill_name:'技能', skill:'技能 ID', skill_ids:'技能 ID', skills:'技能数', shared_skills:'共有技能',
+  profession_id:'职业 ID', target_profession:'目标职业 ID', cooldown:'冷却', distance:'距离',
+  summon_type:'召唤类型', summon_cooldown:'召唤冷却', weapon_id:'武器 ID', template_id:'模板 ID',
+  weapon:'武器 ID', trait:'词条', percent:'百分比', scope:'范围', scopes:'范围', source:'来源',
+  field:'字段', products:'商品数', error:'错误', reason:'原因', property:'权限', action:'动作', kind:'类型',
+  replaced:'替换数', merchant_id:'商人 ID', product_ids:'商品 ID',
+};
+const LOG_DETAIL_HIDDEN = new Set([
+  '结果', 'sha256', 'source_sha256', 'client_sha256', 'signatures', 'session_id', 'pids', 'processes',
+  'revision', 'replies', 'commands', 'backup', 'backups', 'server_backups', 'client_backup', 'client_path',
+  'warnings', 'runtime_rollback', 'automatic_restart', 'reload', 'lines', 'tables', 'checked_values',
+  'hot_reload', 'download', 'client_package_updated', 'reload_error', 'body', 'also_items', 'bytes',
+  'filename', 'reports', 'state', 'state_id', 'role_id', 'form_id', 'old_property', 'xyz', 'repaired',
+  'missing_items', 'prices', 'updated', 'backpack',
+]);
+const LOG_VALUE_LABELS = {
+  action:{unlock:'解锁', delete:'删除', restore:'恢复', revive:'复活', add:'添加', remove:'删除',
+          start:'启动', restart:'重启', stop:'关闭', edit:'修改', 'delete-batch':'批量删除'},
+  mode:{add:'增加', set:'设为', sub:'扣除'},
+  summon_type:{friend:'职业导师', monster:'怪物', catcher:'捕快'},
+};
+function logDetailValue(key, value){
+  if (value === null || value === undefined || value === '') return '';
+  if (typeof value === 'boolean') return value ? '是' : '否';
+  if (LOG_VALUE_LABELS[key] && LOG_VALUE_LABELS[key][value]) return LOG_VALUE_LABELS[key][value];
+  if (Array.isArray(value)){
+    if (!value.length) return '';
+    if (value.every(item => item && typeof item === 'object' && 'num' in item && ('excel_id' in item || 'item_id' in item))){
+      const parts = value.map(item => (item.excel_id ?? item.item_id) + '×' + item.num);
+      return parts.slice(0, 3).join('、') + (parts.length > 3 ? ' 等 ' + parts.length + ' 种' : '');
+    }
+    if (value.every(item => item === null || typeof item !== 'object')){
+      return value.slice(0, 4).join('、') + (value.length > 4 ? ' 等 ' + value.length + ' 项' : '');
+    }
+    return value.length + ' 项';
+  }
+  if (typeof value === 'object') return Object.keys(value).length ? Object.keys(value).length + ' 项' : '';
+  return String(value);
+}
+function formatLogDetail(r){
+  const detail = r.detail;
+  let parts = [];
+  if (typeof detail === 'string') parts = detail ? [detail] : [];
+  else if (detail && typeof detail === 'object'){
+    const add = source => {
+      for (const [key, value] of Object.entries(source)){
+        if (LOG_DETAIL_HIDDEN.has(key)) continue;
+        // 背包商店等记录把商品信息放在 change 对象里，展开显示其中的常用字段。
+        if (key === 'change' && value && typeof value === 'object' && !Array.isArray(value)){ add(value); continue; }
+        const text = logDetailValue(key, value);
+        if (text) parts.push((LOG_DETAIL_LABELS[key] || key) + '：' + text);
+      }
+    };
+    add(detail);
+  }
+  const result = String(r.result || '');
+  if (result.startsWith('fail')){
+    const reason = result.replace(/^fail:?\s*/, '');
+    if (reason) parts.push('失败原因：' + reason);
+  }
+  return parts.join('，') || '—';
+}
+function logDetailCell(r, cls){
+  const text = formatLogDetail(r);
+  const raw = typeof r.detail === 'string' ? r.detail : JSON.stringify(r.detail);
+  const tip = text + (r.api ? '\n\n接口：' + r.api : '') + (raw && raw !== '{}' ? '\n\n原始记录：' + raw : '');
+  return '<td class="' + cls + '" title="' + esc(tip) + '">' + esc(text) + '</td>';
+}
 async function loadLogs(){
   const tb = $('#log-rows');
   tb.innerHTML = skeleton(4);
@@ -5288,8 +5522,7 @@ function renderLogs(){
     '<tr class="is-static">' +
       '<td class="num">' + esc(r.time) + '</td>' +
       '<td>' + esc(r.action) + '</td>' +
-      '<td class="muted wrap log-detail">' +
-        esc(typeof r.detail === 'string' ? r.detail : JSON.stringify(r.detail)) + '</td>' +
+      logDetailCell(r, 'muted wrap log-detail') +
       '<td>' + (String(r.result).startsWith('fail')
         ? '<span class="tag bad">失败</span>'
         : '<span class="tag ok">成功</span>') + '</td>' +
@@ -5308,6 +5541,7 @@ $('#log-filter').addEventListener('click', e => {
 const HOME_LOG_HIDDEN_ACTIONS = new Set([
   '读取三份技能配置包', '读取职业技能配置', '读取客户端技能配置包',
   '服务端操作请求', '商城配置后重启请求',
+  '选择文件路径', '读取召唤物列表',
   '/api/profession-skills/inspect', '/api/skill-limits/inspect', '/api/config/pick-path', '/api/summons/catalog',
 ]);
 function isUserOperationLog(r){
@@ -5325,8 +5559,7 @@ async function loadHomeLogs(){
       '<tr class="is-static">' +
         '<td class="num">' + esc(r.time) + '</td>' +
         '<td>' + esc(r.action) + '</td>' +
-        '<td class="log-detail" title="' + esc(typeof r.detail === 'string' ? r.detail : JSON.stringify(r.detail)) + '">' +
-          esc(typeof r.detail === 'string' ? r.detail : JSON.stringify(r.detail)) + '</td>' +
+        logDetailCell(r, 'log-detail') +
         '<td>' + (String(r.result).startsWith('fail')
           ? '<span class="tag bad">失败</span>'
           : '<span class="tag ok">成功</span>') + '</td>' +
