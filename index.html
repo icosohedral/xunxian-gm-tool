@@ -107,7 +107,7 @@ body.has-modal{overflow:hidden}
   padding:7px 9px 9px;align-items:stretch;min-height:0}
 .rail{padding:9px;background:var(--surface);border:1px solid var(--line);border-radius:16px;
   box-shadow:var(--shadow);display:flex;flex-direction:column;gap:3px;
-  height:auto}
+  position:sticky;top:7px;align-self:start;height:calc(100vh - 89px);min-height:0;overflow-y:auto}
 .rail-item{position:relative;width:100%;min-height:48px;display:grid;grid-template-columns:28px 1fr auto;
   align-items:center;gap:10px;padding:0 12px;border:0;border-radius:10px;background:transparent;
   color:var(--ink-soft);text-align:left;font-size:14px;font-weight:700;transition:.13s ease}
@@ -125,9 +125,10 @@ body.has-modal{overflow:hidden}
 .rail-version:hover{color:var(--pine)}
 .rail-version:focus-visible{outline:2px solid var(--jade);outline-offset:2px;border-radius:3px}
 
-.stage{min-width:0;padding:11px 12px 20px;background:#f8fbfa;border:1px solid var(--line);
-  border-radius:16px;box-shadow:var(--shadow);min-height:calc(100vh - 89px)}
+.stage{min-width:0;padding:11px 12px 0;background:#f8fbfa;border:1px solid var(--line);
+  border-radius:16px;box-shadow:var(--shadow);height:calc(100vh - 89px);min-height:0;overflow:auto}
 .stage-inner{max-width:1440px;margin:0 auto}
+.stage-inner::after{content:"";display:block;height:11px}
 
 /* ============================================================
    4. 视图操作条（分段控件等，无标题）
@@ -183,6 +184,9 @@ body.has-modal{overflow:hidden}
   font-size:12px;font-weight:700;white-space:nowrap;transition:.14s ease}
 .btn:hover{border-color:#9dbcb3;background:#f7fbf9}
 .btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.server-action-btn{line-height:1}
+.server-action-btn svg{display:block;flex:none}
+.server-action-btn span{display:block;line-height:1}
 .btn-primary{border-color:var(--jade);background:var(--jade);color:#fff;box-shadow:0 6px 16px rgba(0,155,128,.2)}
 .btn-primary:hover{background:#008b73;border-color:#008b73}
 .btn-ghost{border-color:transparent;background:transparent;color:var(--ink-soft)}
@@ -280,6 +284,9 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .health-row{display:flex;align-items:center;justify-content:space-between;gap:12px;
   padding:11px 0;border-top:1px solid #edf2f0}
 .health-row:first-child{border-top:0;padding-top:2px}
+.health-link{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:1;min-width:0;padding:0;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.health-link:hover .health-key{color:var(--pine)}
+.health-link:focus-visible{outline:2px solid var(--jade);outline-offset:4px;border-radius:4px}
 .health-key{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:650;min-width:0}
 .health-key i{width:26px;height:26px;flex:0 0 26px;display:grid;place-items:center;border-radius:8px;
   background:var(--mint);color:var(--pine)}
@@ -322,7 +329,7 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
    11. 表格
    ============================================================ */
 .table-wrap{overflow:auto;scrollbar-width:thin;scrollbar-color:var(--line-strong) transparent}
-.table-wrap.tall{height:calc(100vh - 270px);min-height:320px}
+.table-wrap.tall{height:calc(100vh - 280px);min-height:320px}
 .rate-card{max-width:650px}
 .rate-form{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
 .rate-form .field{margin-bottom:14px}
@@ -529,7 +536,7 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;
   overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
 @media (min-width:1181px){
-  #acct-panel-char .cols-main>.card:last-child{height:calc(100vh - 214px);min-height:376px;display:flex;flex-direction:column}
+  #acct-panel-char .cols-main>.card:last-child{height:calc(100vh - 224px);min-height:376px;display:flex;flex-direction:column}
   #char-detail{flex:1;min-height:0;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--line-strong) transparent}
 }
 .btn-icon-add{width:28px;padding:0;justify-content:center;border-color:transparent;background:var(--mint);color:var(--pine)}
@@ -542,6 +549,8 @@ td{padding:10px 14px;border-bottom:1px solid #edf2f0;white-space:nowrap;color:va
 td.num{font-variant-numeric:tabular-nums;color:var(--ink-soft)}
 td.item-type{color:var(--ink-soft)}
 td.wrap{white-space:normal;line-height:1.6}
+.log-table{table-layout:fixed;min-width:520px}
+.log-table .log-detail{overflow-wrap:anywhere;word-break:break-word;font-family:ui-monospace,Menlo,monospace;font-size:11px}
 tbody tr{cursor:pointer;transition:background .12s ease}
 tbody tr:hover{background:#f2faf7}
 tbody tr.is-selected{background:var(--mint)}
@@ -845,14 +854,15 @@ tbody tr.is-static:hover{background:transparent}
   .brand-text h1{font-size:15px}
   .topbar-actions{display:flex;margin-left:auto}
   .workspace{display:block;padding:7px}
-  .rail{flex-direction:row;overflow-x:auto;
+  .rail{position:static;height:auto;flex-direction:row;overflow-x:auto;overflow-y:hidden;
     border-radius:14px;padding:7px;margin-bottom:7px}
   .rail-item{min-width:44px;width:auto}
   .rail-sep{display:none}
   .rail-footer{flex:none;margin:0 4px 0 auto}
   .rail-version{display:none}
   .theme-picker{padding:0}
-  .stage{padding:9px;border-radius:14px;min-height:0}
+  .stage{padding:9px 9px 0;border-radius:14px;height:auto;min-height:0;overflow:visible}
+  .stage-inner::after{height:9px}
   .stat-grid{grid-template-columns:1fr 1fr}
   .view-actions{justify-content:flex-start;flex-wrap:wrap}
   .toolbar .search{width:100%}
@@ -1019,20 +1029,17 @@ tbody tr.is-static:hover{background:transparent}
             <div class="card-head"><h3>服务状态</h3><span class="tag ok" id="health-tag">检测中</span></div>
             <div class="card-body" style="padding-top:6px">
               <div class="health-row">
-                <div class="health-key"><i><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8"/></svg></i>SSH 通道</div>
-                <button type="button" class="health-val health-reveal" id="health-ssh" aria-label="显示 SSH 通道信息" aria-pressed="false" title="显示 SSH 通道信息"><span class="health-reveal-value" id="health-ssh-value">********</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-5.5 9.5-5.5 9.5 5.5 9.5 5.5-3.5 5.5-9.5 5.5S2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.5"/><path class="eye-slash" d="M4 20 20 4"/></svg></button>
+                <button type="button" class="health-link" data-health-target="ssh" title="打开 SSH 连接配置"><span class="health-key"><i><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8"/></svg></i>SSH 通道</span><span class="health-val health-reveal-value" id="health-ssh-value">********</span></button>
+                <button type="button" class="health-reveal" id="health-ssh" aria-label="显示 SSH 通道信息" aria-pressed="false" title="显示 SSH 通道信息"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-5.5 9.5-5.5 9.5 5.5 9.5 5.5-3.5 5.5-9.5 5.5S2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.5"/><path class="eye-slash" d="M4 20 20 4"/></svg></button>
               </div>
               <div class="health-row">
-                <div class="health-key"><i><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6.5" rx="7" ry="3"/><path d="M5 6.5v11c0 1.7 3.1 3 7 3s7-1.3 7-3v-11"/></svg></i>数据库服务</div>
-                <div class="health-val" id="health-mysql">—</div>
+                <button type="button" class="health-link" data-health-target="mysql" title="打开数据库配置"><span class="health-key"><i><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6.5" rx="7" ry="3"/><path d="M5 6.5v11c0 1.7 3.1 3 7 3s7-1.3 7-3v-11"/></svg></i>数据库服务</span><span class="health-val" id="health-mysql">—</span></button>
               </div>
               <div class="health-row">
-                <div class="health-key"><i><svg viewBox="0 0 24 24"><path d="M12 3v18"/><path d="m5 8 7-5 7 5"/></svg></i>客户端资源</div>
-                <div class="health-val" id="health-client">—</div>
+                <button type="button" class="health-link" data-health-target="client" title="打开客户端资源配置"><span class="health-key"><i><svg viewBox="0 0 24 24"><path d="M12 3v18"/><path d="m5 8 7-5 7 5"/></svg></i>客户端资源</span><span class="health-val" id="health-client">—</span></button>
               </div>
               <div class="health-row">
-                <div class="health-key"><i><svg viewBox="0 0 24 24"><path d="m12 3 8 4.2v9.6L12 21l-8-4.2V7.2L12 3Z"/></svg></i>IP 白名单</div>
-                <div class="health-val" id="health-whitelist">—</div>
+                <button type="button" class="health-link" data-health-target="whitelist" title="打开 IP 白名单"><span class="health-key"><i><svg viewBox="0 0 24 24"><path d="m12 3 8 4.2v9.6L12 21l-8-4.2V7.2L12 3Z"/></svg></i>IP 白名单</span><span class="health-val" id="health-whitelist">—</span></button>
               </div>
             </div>
           </article>
@@ -1652,8 +1659,9 @@ tbody tr.is-static:hover{background:transparent}
             <div class="card-head"><h3>服务控制</h3></div>
             <div class="card-body">
               <div class="toolbar" style="gap:9px;flex-wrap:wrap">
-                <button class="btn btn-primary" id="server-restart">重启服务端</button>
-                <button class="btn btn-danger" id="server-stop">关闭服务端</button>
+                <button class="btn btn-primary server-action-btn" id="server-restart"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.8-3M4 4v4h4"/><path d="M4 13a8 8 0 0 0 14.8 3M20 20v-4h-4"/></svg><span>重启</span></button>
+                <button class="btn btn-primary server-action-btn" id="server-start" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7V5Z"/></svg><span>启动</span></button>
+                <button class="btn btn-danger server-action-btn" id="server-stop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v9"/><path d="M7.1 5.8a8 8 0 1 0 9.8 0"/></svg><span>关闭服务端</span></button>
               </div>
               <div class="shop-status" id="server-control-message" role="status" aria-live="polite"></div>
             </div>
@@ -1674,7 +1682,7 @@ tbody tr.is-static:hover{background:transparent}
               </div>
             </div>
             <div class="table-wrap" style="max-height:calc(100vh - 240px)">
-              <table>
+              <table class="log-table">
                 <thead><tr><th style="width:150px">时间</th><th style="width:130px">操作</th><th>内容</th><th style="width:80px">结果</th></tr></thead>
                 <tbody id="log-rows"></tbody>
               </table>
@@ -1707,7 +1715,7 @@ tbody tr.is-static:hover{background:transparent}
             <div class="card-head"><h3>服务端 SSH</h3></div>
             <div class="card-body">
               <div class="cfg-grid">
-                <label class="field" for="cfg-ssh_host"><span>服务端 IP</span><input id="cfg-ssh_host" required placeholder="例如 192.168.1.100" autocomplete="off"></label>
+                <label class="field" for="cfg-ssh_host"><span>服务端 IP 或域名</span><input id="cfg-ssh_host" required placeholder="例如 game.example.com" autocomplete="off"></label>
                 <label class="field" for="cfg-ssh_port"><span>SSH 端口</span><input id="cfg-ssh_port" type="number" min="1" max="65535" required></label>
                 <label class="field" for="cfg-ssh_user"><span>SSH 用户</span><input id="cfg-ssh_user" required autocomplete="username"></label>
                 <label class="field" for="cfg-ssh_password"><span>SSH 密码</span>
@@ -1936,6 +1944,7 @@ $('#modal-root').addEventListener('click', async event => {
     updateProgress();
     const timer=setInterval(updateProgress,1000);
     try{
+      invalidateWeaponTemplates();
       const response=await postJSON('/api/package-queue/apply',{
         items:submitted.map(item=>({id:item.id,...item.operation}))});
       queueResult=response.data;
@@ -1972,6 +1981,7 @@ $('#modal-root').addEventListener('click', async event => {
       clearInterval(timer);
       dpkQueueRunning=false;
       closeDpkQueue();
+      if (state.view === 'item' && state.itemMode === 'weapon') ensureWeaponTemplates();
     }
     const reloadScopes=[...new Set(applied.filter(item=>item.reloadable).map(item=>item.reloadScope).filter(Boolean))];
     const restart = applied.some(item => item.requiresRestart);
@@ -2232,6 +2242,7 @@ function showView(v){
   }
   if (v === 'pet-config' && !state.rideSpeeds) loadRideSpeeds();
   syncHash();
+  $('.stage').scrollTo({ top:0, behavior:'smooth' });
   window.scrollTo({ top:0, behavior:'smooth' });
 }
 
@@ -2265,7 +2276,7 @@ function setItemMode(mode, skipLoad){
   $('#item-panel-backpack').classList.toggle('is-hidden', state.itemMode !== 'backpack');
   if (!skipLoad){
     if (state.itemMode === 'item') ensureItemList();
-    if (state.itemMode === 'weapon') loadWeaponTemplates();
+    if (state.itemMode === 'weapon') ensureWeaponTemplates();
     if (state.itemMode === 'custom') loadCustomItems();
     if (state.itemMode === 'shop') loadShop();
     if (state.itemMode === 'backpack') loadBackpackShop();
@@ -2373,6 +2384,7 @@ async function deleteCustomItems(){
     state.customItemDeleting = false;
     updateCustomItemSelection();
   }
+  if (deleted) invalidateWeaponTemplates();
   if (clientPackageUpdated){
     try{ await downloadFinalClientPackage(); }
     catch(error){ toast(error.message, true); }
@@ -2403,14 +2415,30 @@ const weaponEditableFields = [
   [22,'力量','number'],[21,'体魄','number'],[24,'元神','number'],[23,'筋骨','number']
 ];
 let weaponSearchTimer = null, weaponListRequest = 0, weaponTraitTimer = null, weaponTraitRequest = 0;
+let weaponLoadedKey = null, weaponPendingKey = null;
+function weaponTemplateQuery(){
+  return new URLSearchParams({category:$('#weapon-category').value,profession:$('#weapon-profession').value,q:$('#weapon-search').value.trim()}).toString();
+}
+function invalidateWeaponTemplates(){
+  weaponLoadedKey = null;
+  weaponPendingKey = null;
+  weaponListRequest++;
+}
+function ensureWeaponTemplates(){
+  const key = weaponTemplateQuery();
+  if (key !== weaponLoadedKey && key !== weaponPendingKey) loadWeaponTemplates();
+}
 async function loadWeaponTemplates(){
   const request = ++weaponListRequest;
+  const query = weaponTemplateQuery();
+  weaponLoadedKey = null;
+  weaponPendingKey = query;
   $('#weapon-rows').innerHTML = '<tr class="is-static"><td colspan="3">读取中…</td></tr>';
   try{
-    const query = new URLSearchParams({category:$('#weapon-category').value,profession:$('#weapon-profession').value,q:$('#weapon-search').value.trim()});
     const j = await api('/api/weapon_templates?' + query);
     if (request !== weaponListRequest) return;
     const data = j.data;
+    weaponLoadedKey = query;
     $('#weapon-count').textContent = '共 ' + data.total + ' 条';
     $('#weapon-rows').innerHTML = data.rows.length ? data.rows.map(row =>
       '<tr class="weapon-template-row' + (state.weaponTemplate?.id === row.id ? ' is-active' : '') +
@@ -2418,7 +2446,12 @@ async function loadWeaponTemplates(){
       '</td><td>' + esc(row.level || '—') + '</td></tr>').join('') :
       '<tr class="is-static"><td colspan="3">没有匹配的武器</td></tr>';
   }catch(err){
-    if (request === weaponListRequest) $('#weapon-rows').innerHTML = '<tr class="is-static"><td colspan="3">' + esc(err.message) + '</td></tr>';
+    if (request === weaponListRequest){
+      weaponLoadedKey = null;
+      $('#weapon-rows').innerHTML = '<tr class="is-static"><td colspan="3">' + esc(err.message) + '</td></tr>';
+    }
+  }finally{
+    if (request === weaponListRequest) weaponPendingKey = null;
   }
 }
 function compactWeaponTraits(){
@@ -2693,7 +2726,7 @@ function goto(target){
   if (['weapon','custom','shop','backpack'].includes(target)){
     setItemMode(target, true);
     showView('item');
-    if (target === 'weapon') loadWeaponTemplates();
+    if (target === 'weapon') ensureWeaponTemplates();
     if (target === 'custom') loadCustomItems();
     if (target === 'shop') loadShop();
     if (target === 'backpack') loadBackpackShop();
@@ -2824,6 +2857,18 @@ $('#health-ssh').addEventListener('click', () => {
   sshRevealed = !sshRevealed;
   renderSshInfo();
 });
+$$('[data-health-target]').forEach(button => button.addEventListener('click', () => {
+  const targets = {ssh:['config','cfg-ssh_host'], mysql:['config','cfg-mysql_user'],
+                   client:['config','cfg-client_mb_dpk'], whitelist:['whitelist','ip-whitelist-input']};
+  const [mode, fieldId] = targets[button.dataset.healthTarget];
+  setLogsMode(mode, true);
+  showView('logs');
+  requestAnimationFrame(() => {
+    const field = document.getElementById(fieldId);
+    field.scrollIntoView({behavior:'smooth', block:'center'});
+    field.focus({preventScroll:true});
+  });
+}));
 async function loadHealth(){
   try{
     const j = await api('/api/config');
@@ -5180,7 +5225,7 @@ function renderLogs(){
     '<tr class="is-static">' +
       '<td class="num">' + esc(r.time) + '</td>' +
       '<td>' + esc(r.action) + '</td>' +
-      '<td class="muted wrap" style="max-width:760px;font-family:ui-monospace,Menlo,monospace;font-size:11px">' +
+      '<td class="muted wrap log-detail">' +
         esc(typeof r.detail === 'string' ? r.detail : JSON.stringify(r.detail)) + '</td>' +
       '<td>' + (String(r.result).startsWith('fail')
         ? '<span class="tag bad">失败</span>'
@@ -5201,9 +5246,9 @@ async function loadServerControlState(){
   try{
     const j = await api('/api/server/control');
     const data = j.data || {};
-    $('#server-control-message').textContent = data.error || '';
+    $('#server-control-message').textContent = data.error || (data.running ? data.phase : '');
     $('#server-control-message').classList.toggle('is-error', !!data.error);
-    $('#server-control-message').classList.toggle('is-success', !data.error && !data.running && !!data.phase);
+    $('#server-control-message').classList.remove('is-success');
   } catch(e){
     $('#server-control-message').textContent = e.message;
     $('#server-control-message').classList.add('is-error');
@@ -5212,17 +5257,18 @@ async function loadServerControlState(){
 
 async function runServerAction(action){
   const restarting = action === 'restart';
-  const actionName = restarting ? '重启' : '关闭';
-  const actionButton = restarting ? $('#server-restart') : $('#server-stop');
+  const starting = action === 'start';
+  const actionName = starting ? '启动' : restarting ? '重启' : '关闭';
+  const actionButton = $('#server-' + action);
   await confirmDialog({
     title: '确认' + actionName + '游戏服务端？',
-    html: '<p>此操作会断开当前在线玩家。</p>' +
-      (restarting ? '<p class="server-action-timer" hidden>已用时 <span>00:00</span></p>' : ''),
+    html: (starting ? '<p>启动游戏服务端及数据库。</p>' : '<p>此操作会断开当前在线玩家。</p>') +
+      (action !== 'stop' ? '<p class="server-action-timer" hidden>已用时 <span>00:00</span></p>' : ''),
     okText: actionName + '服务端',
-    loadingText: restarting ? '正在重启…' : '正在关闭…',
+    loadingText: '正在' + actionName + '…',
     onConfirm: async () => {
-      busy(actionButton, true, restarting ? '正在重启…' : '正在关闭…');
-      const timer = restarting ? $('.server-action-timer', $('#modal-root')) : null;
+      busy(actionButton, true, '正在' + actionName + '…');
+      const timer = action !== 'stop' ? $('.server-action-timer', $('#modal-root')) : null;
       const startedAt = performance.now();
       const updateTimer = () => {
         if (!timer) return;
@@ -5241,7 +5287,7 @@ async function runServerAction(action){
           if (!data.running){
             if (data.error) throw new Error(data.error);
             $('#server-control-message').textContent = '';
-            toast(restarting ? '游戏服务端已重启' : '游戏服务端已关闭');
+            toast('游戏服务端已' + actionName);
             return;
           }
           await new Promise(resolve => setTimeout(resolve, 1500));
@@ -5255,6 +5301,7 @@ async function runServerAction(action){
     }
   });
 }
+$('#server-start').addEventListener('click', () => runServerAction('start'));
 $('#server-restart').addEventListener('click', () => runServerAction('restart'));
 $('#server-stop').addEventListener('click', () => runServerAction('stop'));
 
@@ -5336,6 +5383,7 @@ $('#config-form').addEventListener('submit', async e => {
   busy(btn, true, '保存中');
   try{
     const j = await postJSON('/api/config', body);
+    if ((j.data.changed || []).some(key => ['client_mb_dpk','ssh_host','ssh_port','ssh_user'].includes(key))) invalidateWeaponTemplates();
     const note = j.data.restart_required
       ? '已保存。监听地址或端口变更后需重启程序。'
       : '已保存，新连接设置已生效。';

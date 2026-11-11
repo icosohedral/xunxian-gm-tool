@@ -29,6 +29,7 @@ from urllib.parse import parse_qs, urlparse
 from pathlib import Path
 
 import paramiko
+from scripts.game_dns import resolve_game_host
 from scripts.skill_limits import (CAREER_GROUP, CAREER_GROUP_NAMES, inspect_client_dpk,
                                   inspect_dpk_career_groups, inspect_dpk_skills,
                                   patch_dpk_changes, touch_client_session,
@@ -431,7 +432,12 @@ def update_config(changes):
         try:
             ipaddress.ip_address(value)
         except ValueError as e:
-            raise ValueError(f"{key} 必须是有效的 IP 地址") from e
+            labels = value.rstrip('.').split('.')
+            hostname = (len(value) <= 253 and len(labels) > 1 and
+                        all(re.fullmatch(r'[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?', label)
+                            for label in labels) and not all(label.isdigit() for label in labels))
+            if key != "ssh_host" or not hostname:
+                raise ValueError(f"{key} 必须是有效的 IP 地址" + ("或域名" if key == "ssh_host" else "")) from e
         candidate[key] = value
     if not ipaddress.ip_address(candidate["listen_host"]).is_loopback:
         raise ValueError("网页控制台没有登录验证，监听地址必须是本机回环 IP")
@@ -548,7 +554,7 @@ def ssh():
             raise ValueError("请在 gm_config.json 中设置服务端 IP：ssh_host")
         c = paramiko.SSHClient()
         c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        kwargs = dict(hostname=host, port=int(CFG["ssh_port"]),
+        kwargs = dict(hostname=resolve_game_host(host), port=int(CFG["ssh_port"]),
                       username=CFG["ssh_user"], timeout=8,
                       allow_agent=False, look_for_keys=False)
         key = CFG.get("ssh_key") or ""
@@ -1651,18 +1657,19 @@ def delete_shop_items(item_ids):
 def _server_action_worker(action, source):
     global _shop_restart_state
     try:
-        _shop_restart_state.update({"phase": "正在关闭游戏服务端" if action == "stop" else "正在停止游戏服务端", "error": "",
+        _shop_restart_state.update({"phase": {"start": "正在启动游戏服务端", "stop": "正在关闭游戏服务端", "restart": "正在停止游戏服务端"}[action], "error": "",
                                     "updated_at": int(time.time())})
         c = ssh()
-        stop_cmd = "sudo -n runuser -u mc -- /opt/xxserver/stop.sh --clients-exited"
-        _, stdout, stderr = c.exec_command(stop_cmd, timeout=240)
-        stop_out = stdout.read().decode("utf-8", "replace").strip()
-        stop_err = stderr.read().decode("utf-8", "replace").strip()
-        stop_rc = stdout.channel.recv_exit_status()
         errors = []
-        if stop_rc != 0:
-            errors.append("停止服务端失败：" + (stop_err or stop_out or f"退出码 {stop_rc}"))
-        if action == "restart":
+        if action in ("stop", "restart"):
+            stop_cmd = "sudo -n runuser -u mc -- /opt/xxserver/stop.sh --clients-exited"
+            _, stdout, stderr = c.exec_command(stop_cmd, timeout=240)
+            stop_out = stdout.read().decode("utf-8", "replace").strip()
+            stop_err = stderr.read().decode("utf-8", "replace").strip()
+            stop_rc = stdout.channel.recv_exit_status()
+            if stop_rc != 0:
+                errors.append("停止服务端失败：" + (stop_err or stop_out or f"退出码 {stop_rc}"))
+        if action in ("start", "restart"):
             _shop_restart_state.update({"phase": "正在启动游戏服务端", "updated_at": int(time.time())})
             c = ssh()
             start_cmd = "sudo -n runuser -u mc -- /opt/xxserver/start.sh"
@@ -1672,17 +1679,17 @@ def _server_action_worker(action, source):
             start_rc = stdout.channel.recv_exit_status()
             if start_rc != 0:
                 errors.append("启动服务端失败：" + (start_err or start_out or f"退出码 {start_rc}"))
-        success_phase = "重启完成" if action == "restart" else "服务端已关闭"
-        failure_phase = "重启失败" if action == "restart" else "关闭失败"
+        success_phase = {"start": "启动完成", "restart": "重启完成", "stop": "服务端已关闭"}[action]
+        failure_phase = {"start": "启动失败", "restart": "重启失败", "stop": "关闭失败"}[action]
         _shop_restart_state.update({"phase": failure_phase if errors else success_phase,
                                     "error": "；".join(errors), "updated_at": int(time.time())})
-        op_log(source + ("重启服务端" if action == "restart" else "关闭服务端"), {},
+        op_log(source + {"start": "启动服务端", "restart": "重启服务端", "stop": "关闭服务端"}[action], {},
                "fail: " + "; ".join(errors) if errors else "ok")
     except Exception as e:
         reset_ssh()
-        _shop_restart_state.update({"phase": "重启失败" if action == "restart" else "关闭失败", "error": str(e)[:500],
+        _shop_restart_state.update({"phase": {"start": "启动失败", "restart": "重启失败", "stop": "关闭失败"}[action], "error": str(e)[:500],
                                     "updated_at": int(time.time())})
-        op_log(source + ("重启服务端" if action == "restart" else "关闭服务端"), {}, "fail: " + str(e))
+        op_log(source + {"start": "启动服务端", "restart": "重启服务端", "stop": "关闭服务端"}[action], {}, "fail: " + str(e))
     finally:
         _shop_restart_state["running"] = False
 
@@ -1692,10 +1699,10 @@ def start_server_action(action, source="运维管理"):
     with _shop_restart_lock:
         if _shop_restart_state.get("running"):
             raise ValueError("游戏服务端正在执行操作")
-        if action not in ("restart", "stop"):
+        if action not in ("start", "restart", "stop"):
             raise ValueError("未知的服务端操作")
         _shop_restart_state = {"running": True, "action": action,
-                               "phase": "准备重启" if action == "restart" else "准备关闭", "error": "",
+                               "phase": {"start": "准备启动", "restart": "准备重启", "stop": "准备关闭"}[action], "error": "",
                                "updated_at": int(time.time())}
         threading.Thread(target=_server_action_worker, args=(action, source), daemon=True).start()
     return dict(_shop_restart_state)
@@ -4340,7 +4347,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": True, "data": result}, 202)
             if p == "/api/server/control":
                 action = body.get("action")
-                if action not in ("restart", "stop"):
+                if action not in ("start", "restart", "stop"):
                     return self._json({"ok": False, "error": "未知的服务端操作"}, 400)
                 result = start_server_action(action)
                 op_log("服务端操作请求", {"action": action})

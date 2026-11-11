@@ -6,6 +6,7 @@ __pycache__/
 
 # Local credentials and runtime configuration
 gm_config.json
+cloudflare_dns_token
 .env
 .env.*
 !.env.example
