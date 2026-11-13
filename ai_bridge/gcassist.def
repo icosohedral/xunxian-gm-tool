@@ -1,0 +1,5 @@
+LIBRARY gcassist.so
+EXPORTS
+    GCAssist_Create = gcassist_real.GCAssist_Create
+    WHCMN_STATIC_INFO_In = gcassist_real.WHCMN_STATIC_INFO_In
+    WHNET_STATIC_INFO_In = gcassist_real.WHNET_STATIC_INFO_In

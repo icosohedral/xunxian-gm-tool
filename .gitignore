@@ -28,3 +28,4 @@ Thumbs.db
 /dist/
 *.app/
 scripts/iphone/build/
+ai_bridge/build/
