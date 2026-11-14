@@ -6,6 +6,10 @@
  *   AddMsg(包指针, 长度)（0x4a2d30）。不录像时它直接返回。本 DLL 在这个函数开头装一个跳转钩子，
  *   把包复制进环形缓冲区，再由后台线程用 TCP 发到 127.0.0.1:47800（可用环境变量 XXBRIDGE_PORT 改）。
  *
+ * 网络分发函数 0x56b250 按首字节分流：>= 0x80 的游戏包交给 Receive（走上面的 AddMsg 钩子），
+ * < 0x80 的命令包（玩家数据、物品、经验等）交给另一个处理器，不经过 AddMsg。
+ * 所以在分发函数的 < 0x80 分支（0x56b329）再装一个钩子，两类包都能收到，且互不重复。
+ *
  * 插件导出用 .def 转发到改名后的原插件 gcassist_real.dll，游戏的插件逻辑不受影响。
  * 只适用于 SHA-256 59e50674… 这个版本的 tty3d.exe：装钩子前会核对函数开头的字节，
  * 不一致就放弃，只写日志。
@@ -19,13 +23,17 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define HOOK_ADDR   0x004A2D30u
+#define HOOK_ADDR   0x004A2D30u   /* AddMsg：>= 0x80 的游戏包 */
 #define HOOK_RESUME 0x004A2D36u
+#define CMD_HOOK_ADDR   0x0056B329u   /* 分发函数的 < 0x80 分支：命令包 */
+#define CMD_HOOK_RESUME 0x0056B32Fu
 #define DEFAULT_PORT 47800
 #define RING_SIZE   (4u * 1024u * 1024u)
 #define MAX_PACKET  60000
 
 static const uint8_t kExpected[6] = {0x56, 0x8b, 0xf1, 0x8b, 0x46, 0x08};
+/* mov edx, [ebp-0x41c] */
+static const uint8_t kCmdExpected[6] = {0x8b, 0x95, 0xe4, 0xfb, 0xff, 0xff};
 
 static uint8_t *g_ring;
 static volatile uint32_t g_head, g_tail;   /* 写入位置 / 读取位置（单调递增，取模使用） */
@@ -109,6 +117,27 @@ __asm__(
     "  ret\n"
     ".att_syntax\n");
 extern void hook_addmsg(void);
+
+/* 命令包钩子：此时 [ebp-0x434] 是消息缓冲区（首字节为类型），[ebp-0x41c] 是长度 */
+__asm__(
+    ".intel_syntax noprefix\n"
+    ".globl _hook_cmd\n"
+    "_hook_cmd:\n"
+    "  pushad\n"
+    "  pushfd\n"
+    "  mov eax, [ebp-0x434]\n"
+    "  mov edx, [ebp-0x41c]\n"
+    "  push edx\n"
+    "  push eax\n"
+    "  call _on_packet\n"
+    "  add esp, 8\n"
+    "  popfd\n"
+    "  popad\n"
+    "  mov edx, [ebp-0x41c]\n"     /* 被覆盖的原指令 */
+    "  push 0x0056B32F\n"
+    "  ret\n"
+    ".att_syntax\n");
+extern void hook_cmd(void);
 
 static int send_all(SOCKET sock, const uint8_t *data, int len)
 {
@@ -198,27 +227,28 @@ static void open_log(HMODULE self)
     g_log = fopen(path, "a");
 }
 
-static int install_hook(void)
+/* 在 addr 处写 6 字节：JMP rel32 + NOP。写之前核对原字节，版本不对就不改 */
+static int install_hook(uint32_t addr, const uint8_t *expected, void (*stub)(void), const char *label)
 {
-    uint8_t *target = (uint8_t *)HOOK_ADDR;
+    uint8_t *target = (uint8_t *)(uintptr_t)addr;
     DWORD old;
     int32_t rel;
-    if (memcmp(target, kExpected, sizeof kExpected) != 0) {
-        log_line("0x%08X 处字节不符（%02X %02X %02X %02X %02X %02X），客户端版本不对，不装钩子",
-                 HOOK_ADDR, target[0], target[1], target[2], target[3], target[4], target[5]);
+    if (memcmp(target, expected, 6) != 0) {
+        log_line("%s：0x%08X 处字节不符（%02X %02X %02X %02X %02X %02X），客户端版本不对，不装钩子",
+                 label, addr, target[0], target[1], target[2], target[3], target[4], target[5]);
         return 0;
     }
     if (!VirtualProtect(target, 6, PAGE_EXECUTE_READWRITE, &old)) {
-        log_line("VirtualProtect 失败：%lu", GetLastError());
+        log_line("%s：VirtualProtect 失败：%lu", label, GetLastError());
         return 0;
     }
-    rel = (int32_t)((uint32_t)(uintptr_t)hook_addmsg - (HOOK_ADDR + 5));
+    rel = (int32_t)((uint32_t)(uintptr_t)stub - (addr + 5));
     target[0] = 0xE9;
     memcpy(target + 1, &rel, 4);
     target[5] = 0x90;
     VirtualProtect(target, 6, old, &old);
     FlushInstructionCache(GetCurrentProcess(), target, 6);
-    log_line("钩子已安装在 0x%08X（AddMsg）", HOOK_ADDR);
+    log_line("%s：钩子已安装在 0x%08X", label, addr);
     return 1;
 }
 
@@ -232,8 +262,11 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID reserved)
         g_ring = (uint8_t *)VirtualAlloc(NULL, RING_SIZE, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
         InitializeCriticalSection(&g_lock);
         g_event = CreateEventA(NULL, FALSE, FALSE, NULL);
-        if (g_ring && g_event && install_hook())
-            CloseHandle(CreateThread(NULL, 0, sender_thread, NULL, 0, NULL));
+        if (g_ring && g_event) {
+            int ok = install_hook(HOOK_ADDR, kExpected, hook_addmsg, "游戏包（AddMsg）");
+            ok |= install_hook(CMD_HOOK_ADDR, kCmdExpected, hook_cmd, "命令包（分发 < 0x80）");
+            if (ok) CloseHandle(CreateThread(NULL, 0, sender_thread, NULL, 0, NULL));
+        }
     }
     return TRUE;
 }

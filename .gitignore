@@ -29,3 +29,4 @@ Thumbs.db
 *.app/
 scripts/iphone/build/
 ai_bridge/build/
+ai_bridge/viewer/names.json
