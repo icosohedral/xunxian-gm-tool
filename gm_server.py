@@ -184,6 +184,7 @@ _fate_package_source_cache = None
 _fate_package_source_digest = None
 _grant_lock = threading.Lock()
 _client = None
+SSH_PROBE_TIMEOUT = 3
 _shop_mutation_lock = threading.Lock()
 _backpack_shop_lock = threading.RLock()
 _shop_restart_lock = threading.Lock()
@@ -552,9 +553,17 @@ def ssh():
         host = str(CFG.get("ssh_host") or "").strip()
         if not host:
             raise ValueError("请在 gm_config.json 中设置服务端 IP：ssh_host")
+        address, port = resolve_game_host(host), int(CFG["ssh_port"])
+        # 先用短超时探测端口：服务器关机、IP 不在白名单或端口填错时，3 秒内就能报错，
+        # 不用等 SSH 握手的 8 秒超时
+        try:
+            socket.create_connection((address, port), timeout=SSH_PROBE_TIMEOUT).close()
+        except OSError as e:
+            reason = "超时" if isinstance(e, socket.timeout) else (e.strerror or str(e))
+            raise ConnectionError(f"无法连通 {host}:{port}（{reason}）") from None
         c = paramiko.SSHClient()
         c.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        kwargs = dict(hostname=resolve_game_host(host), port=int(CFG["ssh_port"]),
+        kwargs = dict(hostname=address, port=port,
                       username=CFG["ssh_user"], timeout=8,
                       allow_agent=False, look_for_keys=False)
         key = CFG.get("ssh_key") or ""
@@ -562,6 +571,8 @@ def ssh():
             c.connect(key_filename=key, **kwargs)
         else:
             c.connect(password=str(CFG.get("ssh_password") or "vagrant"), **kwargs)
+        # 空闲时每 30 秒发一次心跳，连接被服务器或网络断开时能尽早发现
+        c.get_transport().set_keepalive(30)
         _client = c
     return _client
 
@@ -599,6 +610,9 @@ def sql(statement, timeout=30):
     )
     with _lock:
         for attempt in (0, 1):
+            # 只有复用的旧连接失败时才重试一次（可能已被服务器断开）；
+            # 新建连接失败说明服务器本身连不上，重试只会让等待时间翻倍
+            reused = _client is not None
             try:
                 c = ssh()
                 stdin, stdout, stderr = c.exec_command(cmd, timeout=timeout)
@@ -616,7 +630,7 @@ def sql(statement, timeout=30):
                 return rows
             except Exception:
                 reset_ssh()
-                if attempt:
+                if attempt or not reused:
                     raise
     return []
 
