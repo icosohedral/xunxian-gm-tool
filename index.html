@@ -271,6 +271,19 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .reload-scope-tag[aria-pressed="true"]{border-color:var(--accent-line);background:var(--mint);color:var(--pine)}
 .reload-scope-tag[aria-pressed="true"] .reload-scope-check{border-color:var(--jade);background:var(--jade);stroke:#fff}
 
+/* 自定义悬停提示：接管所有 title 属性，替代浏览器自带的系统样式提示 */
+.ui-tooltip{position:fixed;left:0;top:0;z-index:200;max-width:300px;padding:6px 10px;border-radius:8px;
+  background:var(--inverse-bg);color:var(--inverse-ink);font:600 12px/1.5 var(--font-body);
+  white-space:pre-line;overflow-wrap:anywhere;box-shadow:0 8px 24px rgba(15,30,27,.18);
+  pointer-events:none;opacity:0;transform:translateY(-3px);transition:opacity .12s ease,transform .12s ease}
+.ui-tooltip.is-above{transform:translateY(3px)}
+.ui-tooltip.is-on{opacity:1;transform:none}
+.ui-tooltip::before{content:"";position:absolute;left:calc(var(--arrow-x,50%) - 4px);top:-4px;width:8px;height:8px;
+  background:inherit;border-radius:1px;transform:rotate(45deg)}
+.ui-tooltip.is-above::before{top:auto;bottom:-4px}
+:root[data-mode="dark"] .ui-tooltip{border:1px solid var(--line-strong);box-shadow:0 8px 24px rgba(0,0,0,.45)}
+:root[data-mode="dark"] .ui-tooltip::before{border:inherit;border-right:0;border-bottom:0}
+:root[data-mode="dark"] .ui-tooltip.is-above::before{border:inherit;border-left:0;border-top:0}
 /* 问号提示：hover / focus 时用 CSS 气泡显示 data-tip，无需 JS */
 .help-dot{position:relative;width:22px;height:22px;flex:0 0 22px;display:grid;place-items:center;
   padding:0;border:1px solid var(--line-strong);border-radius:50%;background:var(--surface);color:var(--ink-soft);
@@ -475,12 +488,11 @@ select{appearance:none;-webkit-appearance:none;padding-right:28px;font-weight:65
 .profession-skill-editor input:disabled{background:var(--field);color:var(--ink-faint)}
 .profession-skill-stage{height:38px}
 .profession-skill-pending{min-width:0}
-.profession-skill-pending .card-head{min-height:48px;padding:0 14px}
-.profession-skill-pending .card-body{padding:12px 14px 14px}
-.profession-skill-pending-title{display:flex;align-items:center;gap:8px;min-width:0}
-.profession-skill-pending-clear{padding:4px 2px;border:0;background:transparent;color:var(--ink-soft);font-size:12px;cursor:pointer}
-.profession-skill-pending-clear:hover:not(:disabled),.profession-skill-pending-clear:focus-visible{color:var(--danger);outline:0;text-decoration:underline}
-.profession-skill-pending-clear:disabled{opacity:.5;cursor:default}
+/* 清单卡片头部：左边标题和数量，右边「清空」 */
+.list-head-title{display:flex;align-items:center;gap:8px;min-width:0}
+.list-clear{padding:4px 2px;border:0;background:transparent;color:var(--ink-soft);font-size:12px;cursor:pointer}
+.list-clear:hover:not(:disabled),.list-clear:focus-visible{color:var(--danger);outline:0;text-decoration:underline}
+.list-clear:disabled{opacity:.5;cursor:default}
 .profession-skill-pending-list{display:grid;gap:7px;max-height:210px;overflow:auto}
 .profession-skill-pending-list>.cart-empty{min-height:92px;display:grid;place-items:center}
 .profession-skill-pending-item{display:grid;grid-template-columns:minmax(0,1fr) 30px;align-items:center;gap:8px;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--field)}
@@ -1408,8 +1420,8 @@ tbody tr.is-static:hover{background:transparent}
 
           <article class="card">
             <div class="card-head">
-              <h3><span class="step">02</span>待发放清单</h3>
-              <span class="tag plain" id="cart-count">0 种</span>
+              <div class="list-head-title"><h3><span class="step">02</span>待发放清单</h3><span class="tag plain" id="cart-count">0 项</span></div>
+              <button type="button" class="list-clear" id="cart-clear" disabled>清空</button>
             </div>
             <div class="card-body">
               <div id="cart"></div>
@@ -1547,7 +1559,7 @@ tbody tr.is-static:hover{background:transparent}
               </div>
             </article>
                 <article class="card backpack-draft" id="backpack-draft" hidden>
-                  <div class="card-head"><h3>待上架清单</h3></div>
+                  <div class="card-head"><div class="list-head-title"><h3>待上架清单</h3><span class="tag plain" id="backpack-draft-count">0 项</span></div><button type="button" class="list-clear" id="backpack-draft-clear">清空</button></div>
                   <div class="card-body">
                     <div class="backpack-draft-rows" id="backpack-draft-rows"></div>
                     <button type="button" class="btn btn-primary btn-block backpack-draft-queue" id="backpack-draft-queue">加入队列</button>
@@ -1726,7 +1738,7 @@ tbody tr.is-static:hover{background:transparent}
                     <button class="btn btn-primary btn-block profession-skill-stage" id="profession-skill-stage" type="button" disabled>加入修改清单</button>
                   </section>
                   <section class="card profession-skill-pending" aria-label="修改清单">
-                    <div class="card-head"><div class="profession-skill-pending-title"><h3>修改清单</h3><span class="tag plain" id="profession-skill-pending-count">0 项</span></div><button class="profession-skill-pending-clear" id="profession-skill-pending-clear" type="button" disabled>清空</button></div>
+                    <div class="card-head"><div class="list-head-title"><h3>修改清单</h3><span class="tag plain" id="profession-skill-pending-count">0 项</span></div><button class="list-clear" id="profession-skill-pending-clear" type="button" disabled>清空</button></div>
                     <div class="card-body">
                       <div class="profession-skill-pending-list" id="profession-skill-pending-list"><div class="cart-empty">清单为空，从左侧选择技能并加入</div></div>
                       <button class="btn btn-primary profession-skill-pending-apply" id="profession-skill-apply" type="button" disabled>加入修改队列</button>
@@ -1945,6 +1957,77 @@ tbody tr.is-static:hover{background:transparent}
   }));
   update();
 })();
+
+/* 自定义悬停提示：鼠标移到带 title 的元素上时，把 title 挪到 data-tooltip（阻止系统提示），
+   再用和页面主题一致的气泡显示。动态生成或之后改了 title 的元素，下次悬停时会重新接管。 */
+(function(){
+  const tip = document.createElement('div');
+  tip.className = 'ui-tooltip';
+  tip.id = 'ui-tooltip';
+  tip.setAttribute('role', 'tooltip');
+  document.body.appendChild(tip);
+  let target = null, timer = 0;
+
+  function adopt(el){
+    const title = el.getAttribute('title');
+    if (title !== null){
+      el.dataset.tooltip = title;
+      el.removeAttribute('title');
+      // 没有文字、也没有 aria-label 的图标按钮，保留可读名称
+      if (title && !el.hasAttribute('aria-label') && !el.textContent.trim()) el.setAttribute('aria-label', title);
+    }
+    return el.dataset.tooltip || '';
+  }
+  function owner(node){
+    return node instanceof Element ? node.closest('[title],[data-tooltip]') : null;
+  }
+  function place(el){
+    const r = el.getBoundingClientRect();
+    const w = tip.offsetWidth, h = tip.offsetHeight, gap = 8, margin = 8;
+    const above = r.bottom + gap + h > innerHeight - margin && r.top - gap - h > margin;
+    const center = r.left + r.width / 2;
+    const left = Math.min(Math.max(center - w / 2, margin), innerWidth - w - margin);
+    tip.classList.toggle('is-above', above);
+    tip.style.left = left + 'px';
+    tip.style.top = (above ? r.top - gap - h : r.bottom + gap) + 'px';
+    tip.style.setProperty('--arrow-x', Math.min(Math.max(center - left, 10), w - 10) + 'px');
+  }
+  function show(el){
+    const text = adopt(el);
+    if (!text || !el.isConnected) return;
+    tip.textContent = text;
+    tip.classList.remove('is-on');
+    place(el);
+    el.setAttribute('aria-describedby', 'ui-tooltip');
+    requestAnimationFrame(() => tip.classList.add('is-on'));
+  }
+  function hide(){
+    clearTimeout(timer);
+    if (target && target.getAttribute('aria-describedby') === 'ui-tooltip') target.removeAttribute('aria-describedby');
+    target = null;
+    tip.classList.remove('is-on');
+  }
+  function arm(el, delay){
+    if (el === target) return;
+    hide();
+    if (!el) return;
+    adopt(el);
+    target = el;
+    timer = setTimeout(() => show(el), delay);
+  }
+  document.addEventListener('mouseover', e => arm(owner(e.target), 350));
+  document.addEventListener('mouseout', e => { if (!e.relatedTarget) hide(); });
+  document.addEventListener('focusin', e => {
+    const el = owner(e.target);
+    if (el && e.target.matches(':focus-visible')) arm(el, 0);
+  });
+  document.addEventListener('focusout', hide);
+  document.addEventListener('mousedown', hide, true);
+  document.addEventListener('scroll', hide, true);
+  window.addEventListener('blur', hide);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') hide(); });
+})();
+
 
 (function(){
 "use strict";
@@ -3646,8 +3729,7 @@ async function searchItem(){
     tb.innerHTML = j.rows.map(r => (
       '<tr class="is-static">' +
         '<td><a class="item-wiki-link" href="https://xunxian.wiki/resources/item/' +
-          encodeURIComponent(r.id) + '" target="_blank" rel="noopener noreferrer" ' +
-          'title="查看 Wiki 物品详情（新标签页）">' + esc(r.name) + '</a></td>' +
+          encodeURIComponent(r.id) + '" target="_blank" rel="noopener noreferrer">' + esc(r.name) + '</a></td>' +
         '<td class="num">' + esc(r.id) + '</td>' +
         '<td class="item-type">' + esc(r.type_name) + '</td>' +
         '<td class="num">' + esc(r.lv || '—') + '</td>' +
@@ -3937,12 +4019,18 @@ function renderBackpackDraft(){
   const draft = state.backpackDraft;
   const box = $('#backpack-draft');
   box.hidden = draft.length === 0;
+  $('#backpack-draft-count').textContent = draft.length + ' 项';
   $('#backpack-draft-rows').innerHTML = draft.map(item =>
     '<div class="cart-item backpack-draft-row"><div><div class="cart-title"><b>' + esc(item.name) + '</b><small>#' + esc(item.item_id) + '</small></div>' +
     '<div class="meta">' + esc(item.price) + ' ' + esc(item.unit) + '</div></div>' +
     '<button type="button" class="cart-remove" data-backpack-draft-remove="' + esc(item.item_id) + '" aria-label="移除 ' + esc(item.name) + '" title="移除物品"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg></button></div>'
   ).join('');
 }
+$('#backpack-draft-clear').addEventListener('click', () => {
+  state.backpackDraft = [];
+  renderBackpackDraft();
+  setBackpackStatus('已清空待上架清单');
+});
 function resetBackpackForm(){
   $('#backpack-item-id').value = '';
   $('#backpack-item-q').value = '';
@@ -4108,7 +4196,8 @@ function cartHTML(){
 
 function renderCart(){
   $('#cart').innerHTML = cartHTML();
-  $('#cart-count').textContent = state.cart.length + ' 种';
+  $('#cart-count').textContent = state.cart.length + ' 项';
+  $('#cart-clear').disabled = !state.cart.length;
   const badge = $('#cart-badge');
   badge.textContent = state.cart.length;
   badge.classList.toggle('is-hidden', state.cart.length === 0);
@@ -4170,6 +4259,13 @@ async function resolveChar(v){
   if (!j.rows.length) throw new Error('找不到角色：' + v);
   return j.rows.find(r => r.name === v) || j.rows[0];
 }
+
+$('#cart-clear').addEventListener('click', () => {
+  // 发送中不允许清空，避免清单和正在发送的内容不一致
+  if (!state.cart.length || $('#it-mail-submit').classList.contains('is-busy')) return;
+  state.cart = [];
+  renderCart();
+});
 
 $('#it-mail-submit').addEventListener('click', async e => {
   if (!state.cart.length){ toast('待发放清单为空', true); return; }
