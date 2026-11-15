@@ -1200,7 +1200,7 @@ tbody tr.is-static:hover{background:transparent}
 
         <div class="cols-2 mb-7">
           <article class="card">
-            <div class="card-head"><h3>服务状态</h3><span class="tag ok" id="health-tag">检测中</span></div>
+            <div class="card-head"><h3>服务状态</h3></div>
             <div class="card-body">
               <div class="health-row">
                 <button type="button" class="health-link" data-health-target="ssh" title="打开 SSH 连接配置"><span class="health-key"><i><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8"/></svg></i>SSH 通道</span><span class="health-val health-reveal-value" id="health-ssh-value">********</span></button>
@@ -3237,8 +3237,6 @@ async function loadStatus(){
     pill.classList.toggle('is-quiet', false);
     $('#pill-conn-text').textContent = ok ? '服务端已连接' : '服务端未连接';
     setBanner(ok ? '' : (j.error || 'SSH 连接失败'));
-    $('#health-tag').textContent = ok ? '全部正常' : '连接异常';
-    $('#health-tag').className = 'tag ' + (ok ? 'ok' : 'bad');
     $('#stat-accounts').textContent = fmt(j.accounts);
     $('#stat-chars').textContent = fmt(j.chars);
     $('#stat-items').textContent = fmt(j.items);
@@ -3248,8 +3246,6 @@ async function loadStatus(){
     pill.classList.add('is-bad');
     pill.classList.remove('is-quiet');
     $('#pill-conn-text').textContent = 'GM 服务未响应';
-    $('#health-tag').textContent = '连接异常';
-    $('#health-tag').className = 'tag bad';
     setBanner('GM 服务未响应：' + e.message);
   } finally {
     clearInterval(ticker);
