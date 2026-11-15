@@ -143,9 +143,17 @@ body.has-modal{overflow:hidden}
 .rail-item.is-active .badge{background:var(--surface)}
 .rail-sep{height:1px;margin:9px 9px;background:var(--line)}
 .rail-version{display:block;padding:8px 10px 1px;color:var(--ink-faint);
-  font-size:11px;font-weight:550;letter-spacing:.02em;text-align:left;text-decoration:none}
+  font-size:11px;font-weight:550;letter-spacing:.02em;text-align:left;text-decoration:none;
+  border:0;background:transparent;cursor:pointer}
 .rail-version:hover{color:var(--pine)}
 .rail-version:focus-visible{outline:2px solid var(--jade);outline-offset:2px;border-radius:3px}
+/* 关于弹窗 */
+.about-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--field)}
+.about-row svg{width:16px;height:16px;flex:0 0 16px;fill:var(--ink-soft)}
+.about-row a{min-width:0;color:var(--pine);font-weight:650;text-decoration:none;overflow-wrap:anywhere}
+.about-row a:hover{text-decoration:underline}
+.about-label{flex:none;color:var(--ink-soft);font-size:12px;font-weight:650}
+.about-notice{margin:12px 0 0;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--field);color:var(--ink-soft);font-size:12px;line-height:1.7}
 
 .stage{min-width:0;padding:0 6px 0 10px;background:transparent;height:calc(100vh - 77px);min-height:0;overflow:auto}
 .stage-inner{max-width:1440px;margin:0 auto}
@@ -1158,7 +1166,7 @@ tbody tr.is-static:hover{background:transparent}
         <span>运维管理</span>
       </button>
       <div class="rail-footer">
-      <a class="rail-version" href="https://github.com/icosohedral/xunxian-gm-tool" target="_blank" rel="noopener noreferrer" aria-label="项目仓库，版本 1.2.1">v1.2.1</a>
+      <button type="button" class="rail-version" id="about-open" aria-haspopup="dialog" aria-label="关于寻仙GM工作台，版本 1.2.2">v1.2.2</button>
         <div class="theme-picker" role="group" aria-label="颜色主题">
           <button type="button" class="theme-swatch" data-theme-value="green" aria-label="绿色主题" aria-pressed="true" title="绿色主题"></button>
           <button type="button" class="theme-swatch" data-theme-value="orange" aria-label="陶土橙主题" aria-pressed="false" title="陶土橙主题"></button>
@@ -2138,6 +2146,17 @@ async function downloadFinalClientPackage(){
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 $('#dpk-queue-open').addEventListener('click', openDpkQueue);
+$('#about-open').addEventListener('click', () => {
+  confirmDialog({
+    title:'寻仙GM工作台 v1.2.2',
+    infoOnly:true,
+    danger:false,
+    okText:'知道了',
+    html:'<div class="about-row"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>' +
+         '<span class="about-label">项目地址</span><a href="https://github.com/icosohedral/xunxian-gm-tool" target="_blank" rel="noopener noreferrer">github.com/icosohedral/xunxian-gm-tool</a></div>' +
+         '<div class="about-notice">本项目仅供个人学习与研究使用，请勿用于商业用途或任何违法用途。使用本工具产生的一切后果由使用者自行承担。</div>'
+  });
+});
 $('#modal-root').addEventListener('click', async event => {
   const edit = event.target.closest('[data-queue-edit]');
   if (edit && !dpkQueueRunning){
