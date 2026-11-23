@@ -62,6 +62,8 @@ NEXT_DATA_OFFSET = 8
 NEXT_DATA_CAPACITY = BLOCK_SIZE - NEXT_DATA_OFFSET
 WHSC_HEADER_SIZE = 48
 SUPPORTED_FLAGS_MASK = 0x07
+MAX_VERIFIED_WHSC = 20000
+_VERIFIED_WHSC_SIZES: dict[bytes, int] = {}
 DEFAULT_MAX_INPUT_SIZE = 2 * 1024 * 1024 * 1024
 ZLIB_STRATEGIES = {
     "default": zlib.Z_DEFAULT_STRATEGY,
@@ -201,8 +203,9 @@ def encrypt_payload(payload: bytes, key: bytes) -> bytes:
     Encrypt a WHSC payload and verify it with the known-good decoder.
 
     Complete blocks use DES-CBC with a zero IV and no padding. The final
-    1-7 bytes are recovered by enumerating the at most eight mirror-swap
-    states accepted by the original tail decoder.
+    1-7 bytes reverse the mirror swaps of the original tail decoder. Each swap
+    depends only on byte-pair sums, which swapping leaves unchanged, so running
+    the same swaps again undoes them.
     """
     if len(key) != 8:
         raise ValueError("DES 密钥必须正好为 8 字节")
@@ -235,29 +238,17 @@ def encrypt_payload(payload: bytes, key: bytes) -> bytes:
             transformed_tail[index] = transformed_byte
             previous_transformed_byte = transformed_byte
 
-        pair_count = len(transformed_tail) // 2
-        cipher_tail: bytes | None = None
+        parity = (transformed_tail[-1] + transformed_tail[0]) & 1
 
-        for swap_mask in range(1 << pair_count):
-            candidate = bytearray(transformed_tail)
+        for left in range(len(transformed_tail) // 2):
+            right = len(transformed_tail) - left - 1
+            if ((transformed_tail[right] + transformed_tail[left]) & 1) == parity:
+                transformed_tail[left], transformed_tail[right] = (
+                    transformed_tail[right],
+                    transformed_tail[left],
+                )
 
-            for left in range(pair_count):
-                if swap_mask & (1 << left):
-                    right = len(candidate) - left - 1
-                    candidate[left], candidate[right] = (
-                        candidate[right],
-                        candidate[left],
-                    )
-
-            test_cipher = cipher_full + bytes(candidate)
-            if decrypt_payload(test_cipher, key) == payload:
-                cipher_tail = bytes(candidate)
-                break
-
-        if cipher_tail is None:
-            raise RepackError("无法生成可由原算法解密的尾部密文")
-
-        result = cipher_full + cipher_tail
+        result = cipher_full + bytes(transformed_tail)
 
     if decrypt_payload(result, key) != payload:
         raise RepackError("Payload 加密往返自校验失败")
@@ -536,53 +527,54 @@ def topology_preserving_compression_levels(
     return levels
 
 
+def zlib_parameter_candidates() -> list[tuple[int, int, str]]:
+    """Return (level, memLevel, strategy) sorted by distance from defaults."""
+    candidates = [
+        (level, mem_level, strategy)
+        for strategy in ZLIB_STRATEGIES
+        # Z_HUFFMAN_ONLY and Z_RLE ignore the level, so one is enough.
+        for level in (
+            (6,) if strategy in {"huffman", "rle"} else range(1, 10)
+        )
+        for mem_level in range(1, 10)
+    ]
+    candidates.sort(
+        key=lambda item: (
+            item[2] != "default",
+            abs(item[0] - 6) + abs(item[1] - 8),
+        )
+    )
+    return candidates
+
+
 def find_topology_preserving_zlib_parameters(
     plain: bytes,
     chain: BlockChain,
-    *,
-    target_whsc_size: int,
 ) -> ZlibParameters | None:
-    candidates: list[tuple[tuple[int, ...], ZlibParameters]] = []
+    """Return the first parameters, nearest to defaults, that keep the chain.
 
-    for level in range(1, 10):
-        for mem_level in range(1, 10):
-            for strategy in ZLIB_STRATEGIES:
-                payload = compress_zlib(
-                    plain,
-                    level=level,
-                    mem_level=mem_level,
-                    strategy=strategy,
-                )
-                whsc_size = WHSC_HEADER_SIZE + len(payload)
-
-                if whsc_size > chain.capacity:
-                    continue
-                if (
-                    required_block_count(whsc_size)
-                    != len(chain.block_numbers)
-                ):
-                    continue
-
-                parameters = ZlibParameters(
-                    level=level,
-                    mem_level=mem_level,
-                    strategy=strategy,
-                    whsc_size=whsc_size,
-                )
-                rank = (
-                    abs(whsc_size - target_whsc_size),
-                    0 if strategy == "default" else 1,
-                    abs(level - 6),
-                    abs(mem_level - 8),
-                    level,
-                    mem_level,
-                )
-                candidates.append((rank, parameters))
-
-    if not candidates:
-        return None
-    candidates.sort(key=lambda item: item[0])
-    return candidates[0][1]
+    Each trial compresses the whole resource, so the search stops at the
+    first match instead of ranking every combination.
+    """
+    for level, mem_level, strategy in zlib_parameter_candidates():
+        payload = compress_zlib(
+            plain,
+            level=level,
+            mem_level=mem_level,
+            strategy=strategy,
+        )
+        whsc_size = WHSC_HEADER_SIZE + len(payload)
+        if (
+            whsc_size <= chain.capacity
+            and required_block_count(whsc_size) == len(chain.block_numbers)
+        ):
+            return ZlibParameters(
+                level=level,
+                mem_level=mem_level,
+                strategy=strategy,
+                whsc_size=whsc_size,
+            )
+    return None
 
 
 def format_compression_hint(levels: list[int]) -> str:
@@ -746,6 +738,23 @@ def write_virtual_file(
     return tuple(used), tuple(detached)
 
 
+def verified_whsc_size(whsc: bytes) -> int:
+    """Return the decoded size after checking that a WHSC stream decodes.
+
+    Every byte is still read from the output. A stream whose SHA-256 matches one
+    that already decoded with a correct MD5 would give the same result again,
+    so only streams not seen before are decrypted and decompressed.
+    """
+    digest = hashlib.sha256(whsc).digest()
+    size = _VERIFIED_WHSC_SIZES.get(digest)
+    if size is None:
+        size = len(decode_whsc(whsc))
+        if len(_VERIFIED_WHSC_SIZES) >= MAX_VERIFIED_WHSC:
+            _VERIFIED_WHSC_SIZES.clear()
+        _VERIFIED_WHSC_SIZES[digest] = size
+    return size
+
+
 def verify_output(
     path: Path,
     *,
@@ -773,16 +782,19 @@ def verify_output(
         target_verified = False
 
         for entry in entries:
-            data = reader.extract(entry)
-            decoded_bytes += len(data)
+            whsc = reader.read_virtual_file(entry.root_block)
 
             if (
                 entry.path == target.path
                 and entry.root_block == target.root_block
             ):
+                data = decode_whsc(whsc)
+                decoded_bytes += len(data)
                 if data != expected_plain:
                     raise RepackError("目标资源写后逐字节校验失败")
                 target_verified = True
+            else:
+                decoded_bytes += verified_whsc_size(whsc)
 
         if not target_verified:
             raise RepackError("写后校验时未找到目标资源")
@@ -983,7 +995,6 @@ def replace_resource(
         selected = find_topology_preserving_zlib_parameters(
             new_plain,
             chain,
-            target_whsc_size=len(original_whsc),
         )
         if selected is not None:
             compression_level = selected.level

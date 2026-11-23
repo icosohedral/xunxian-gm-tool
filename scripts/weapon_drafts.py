@@ -90,10 +90,8 @@ def weapon_catalog(path: Path, *, profession: str = "all", query: str = "",
     weapons = [item for item in records if item["fields"][2] == category]
     if not header:
         raise ValueError("客户端包缺少物品列表")
-    used = {item["id"] for item in weapons}
     # Allocate against all item categories, including IDs in local server caches.
-    _, all_items = read_items(path, weapons=False)
-    used.update(item["id"] for item in all_items)
+    used = {item["id"] for item in records}
     for package in other_packages:
         if package.is_file():
             _, items = read_items(package, weapons=False)

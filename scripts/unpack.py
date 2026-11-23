@@ -142,6 +142,7 @@ class DpkReader:
         self.fp = path.open("rb")
         self.file_size = path.stat().st_size
         self.header = self._read_header()
+        self._entries: tuple[DpkEntry, ...] | None = None
 
     def close(self) -> None:
         self.fp.close()
@@ -225,6 +226,11 @@ class DpkReader:
         return bytes(output)
 
     def read_entries(self) -> list[DpkEntry]:
+        if self._entries is None:
+            self._entries = tuple(self._parse_entries())
+        return list(self._entries)
+
+    def _parse_entries(self) -> list[DpkEntry]:
         directory_root_block = read_u32(self.header, 132)
         strings_root_block = read_u32(self.header, 136)
 
