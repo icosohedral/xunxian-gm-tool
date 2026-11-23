@@ -127,6 +127,15 @@ class BackpackQueueTests(unittest.TestCase):
         change = {'action': 'add', 'product_id': 70001, 'item_id': 500,
                   'merchants': [238], 'price': '2', 'unit': '金'}
         report = {'copper': 20000, 'previous_copper': 0}
+
+        applied_prices = []
+
+        def apply_shop(archive, output, entries, prices):
+            # 写包后队列会清空这个字典，所以在调用时记下内容。
+            applied_prices.append(dict(prices))
+            Path(output).write_bytes(b'patched client')
+            return {'changed': True, 'added': [], 'prices': [], 'missing_items': []}
+
         with patch.object(queue_module, 'backpack_items',
                           return_value={500: {'id': 500, 'name': '甲', 'price': ''}}), \
                 patch.object(queue_module, 'prepare_backpack',
@@ -135,20 +144,23 @@ class BackpackQueueTests(unittest.TestCase):
                 patch.object(queue_module, 'backpack_product_entries',
                              return_value=[{'product_id': 70001, 'item_id': 500, 'name': '甲',
                                             'discount': '100', 'gold': True}]), \
-                patch.object(queue_module, 'apply_client_shop',
-                             return_value={'changed': True, 'added': [], 'prices': [],
-                                           'missing_items': []}) as apply, \
+                patch.object(queue_module, 'apply_client_shop', side_effect=apply_shop) as apply, \
                 patch.object(queue_module, 'verify_client_shop') as verify:
             result = builder._patch_backpack(
                 {'action': 'add', 'item_id': 500, 'ranges': ['VIP'], 'price': '2', 'unit': '金'},
                 self.outputs())
+            # 客户端商品表攒到队列中背包项结束后才一次写包。
+            apply.assert_not_called()
+            builder._flush_backpack_client()
+        self.assertEqual(builder.packages['客户端'].read_bytes(), b'patched client')
+        self.assertEqual(builder._pending_backpack_entries, [])
         self.assertEqual(result['product_id'], 70001)
         self.assertEqual(builder.backpack_prices, {500: 20000})
         self.assertEqual(builder.backpack_price_change, report)
         self.assertEqual(initialize.call_args.args[3:], (500, '2', '金'))
         self.assertEqual(initialize.call_args.kwargs, {'expected_base_price': 0})
         self.assertEqual(prepare.call_args.kwargs['base_price'], 20000)
-        self.assertEqual(apply.call_args.args[3], {500: 20000})
+        self.assertEqual(applied_prices, [{500: 20000}])
         verify.assert_called_once()
 
     def test_existing_base_price_is_reused_without_touching_the_package(self):

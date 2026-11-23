@@ -21,8 +21,9 @@ class ReloadAPITests(unittest.TestCase):
                     patch.object(gm_server, 'op_log'), \
                     patch.object(gm_server, 'read_backpack_remote', return_value=files), \
                     patch.object(gm_server, 'run_item_reload'), \
-                    patch.object(gm_server, 'reload_backpack_remote', return_value={'merchant_cache': {'state': 'matched'}}) as reload, \
-                    patch.object(gm_server, 'inspect_backpack_cache', return_value=verification):
+                    patch.object(gm_server, 'reload_backpack_remote', return_value={
+                        'merchant_cache': {'state': 'matched'}, 'verification': verification}) as reload, \
+                    patch.object(gm_server, 'inspect_backpack_cache') as inspect:
                 connection = http.client.HTTPConnection('127.0.0.1', server.server_port)
                 try:
                     connection.request('POST', '/api/config/reload', '{"scopes":["backpack"]}', {'Content-Type': 'application/json'})
@@ -31,6 +32,8 @@ class ReloadAPITests(unittest.TestCase):
                     self.assertEqual(response.status, 200)
                     self.assertEqual(result['data']['backpack']['verification'], verification)
                     reload.assert_called_once()
+                    # 热重载已返回运行中商人缓存的比对结果，不再单独读取一次。
+                    inspect.assert_not_called()
                 finally:
                     connection.close()
         finally:
