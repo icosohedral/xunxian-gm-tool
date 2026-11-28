@@ -2410,7 +2410,37 @@ function busy(btn, on, label){
 }
 
 /* ---------- API ---------- */
+/* 只读本机文件、不连游戏服务端的接口；其余接口在未填写服务端 IP 或域名时不发请求。 */
+const LOCAL_API = new Set(['/api/config', '/api/config/pick-path', '/api/items', '/api/scenes', '/api/logs',
+  '/api/equipment_attribute_choices', '/api/weapon_templates', '/api/weapon_traits', '/api/summons/catalog',
+  '/api/server/control', '/api/shop/restart', '/api/quit']);
+const NO_SERVER_MSG = '尚未填写服务端 IP 或域名，请先在「运维管理 → 连接配置」中设置';
+/* true：已填写；false：未填写；null：还不知道（配置读取失败时按已填写处理，交给后端报错） */
+let serverConfigured = null;
+let serverConfigPending = null;
+function setServerConfigured(settings){
+  serverConfigured = !!String((settings && settings.ssh_host) || '').trim();
+}
+function ensureServerConfigKnown(){
+  if (serverConfigured !== null) return Promise.resolve();
+  if (!serverConfigPending){
+    serverConfigPending = fetch('/api/config')
+      .then(r => r.json())
+      .then(j => { if (j.ok && serverConfigured === null) setServerConfigured(j.data.settings); })
+      .catch(() => {})
+      .finally(() => { serverConfigPending = null; });
+  }
+  return serverConfigPending;
+}
+function needsServer(path){
+  const p = String(path).split('?')[0];
+  return p.startsWith('/api/') && !LOCAL_API.has(p) && !p.endsWith('/download');
+}
 async function api(path, opt){
+  if (needsServer(path)){
+    await ensureServerConfigKnown();
+    if (serverConfigured === false) throw new Error(NO_SERVER_MSG);
+  }
   // opt.timeout（毫秒）：超时后中止请求，避免 GM 服务卡住时页面一直等
   let r;
   if (opt && opt.timeout){
@@ -3219,6 +3249,16 @@ let statusSeq = 0;
 async function loadStatus(){
   const pill = $('#pill-conn');
   const seq = ++statusSeq;
+  await ensureServerConfigKnown();
+  if (seq !== statusSeq) return;
+  if (serverConfigured === false){
+    pill.classList.add('is-bad');
+    pill.classList.remove('is-quiet');
+    $('#pill-conn-text').textContent = '未配置服务端';
+    setBanner(NO_SERVER_MSG);
+    ['accounts','chars','items','scenes'].forEach(k => { $('#stat-' + k).textContent = '—'; });
+    return;
+  }
   // 超过 1 秒还没结果，就在胶囊里显示已等待的秒数
   const started = Date.now();
   const ticker = setInterval(() => {
@@ -3281,6 +3321,7 @@ async function loadHealth(){
   try{
     const j = await api('/api/config');
     const s = j.data.settings || {};
+    setServerConfigured(s);
     sshInfo = (s.ssh_user || '—') + '@' + (s.ssh_host || '—') + ':' + (s.ssh_port || '—');
     renderSshInfo();
     $('#health-mysql').textContent = (s.mysql_user || '—') + '@' + (j.data.db_char || '—');
@@ -5853,6 +5894,7 @@ async function loadConfig(){
   try{
     const j = await api('/api/config');
     const c = j.data.settings;
+    setServerConfigured(c);
     const savedClientPath = String(c.client_mb_dpk || '').trim();
     if (state.skillLimits && state.skillLimitsPath !== savedClientPath) {
       state.skillLimits = null;
