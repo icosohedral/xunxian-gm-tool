@@ -4459,17 +4459,17 @@ $('#game-config-mode').addEventListener('click', e => {
 
 async function confirmSkillHotReload(button, scopes, status=null){
   if (button.disabled || !scopes.length) return;
-  const notes = {
-    'skill-learn':'重载导师技能列表和学习条件。替换客户端包并重新登录，再打开导师窗口；取消学习资格不会删除已学会的技能。',
-    'definitions':'重载职业技能定义。正在运行的技能效果会被清理；替换客户端包并重新登录。',
-    'summon':'重载技能定义和召唤物配置。正在运行的技能效果会被清理；替换客户端包、重新登录并重新召唤。',
-    'all':'重载跨职业技能、职业技能和召唤物配置。正在运行的技能效果会被清理；替换客户端包并重新登录，召唤物修改后重新召唤。',
-    'rides':'重载骑宠配置。已经骑乘的角色建议先下坐骑，再重新骑乘。',
-    'shop':'重载商城商品配置。在线商城数据会同步刷新。',
-    'backpack':'重载已保存的背包商店配置，刷新并核对两条线路的商人列表。',
-    'weapon':'重载武器定义。替换客户端包并重新登录；已装备的武器请重新装备。'
-  };
-  const names={definitions:'职业技能配置','skill-learn':'跨职业技能',all:'召唤物',rides:'骑宠设置',shop:'商城',backpack:'背包商店',weapon:'武器配置'};
+  /* 按后果汇总提示：风险只说一次，重载后的操作去重后列成清单，只显示与所选项目相关的条目 */
+  const has = (...keys) => keys.some(key => scopes.includes(key));
+  const clearsSkills = has('definitions', 'summon', 'all');
+  const followUps = [
+    has('skill-learn', 'definitions', 'summon', 'all', 'weapon') && '替换客户端 mb.dpk 并重新登录',
+    [has('summon', 'all') && '召唤物重新召唤',
+     has('weapon') && '已装备的武器重新装备',
+     has('rides') && '骑乘中的角色下坐骑再骑'].filter(Boolean).join('，'),
+    has('skill-learn') && '打开导师窗口确认学习条件（已学会的技能不受影响）'
+  ].filter(Boolean);
+  const names={definitions:'职业技能配置','skill-learn':'跨职业技能',summon:'召唤物',all:'召唤物',rides:'骑宠设置',shop:'商城',backpack:'背包商店',weapon:'武器配置'};
   const hasWeapon=scopes.includes('weapon');
   const title=scopes.length===1&&scopes[0]==='rides'?'确认热重载骑宠设置':
     scopes.length===1&&scopes[0]==='shop'?'确认热重载商城':
@@ -4477,9 +4477,10 @@ async function confirmSkillHotReload(button, scopes, status=null){
     scopes.length===1&&hasWeapon?'确认热重载武器配置':
     scopes.length===1?'确认热重载技能':'确认热重载 '+scopes.length+' 项配置';
   const detail=[
-    '<p>本次选择：'+scopes.map(scope=>esc(names[scope]||scope)).join('、')+'。</p>',
-    scopes.map(scope=>'<p>'+notes[scope]+'</p>').join(''),
-    scopes.some(scope=>scope!=='backpack')?'<p>其他配置的相同表会合并；若包含职业技能定义，只执行一次 reloadskill。</p>':'',
+    scopes.length>1||title==='确认热重载技能'?'<p>'+scopes.map(scope=>esc(names[scope]||scope)).join('、')+'</p>':'',
+    clearsSkills?'<p>⚠ 正在运行的技能效果会被清理。</p>':'',
+    followUps.length?'<p style="margin-bottom:4px">重载后：</p><ol style="margin:0;padding-left:1.5em">'+
+      followUps.map(step=>'<li>'+step+'</li>').join('')+'</ol>':'<p>重载后立即生效，无需其他操作。</p>',
     '<p class="server-action-timer" hidden>已用时 <span>00:00</span></p>'
   ].join('');
   await confirmDialog({title, danger:false, okText:'热重载', loadingText:'热重载中…',
