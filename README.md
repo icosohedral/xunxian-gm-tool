@@ -95,6 +95,16 @@ python gm_server.py
 
 启动后，在浏览器打开 <http://127.0.0.1:8899>。
 
+## 发布网页版
+
+页面静态部分发布在 <https://gm.xunxian.wiki>（Cloudflare Worker 静态资源，只包含 `index.html` 和 `assets/`，后端接口在网页版不可用）。更新时在项目目录运行：
+
+```bash
+deploy/deploy.sh
+```
+
+脚本会把文件复制到 `deploy/public` 再用 wrangler 发布，需要 Node.js 和已登录的 wrangler（`npx wrangler login`）。加 `--dry-run` 可只检查不发布。
+
 ## 首次连接
 
 在工作台打开「运维管理」→「连接配置」，填写服务端 IP、SSH 登录信息、MySQL 账号和数据库名称，然后保存并测试连接。配置保存在项目目录的 `gm_config.json`，该文件包含密码，已加入 `.gitignore`。

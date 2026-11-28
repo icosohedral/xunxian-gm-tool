@@ -30,3 +30,8 @@ Thumbs.db
 scripts/iphone/build/
 ai_bridge/build/
 ai_bridge/viewer/names.json
+
+# Static site deploy staging
+deploy/public/
+.wrangler/
+deploy/.wrangler/

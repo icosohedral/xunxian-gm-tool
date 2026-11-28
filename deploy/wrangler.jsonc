@@ -1,0 +1,7 @@
+// gm.xunxian.wiki 静态页面部署配置，只发布 deploy/public 里的文件。
+{
+  "name": "xunxian-gm-tool",
+  "compatibility_date": "2026-11-01",
+  "assets": { "directory": "./public" },
+  "routes": [{ "pattern": "gm.xunxian.wiki", "custom_domain": true }]
+}
